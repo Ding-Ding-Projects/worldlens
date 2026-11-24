@@ -18,7 +18,7 @@
  * | `WORLDLENS_BEHIND_TLS` | `1` when a proxy or tunnel terminates TLS in front of this. |
  * | `WORLDLENS_SITE_LAN_HTTP` | `1` to allow plain HTTP on the local network (passkeys need HTTPS). |
  * | `WORLDLENS_MC_CONTAINER` | The Minecraft container's name (default `worldlens-mc`). |
- * | `WORLDLENS_MC_DIR` | The server folder as this program sees it (default `/data/server`). |
+ * | `WORLDLENS_MC_DIR` | The server folder inside the Minecraft container (default `/data`, where the itzg image keeps it). Files are read and written with `docker cp` and `docker exec` against that container, so this is its path there, not this program's. |
  * | `WORLDLENS_MC_NAME` | The server's display name. |
  */
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
@@ -79,7 +79,7 @@ export function readSiteConfiguration(env: Readonly<Record<string, string | unde
             origin,
             plainHttpAllowed: lan && !tls,
             container,
-            serverDir: env["WORLDLENS_MC_DIR"] ?? "/data/server",
+            serverDir: env["WORLDLENS_MC_DIR"] ?? "/data",
             serverName: (env["WORLDLENS_MC_NAME"] ?? "Minecraft server").slice(0, 80),
         },
         problems,
@@ -125,13 +125,31 @@ export async function ensureServerRecord(
     now: string,
 ): Promise<void> {
     const list = await registry.list();
-    if (
-        list.ok &&
-        list.value.some(
-            (r) => r.ref.kind === "local-docker" && r.ref.containerRef === configuration.container,
-        )
-    )
+    const existing = list.ok
+        ? list.value.find((r) => r.ref.kind === "local-docker" && r.ref.containerRef === configuration.container)
+        : undefined;
+    if (existing !== undefined) {
+        // Sites before 1.0.2415 registered the folder as this program saw it (/data/server)
+        // rather than where the container keeps it (/data), so every file read and write
+        // went to the wrong place. Bring such a record to the configured folder.
+        const ref = existing.ref as { kind: string; containerRef: string; serverDir?: string };
+        if (ref.serverDir !== configuration.serverDir) {
+            // The registry refuses to change a record's transport identity in place, which is
+            // right for anything a person edits; this record belongs to the site, so it is
+            // replaced under the same id rather than edited.
+            const removed = await registry.remove(existing.id);
+            if (!removed.ok)
+                throw new Error(`The appliance's server could not be updated: ${removed.failure.message}`);
+            const put = await registry.put({
+                ...existing,
+                ref: { ...ref, serverDir: configuration.serverDir },
+                updatedAt: now,
+            } as unknown as ServerRecord);
+            if (!put.ok)
+                throw new Error(`The appliance's server could not be updated: ${put.failure.message}`);
+        }
         return;
+    }
     const record: ServerRecord = {
         id: "appliance-server",
         name: configuration.serverName,
@@ -181,6 +199,9 @@ export async function main(
     const book = await loadAccounts(configuration.dataDirectory);
     const handle = await startWebConsoleServer({
         registry,
+        // The itzg image ships mc-send-to-console, so commands and player actions go through
+        // the container itself; the site holds no RCON password.
+        factory: { capabilities: { console: "exec-helper" } },
         safeStorage: NO_SHARED_PASSWORD,
         dataFolder: configuration.dataDirectory,
         host: "0.0.0.0",

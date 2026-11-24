@@ -172,7 +172,7 @@ elif [ "$KIND" = minecraft ]; then
     done
     docker rm -f worldlens-mc worldlens-site >/dev/null 2>&1
     docker run -d --name worldlens-mc --restart always -p 25565:25565 -p 19132:19132/udp \
-        -e EULA=TRUE -e MEMORY="${MC_MEM}G" -v worldlens-mc-data:/data \
+        -e EULA=TRUE -e MEMORY="${MC_MEM}G" -e CREATE_CONSOLE_IN_PIPE=true -v worldlens-mc-data:/data \
         "$MC_IMAGE" >> /var/log/worldlens-map.log 2>&1 || { banner "$TITLE" "The Minecraft server did not start."; exit 1; }
     docker run -d --name worldlens-site --restart always -p "$PORT:8443" \
         -v /var/run/docker.sock:/var/run/docker.sock -v worldlens-site-state:/data/state -v worldlens-mc-data:/data/server \

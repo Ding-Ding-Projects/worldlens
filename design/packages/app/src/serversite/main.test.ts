@@ -63,10 +63,25 @@ describe("server management site", () => {
         await ensureServerRecord(registry, configuration!, "2026-11-23T00:00:00.000Z");
         const list = await registry.list();
         expect(list.ok && list.value.map((r) => r.ref)).toEqual([
-            { kind: "local-docker", containerRef: "worldlens-mc", serverDir: "/data/server" },
+            { kind: "local-docker", containerRef: "worldlens-mc", serverDir: "/data" },
         ]);
         expect(await readFile(join(dir, "minecraft-servers.v1.json"), "utf8")).toContain(
             "worldlens-mc",
         );
+    });
+
+    it("moves a record registered with the old folder to where the container keeps the server", async () => {
+        const registry = createServerRegistry({ dataFolder: dir });
+        const old = readSiteConfiguration({
+            WORLDLENS_SITE_HOST: "mc.local",
+            WORLDLENS_BEHIND_TLS: "1",
+            WORLDLENS_DATA: dir,
+            WORLDLENS_MC_DIR: "/data/server",
+        }).configuration!;
+        await ensureServerRecord(registry, old, "2026-11-23T00:00:00.000Z");
+        const now = readSiteConfiguration({ WORLDLENS_SITE_HOST: "mc.local", WORLDLENS_BEHIND_TLS: "1", WORLDLENS_DATA: dir }).configuration!;
+        await ensureServerRecord(registry, now, "2026-11-24T00:00:00.000Z");
+        const list = await registry.list();
+        expect(list.ok && list.value.map((r) => [r.id, (r.ref as { serverDir: string }).serverDir])).toEqual([["appliance-server", "/data"]]);
     });
 });
