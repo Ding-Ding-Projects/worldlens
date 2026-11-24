@@ -26,6 +26,8 @@ import PredicateBlockEditor from "./PredicateBlockEditor.vue";
 import FunctionEditor from "./FunctionEditor.vue";
 import ItemModifierEditor from "./ItemModifierEditor.vue";
 import WorldgenPartEditor from "./WorldgenPartEditor.vue";
+import PartForm from "./PartForm.vue";
+import { hasForm } from "./partForms.js";
 import { BLOCK_IDS, ITEM_IDS } from "../mcserver/commandBuilderData.js";
 import {
     PACK_VERSIONS,
@@ -1151,6 +1153,7 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                         v-model:text="part.text"
                         :kind="part.kind"
                     />
+                    <PartForm v-else-if="hasForm(part.kind)" v-model:text="part.text" :kind="part.kind" />
                     <v-textarea
                         v-model="part.text"
                         :label="t('datapack.part.json', 'The file, as JSON')"
