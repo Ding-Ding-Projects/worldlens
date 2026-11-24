@@ -112,7 +112,7 @@ use_storage() {
             # An all-zero first MiB means no file system or partition data of any kind is there.
             [ "$(dd if="$P" bs=1M count=1 2>/dev/null | od -An -v -tx1 | tr -d ' 0\n' | wc -c)" = 0 ] || continue
             say "formatting $P for container storage"
-            mkfs.ext4 -q -L worldlens-docker "$P" && STORE=$P && break
+            mkfs.ext4 -q -F -E nodiscard,lazy_itable_init=1,lazy_journal_init=1 -L worldlens-docker "$P" && STORE=$P && break
         done
     fi
     [ -n "$STORE" ] || { say "no storage partition; using the root file system"; return 0; }
