@@ -105,6 +105,20 @@ describe("compose", () => {
         expect(text).not.toContain("secret-code");
         expect(out.sha256).toBe(createHash("sha256").update(bytes).digest("hex"));
     });
+    it("adds an empty, sparse storage partition after the map data when asked", async () => {
+        const base = await fakeBase();
+        const mapDir = path.join(dir, "m2");
+        const { mkdir, stat } = await import("node:fs/promises");
+        await mkdir(mapDir, { recursive: true });
+        await writeFile(path.join(mapDir, "index.html"), "<html></html>");
+        const config = buildMapConfig({ hostName: "a", port: 80, accessCode: null, vocabulary: {} });
+        const out = await composeDisk({ baseImage: base.file, baseSha256: base.sha, mapDirectory: mapDir, config, outFile: path.join(dir, "s.img"), storageBytes: 3 * 1024 * 1024 + 5 });
+        const head = (await readFile(out.path)).subarray(0, 512);
+        const storage = readPartitions(head).find((p) => p.type === 0x83 && p.startLba * SECTOR === out.plan.totalBytes);
+        expect(storage?.sectors).toBe((4 * 1024 * 1024) / SECTOR);
+        expect(out.bytes).toBe(out.plan.totalBytes + 4 * 1024 * 1024);
+        expect((await stat(out.path)).size).toBe(out.bytes);
+    });
     it("refuses a base whose checksum does not match and a map containing a symbolic link", async () => {
         const base = await fakeBase();
         const config = buildMapConfig({ hostName: "a", port: 80, accessCode: null, vocabulary: {} });

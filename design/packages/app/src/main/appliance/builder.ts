@@ -170,6 +170,9 @@ export class ApplianceBuilder {
             mapDirectory,
             config,
             outFile: rawPath,
+            // Container images live on their own partition: the base's root file system is
+            // too small for the Minecraft server image (found booting one under QEMU).
+            ...(request.workload?.kind === "minecraft" ? { storageBytes: 16 * 1024 ** 3 } : request.workload?.kind === "app" ? { storageBytes: 8 * 1024 ** 3 } : {}),
             onStep: (step, info) => {
                 if (step === "base-verified") {
                     progress.set("base", "done", `${mb(info.bytes)} · sha256 ok`);

@@ -4,7 +4,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { verifyManagedMapContext } from "../managedHosting/exportContext.js";
 import type { MapConfig } from "./mapConfig.js";
-import { patchMbrWithData, planDataPartition, readPartitions, SECTOR, type DataPartitionPlan } from "./mbr.js";
+import { MIB, patchMbrWithData, planDataPartition, readPartitions, SECTOR, writePartition, type DataPartitionPlan } from "./mbr.js";
 import { isUstarHeader, tarMemberName, tarSize, writeTarTo, type TarSource } from "./tar.js";
 
 export const MAP_CONFIG_NAME = "worldlens-map.json";
@@ -56,6 +56,12 @@ export interface ComposeInput {
     readonly mapDirectory: string;
     readonly config: MapConfig;
     readonly outFile: string;
+    /**
+     * Room for container images and their data, as an empty partition after the map data.
+     * The app and Minecraft server workloads need it: their images do not fit in the base's
+     * root file system. The boot script formats it on first start. Zero or absent adds none.
+     */
+    readonly storageBytes?: number;
     readonly onStep?: (step: "base-verified" | "packed" | "patched", info: { bytes: number }) => void;
 }
 
@@ -92,7 +98,18 @@ export async function composeDisk(input: ComposeInput): Promise<ComposeResult> {
         await handle.truncate(plan.totalBytes);
         await writeTarTo(handle, plan.startBytes, sources);
         input.onStep?.("packed", { bytes: dataBytes });
-        await handle.write(patched.mbr, 0, SECTOR, 0);
+        let mbrOut = patched.mbr;
+        const storage = Math.ceil((input.storageBytes ?? 0) / MIB) * MIB;
+        if (storage > 0) {
+            const used = readPartitions(mbrOut);
+            const slot = [0, 1, 2, 3].find((s) => !used.some((p) => p.slot === s));
+            if (slot === undefined) throw new Error("The base image has no free partition slot for storage.");
+            mbrOut = Buffer.from(mbrOut);
+            writePartition(mbrOut, slot, { type: 0x83, startLba: plan.totalBytes / SECTOR, sectors: storage / SECTOR });
+            // Sparse: the extra space costs nothing on disk until the appliance writes to it.
+            await handle.truncate(plan.totalBytes + storage);
+        }
+        await handle.write(mbrOut, 0, SECTOR, 0);
         const first = Buffer.alloc(SECTOR);
         await handle.read(first, 0, SECTOR, plan.startBytes);
         if (!isUstarHeader(first) || tarMemberName(first) !== MAP_CONFIG_NAME) throw new Error("The map data partition did not read back as expected.");
@@ -101,8 +118,9 @@ export async function composeDisk(input: ComposeInput): Promise<ComposeResult> {
     } finally {
         await handle.close();
     }
-    input.onStep?.("patched", { bytes: plan.totalBytes });
-    return { path: input.outFile, bytes: plan.totalBytes, sha256: await sha256File(input.outFile), plan, dataBytes };
+    const totalBytes = plan.totalBytes + Math.ceil((input.storageBytes ?? 0) / MIB) * MIB;
+    input.onStep?.("patched", { bytes: totalBytes });
+    return { path: input.outFile, bytes: totalBytes, sha256: await sha256File(input.outFile), plan, dataBytes };
 }
 
 async function readFirstSector(handle: fs.FileHandle): Promise<Buffer> {

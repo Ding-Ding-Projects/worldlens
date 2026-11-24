@@ -96,6 +96,36 @@ elif [ "$KIND" = minecraft ]; then
     READY="The server is running. Players join this computer's address on port 25565; the management site is here:"
 fi
 HEALTH_PATH=health
+
+# Container images need more room than the root file system has. The builder adds an empty
+# partition for the app and server workloads; format it on first start (only if it is entirely
+# empty, so nothing is ever overwritten) and keep Docker's data there.
+use_storage() {
+    STORE=$(blkid -L worldlens-docker 2>/dev/null)
+    if [ -z "$STORE" ]; then
+        for SYS in /sys/class/block/*; do
+            P=/dev/$(basename "$SYS")
+            [ -f "$SYS/partition" ] || continue
+            [ "$P" = "$DEV" ] && continue
+            grep -q "^$P " /proc/mounts && continue
+            [ "$(cat "$SYS/size")" -ge 4194304 ] || continue
+            [ -z "$(blkid "$P" 2>/dev/null)" ] || continue
+            [ "$(dd if="$P" bs=1M count=1 2>/dev/null | tr -d '\000' | wc -c)" = 0 ] || continue
+            say "formatting $P for container storage"
+            mkfs.ext4 -q -L worldlens-docker "$P" && STORE=$P && break
+        done
+    fi
+    [ -n "$STORE" ] || { say "no storage partition; using the root file system"; return 0; }
+    grep -q " /var/lib/docker " /proc/mounts && return 0
+    rc-service docker stop >/dev/null 2>&1
+    mkdir -p /var/lib/docker
+    mount "$STORE" /var/lib/docker || { rc-service docker start >/dev/null 2>&1; return 0; }
+    rc-service docker start >/dev/null 2>&1
+    until docker info >/dev/null 2>&1; do sleep 2; done
+    say "container storage on $STORE"
+}
+
+if [ "$KIND" = app ] || [ "$KIND" = minecraft ]; then use_storage; fi
 if [ "$KIND" = app ]; then
     # The whole WorldLens application (the hosted image), pulled by digest. Both values were
     # validated by the builder; they are checked again here because this script runs as root.
