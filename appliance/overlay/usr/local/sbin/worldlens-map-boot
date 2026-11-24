@@ -112,16 +112,22 @@ use_storage() {
             # An all-zero first MiB means no file system or partition data of any kind is there.
             [ "$(dd if="$P" bs=1M count=1 2>/dev/null | od -An -v -tx1 | tr -d ' 0\n' | wc -c)" = 0 ] || continue
             say "formatting $P for container storage"
-            mkfs.ext4 -q -F -E nodiscard,lazy_itable_init=1,lazy_journal_init=1 -L worldlens-docker "$P" && STORE=$P && break
+            timeout 300 mkfs.ext4 -q -F -E nodiscard,lazy_itable_init=1,lazy_journal_init=1 -L worldlens-docker "$P" && STORE=$P && break
         done
     fi
     [ -n "$STORE" ] || { say "no storage partition; using the root file system"; return 0; }
     grep -q " /var/lib/docker " /proc/mounts && return 0
-    rc-service docker stop >/dev/null 2>&1
+    say "storage $STORE ready; moving Docker onto it"
+    timeout 60 rc-service docker stop >/dev/null 2>&1
     mkdir -p /var/lib/docker
-    mount "$STORE" /var/lib/docker || { rc-service docker start >/dev/null 2>&1; return 0; }
-    rc-service docker start >/dev/null 2>&1
-    until docker info >/dev/null 2>&1; do sleep 2; done
+    mount "$STORE" /var/lib/docker || { say "could not mount $STORE"; rc-service docker start >/dev/null 2>&1; return 0; }
+    timeout 60 rc-service docker start >/dev/null 2>&1
+    TRIES=0
+    until docker info >/dev/null 2>&1; do
+        TRIES=$((TRIES + 1))
+        [ "$TRIES" -gt 60 ] && { say "Docker did not come back on $STORE"; tail -n 5 /var/log/docker.log 2>/dev/null | while read -r L; do say "docker: $L"; done; return 1; }
+        sleep 2
+    done
     say "container storage on $STORE"
 }
 
