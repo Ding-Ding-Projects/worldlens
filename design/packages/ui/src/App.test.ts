@@ -465,14 +465,15 @@ describe("which shell mounts", () => {
 });
 
 describe("the tab strip", () => {
-    it("opens a fresh Work workspace as one pinned job, not twelve flat tabs", () => {
+    it("opens a fresh Work workspace as one pinned job and the tools tab, not twelve flat tabs", () => {
         shell();
 
         // The rewrite in one assertion. Work holds the jobs somebody actually started, and on a
         // fresh install that is exactly one: the guide, pinned so it cannot be swept up by a bulk
         // close. The other destinations did not disappear - they moved to Home's catalogues,
-        // which is what makes it safe for this strip to be short.
-        expect(tabLabels()).toEqual(["Make a map, pinned"]);
+        // which is what makes it safe for this strip to be short. The general tools tab opens
+        // too: left to the New tab catalogue alone, people reported it missing.
+        expect(tabLabels()).toEqual(["Make a map, pinned", "Universal features"]);
     });
 
     /*
@@ -567,7 +568,7 @@ describe("the tab strip", () => {
         shell();
         await expandShellGroups();
 
-        tabButton("Built-in tools").click();
+        tabButton("Universal features").click();
         await settle();
         document.querySelector<HTMLElement>('.wl-hub__list [data-tool="docs"]')!.click();
         await settle();
@@ -1518,5 +1519,27 @@ describe("Minecraft server detail navigation", () => {
         expect(list.exists()).toBe(true);
         expect(list.text()).toContain("Focus Server");
         expect(document.activeElement?.getAttribute("data-server-control")).toBe("srv-focus");
+    });
+});
+
+
+describe("typing in the command palette", () => {
+    it("searches every row without crashing", async () => {
+        shell();
+        await settle();
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "F", code: "KeyF", ctrlKey: true, shiftKey: true, bubbles: true }));
+        await settle();
+        const input = document.querySelector<HTMLInputElement>(".mb-palette input, [role='dialog'] input[type='text'], [role='combobox']");
+        expect(input).not.toBeNull();
+        const errors: unknown[] = [];
+        const onError = (e: ErrorEvent) => errors.push(e.error);
+        window.addEventListener("error", onError);
+        for (const text of ["n", "nb", "nbt", "data", "a", "tools", "zzz", "["]) {
+            input!.value = text;
+            input!.dispatchEvent(new Event("input", { bubbles: true }));
+            await settle();
+        }
+        window.removeEventListener("error", onError);
+        expect(errors).toEqual([]);
     });
 });

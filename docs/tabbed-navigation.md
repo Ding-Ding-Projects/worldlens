@@ -121,7 +121,7 @@ creating nothing at all for a seed left with no members.
 ### General tools gathered into one tab, Minecraft tools grouped by world
 
 The Work strip later grew to 29 jobs, and about a dozen of them have nothing to do with BlueMap.
-Since 2026-11-23 those sit inside one **Built-in tools** tab (`components/shell/toolHubs.ts`,
+Since 2026-11-23 those sit inside one **Universal features** tab (`components/shell/toolHubs.ts`,
 drawn by `ToolHub.vue`): Docs, File converter, Base64, Drawing board, Authenticator, Locks,
 Support Tickets, Browser downloads, Ollama, Virtual disks, and the Memory console where the build
 has one.

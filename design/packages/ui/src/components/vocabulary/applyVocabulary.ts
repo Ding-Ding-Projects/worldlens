@@ -13,6 +13,7 @@
  * nothing extra and never needs its own "do I have a vocabulary" branch.
  */
 
+import { toRaw } from "vue";
 import { vocabularyStore } from "./vocabularyStore.js";
 import { schoolModeEnabled } from "../setup/schoolMode.js";
 
@@ -46,36 +47,89 @@ function escapeForPattern(key: string): string {
 const WORD_EDGE = /[A-Za-z0-9_]/;
 
 /**
- * A pattern for one key, refusing to match inside a longer word.
+ * The pattern source for one key, refusing to match inside a longer word.
  *
- * Lookarounds rather than ``, because `` is defined against word characters on BOTH
+ * Lookarounds rather than `\b`, because `\b` is defined against word characters on BOTH
  * sides and a key like `working tree` or `--flag` has edges that are not word characters
- * at all - there, `` would refuse matches that should be made.
+ * at all - there, `\b` would refuse matches that should be made.
+ *
+ * The first letter matches in either case. Vocabulary files are written in lower case,
+ * while labels are written in sentence case, so "universal features" has to reach the
+ * "Universal features" a heading actually shows. Only the first letter is relaxed: the
+ * rest of the key still has to match exactly as the person wrote it.
  */
-function patternFor(key: string): RegExp {
+function patternSource(key: string): string {
     const before = WORD_EDGE.test(key[0] ?? "") ? String.raw`(?<![A-Za-z0-9_])` : "";
     const after = WORD_EDGE.test(key[key.length - 1] ?? "") ? String.raw`(?![A-Za-z0-9_])` : "";
-    return new RegExp(`${before}${escapeForPattern(key)}${after}`, "g");
+    const first = key[0] ?? "";
+    const lower = first.toLowerCase();
+    const upper = first.toUpperCase();
+    const head = lower !== upper ? `[${escapeForPattern(lower)}${escapeForPattern(upper)}]` : escapeForPattern(first);
+    return `${before}${head}${escapeForPattern(key.slice(1))}${after}`;
 }
+
+function flipFirst(text: string): string {
+    const first = text[0] ?? "";
+    const flipped = first === first.toLowerCase() ? first.toUpperCase() : first.toLowerCase();
+    return flipped + text.slice(1);
+}
+
+interface CompiledVocabulary {
+    readonly entries: Readonly<Record<string, string>>;
+    readonly pattern: RegExp;
+    readonly results: Map<string, string>;
+}
+
+/** Bounds the memo, so a long session of changing text cannot grow it without limit. */
+const MEMO_LIMIT = 4000;
+
+let compiled: CompiledVocabulary | null = null;
+
+/**
+ * One alternation for the whole file, built once per loaded file.
+ *
+ * This used to build one pattern per key on every call. With a few hundred keys that is a
+ * few hundred regular expressions compiled for every label, and typing into the command
+ * palette re-renders every row it shows - so each keystroke compiled hundreds of
+ * thousands of patterns and the window stopped responding. Keys go longest first, so with
+ * both `repo` and `repository` mapped the shorter cannot win, and one left-to-right pass
+ * means a replacement is never itself rewritten by a later key.
+ */
+function compile(entries: Readonly<Record<string, string>>): CompiledVocabulary {
+    if (compiled !== null && compiled.entries === entries) return compiled;
+    const keys = Object.keys(entries)
+        .filter((key) => key.length > 0)
+        .sort((left, right) => right.length - left.length);
+    compiled = {
+        entries,
+        pattern: new RegExp(keys.map(patternSource).join("|"), "g"),
+        results: new Map(),
+    };
+    return compiled;
+}
+
 export function applyVocabulary(text: string): string {
     // School mode makes personal-vocabulary capability behave as if it is not installed.
     // The validated cache remains untouched so the user's choices return immediately after
     // the shared mode is disabled.
     if (schoolModeEnabled()) return text;
     const entries = vocabularyStore.entries;
-    const keys = Object.keys(entries);
-    if (keys.length === 0) return text;
+    if (typeof text !== "string" || text.length === 0) return text;
+    if (Object.keys(entries).length === 0) return text;
 
-    let result = text;
-    // Longest first, so a short key cannot consume the start of a longer one the user also
-    // mapped - with both `repo` and `repository` mapped, the shorter must not win.
-    for (const key of [...keys].sort((left, right) => right.length - left.length)) {
-        if (key.length === 0) continue;
-        const replacement = entries[key] as string;
-        // A function replacement, so a `$&` or `$1` inside somebody's own vocabulary value
-        // is inserted literally rather than being read as a backreference.
-        result = result.replace(patternFor(key), () => replacement);
-    }
+    const vocabulary = compile(toRaw(entries));
+    const known = vocabulary.results.get(text);
+    if (known !== undefined) return known;
+
+    // A function replacement, so a `$&` or `$1` inside somebody's own vocabulary value
+    // is inserted literally rather than being read as a backreference.
+    const result = text.replace(vocabulary.pattern, (match) => {
+        const exact = vocabulary.entries[match];
+        if (exact !== undefined) return exact;
+        return vocabulary.entries[flipFirst(match)] ?? match;
+    });
+    if (vocabulary.results.size >= MEMO_LIMIT) vocabulary.results.clear();
+    vocabulary.results.set(text, result);
     return result;
 }
 

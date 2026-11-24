@@ -440,7 +440,7 @@ export const CHROME_FIXED = {
     "tabs.page.drawing": { en: "Drawing board", yue: "畫板" },
     "tabs.page.coreprotect": { en: "CoreProtect inspector", yue: "CoreProtect 檢查器" },
     "tabs.page.worldDownloader": { en: "Get a world off a server", yue: "由伺服器攞返個世界" },
-    "tabs.page.toolkit": { en: "Built-in tools", yue: "內置工具" },
+    "tabs.page.toolkit": { en: "Universal features", yue: "通用功能" },
     "toolHub.toolkit.lede": {
         en: "General tools kept together in one tab, so the strip stays about BlueMap maps. Pick one from the list; it opens beside it.",
         yue: "通用工具全部收埋喺呢一個分頁，等上面條分頁列專心講地圖。喺清單揀一樣，佢就喺隔籬打開。",

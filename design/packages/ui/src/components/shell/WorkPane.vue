@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, useSlots, watch } from "vue";
+import { computed, onMounted, reactive, ref, useSlots, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     TabbedNavigation,
@@ -146,6 +146,41 @@ const pinnedPageIds = computed(() =>
     JOB_DEFINITIONS.filter((job) => job.pinnedOnFreshWorkspace).map((job) => job.id),
 );
 
+/**
+ * The tool hub opens on a fresh workspace beside the pinned landing job.
+ *
+ * Seeding only the landing job left the hub reachable from the New tab catalogue alone, so
+ * somebody who had never opened it saw no tools tab at all and reported it missing.
+ */
+const seedPageIds = computed<readonly string[]>(() => [
+    ...FRESH_WORKSPACE_JOB_IDS,
+    ...TOOL_HUBS.filter((hub) => availableMembers(hub.id).length > 0).map((hub) => hub.id),
+]);
+
+/** Pages offered once to a workspace saved before they existed; a tab closed after that stays closed. */
+const OFFERED_KEY = "worldlens-work-offered-pages";
+
+function offerNewPagesOnce(): void {
+    let offered: string[] = [];
+    try {
+        const raw = localStorage.getItem(OFFERED_KEY);
+        const parsed: unknown = raw === null ? [] : JSON.parse(raw);
+        if (Array.isArray(parsed)) offered = parsed.filter((id): id is string => typeof id === "string");
+    } catch {
+        offered = [];
+    }
+    const fresh = seedPageIds.value.filter((id) => !offered.includes(id));
+    if (fresh.length === 0) return;
+    for (const id of fresh) tabs.value?.ensurePage(id);
+    try {
+        localStorage.setItem(OFFERED_KEY, JSON.stringify([...offered, ...fresh]));
+    } catch {
+        // Storage refused; the tab is still open for this session.
+    }
+}
+
+onMounted(offerNewPagesOnce);
+
 /** Re-exposed so the shell can drive Work exactly as it drove the old strip. */
 defineExpose({
     ensurePage: (pageId: string) => tabs.value?.ensurePage(routeToHub(pageId)),
@@ -168,7 +203,7 @@ defineExpose({
             :presentation-labels="props.presentationLabels"
             :pinned-page-ids="pinnedPageIds"
             :initial-groups="initialGroups"
-            :seed-page-ids="FRESH_WORKSPACE_JOB_IDS"
+            :seed-page-ids="seedPageIds"
             :default-placement="WORK_DEFAULT_PLACEMENT"
             file-new-tabs-into-seed-groups
             publishes-inset

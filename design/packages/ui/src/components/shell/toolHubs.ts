@@ -4,7 +4,7 @@
  * The strip had grown to 29 jobs, and a dozen of them have nothing to do with making, viewing
  * or hosting a map: a Base64 encoder, an authenticator, a virtual disk manager. Every one of
  * them is somebody's reason to open the application, so none is deleted. They are gathered
- * into **Built-in tools**, the general tools every application in this family carries.
+ * into **Universal features**, the general tools every application in this family carries.
  *
  * Every Minecraft tool stays in the strip, visible: the NBT editor, Convert, Structures, the
  * world downloader and the CoreProtect inspector all act on the world BlueMap renders, and they
@@ -49,7 +49,7 @@ export const TOOL_HUBS: readonly ToolHubDefinition[] = [
     {
         id: "toolkit",
         labelKey: "tabs.page.toolkit",
-        labelFallback: "Built-in tools",
+        labelFallback: "Universal features",
         ledeKey: "toolHub.toolkit.lede",
         ledeFallback:
             "General tools kept together in one tab, so the strip stays about BlueMap maps. Pick one from the list; it opens beside it.",
