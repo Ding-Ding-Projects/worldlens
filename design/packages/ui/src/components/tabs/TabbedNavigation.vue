@@ -303,16 +303,9 @@ function seedStrip(): TabStripState {
     return landing === undefined ? grouped : setActiveTab(grouped, landing.id);
 }
 
-// A stored workspace with no strip at all is treated as no workspace: every action edits a
-// strip by id, so with none of them nothing could ever be opened again and the surface stayed
-// blank however often a button asked for a tab.
-const stored = readTabWorkspace(undefined, props.storageKey);
 const workspace = ref<TabWorkspaceState>(
-    stored !== null && stored.strips.length > 0 ? stored : { strips: [seedStrip()] },
+    readTabWorkspace(undefined, props.storageKey) ?? { strips: [seedStrip()] },
 );
-// Written at once when seeded, so the seeded tabs are what the next launch restores, rather
-// than whatever another writer left under this key before the first change.
-if (stored === null || stored.strips.length === 0) writeTabWorkspace(workspace.value, undefined, props.storageKey);
 
 watch(
     workspace,
@@ -389,11 +382,10 @@ const presentedStrip = computed<TabStripState>(() =>
 
 /** Replaces one strip, leaving every other strip in the workspace untouched. */
 function update(next: TabStripState): void {
-    const known = workspace.value.strips.some((candidate) => candidate.id === next.id);
     workspace.value = {
-        strips: known
-            ? workspace.value.strips.map((candidate) => (candidate.id === next.id ? next : candidate))
-            : [next, ...workspace.value.strips],
+        strips: workspace.value.strips.map((candidate) =>
+            candidate.id === next.id ? next : candidate,
+        ),
     };
 }
 

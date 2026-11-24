@@ -1309,9 +1309,14 @@ const openJobIds = ref<readonly string[]>([]);
 // so Work's tab strip used to read the old workspace first and keep it in memory, and the next
 // change it made wrote that stale copy straight over the migrated one. A twelve-page workspace
 // pruned against the new page list could come back with no tabs at all, and Work stayed empty.
-const migration = migrationAlreadyRan() ? null : migrateWorkspace(readTabWorkspace());
+// Only a workspace that actually exists is rewritten. With nothing stored, Work's own seed (the
+// pinned landing job, the tools tab, and groups that appear once a member opens) is the fresh
+// layout, and writing the migration's bare strip first would replace it with less.
+const storedWorkspace = readTabWorkspace();
+const hadStoredWorkspace = storedWorkspace !== null && storedWorkspace.strips.length > 0;
+const migration = migrationAlreadyRan() ? null : migrateWorkspace(storedWorkspace);
 if (migration !== null) {
-    if (migration.workspace !== null) writeTabWorkspace(migration.workspace);
+    if (hadStoredWorkspace && migration.workspace !== null) writeTabWorkspace(migration.workspace);
     unresolvedPageIds.value = migration.unresolvedPageIds;
     markMigrationRan();
 }
