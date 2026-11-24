@@ -118,10 +118,12 @@ use_storage() {
     [ -n "$STORE" ] || { say "no storage partition; using the root file system"; return 0; }
     grep -q " /var/lib/docker " /proc/mounts && return 0
     say "storage $STORE ready; moving Docker onto it"
-    timeout 60 rc-service docker stop >/dev/null 2>&1
+    # --nodeps: this script is itself a service that needs docker, so a plain stop would make
+    # OpenRC stop this script too, which is exactly how the first QEMU runs hung here.
+    timeout 60 rc-service --nodeps docker stop >/dev/null 2>&1
     mkdir -p /var/lib/docker
-    mount "$STORE" /var/lib/docker || { say "could not mount $STORE"; rc-service docker start >/dev/null 2>&1; return 0; }
-    timeout 60 rc-service docker start >/dev/null 2>&1
+    mount "$STORE" /var/lib/docker || { say "could not mount $STORE"; rc-service --nodeps docker start >/dev/null 2>&1; return 0; }
+    timeout 60 rc-service --nodeps docker start >/dev/null 2>&1
     TRIES=0
     until docker info >/dev/null 2>&1; do
         TRIES=$((TRIES + 1))
