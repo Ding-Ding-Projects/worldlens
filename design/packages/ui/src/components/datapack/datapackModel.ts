@@ -181,6 +181,8 @@ export interface DataPack {
     advancements: Advancement[];
     lootTables: LootTable[];
     predicates?: Predicate[];
+    /** Files kept exactly as they were opened, for parts this editor does not edit yet. */
+    extraFiles?: Record<string, string>;
 }
 
 export function emptyPack(): DataPack {
@@ -471,7 +473,7 @@ export function lootTableJson(t: LootTable): Record<string, unknown> {
 
 /** Every file the pack writes, path → text, in a stable order. */
 export function packFiles(pack: DataPack): Map<string, string> {
-    const files = new Map<string, string>();
+    const files = new Map<string, string>(Object.entries(pack.extraFiles ?? {}));
     const json = (v: unknown): string => `${JSON.stringify(v, null, 2)}\n`;
     const ns = pack.namespace;
     files.set("pack.mcmeta", json(packMeta(pack)));
@@ -601,4 +603,93 @@ export function packProblems(pack: DataPack): PackProblem[] {
         if (a.icon.trim() === "")
             out.push({ where: `Advancement ${a.name}`, message: "Choose an icon." });
     return out;
+}
+
+/**
+ * Opens an existing pack's files (path → text). Functions and item/block tags become editable;
+ * every other file is kept exactly as it was, so saving never loses anything.
+ */
+export function packFromFiles(files: ReadonlyMap<string, string>): {
+    pack: DataPack;
+    kept: number;
+} {
+    const pack = emptyPack();
+    const extra: Record<string, string> = {};
+    const root =
+        [...files.keys()].find((k) => k.endsWith("pack.mcmeta"))?.replace(/pack\.mcmeta$/, "") ??
+        "";
+    try {
+        const meta = JSON.parse(files.get(`${root}pack.mcmeta`) ?? "{}") as {
+            pack?: { description?: unknown; pack_format?: unknown; min_format?: unknown };
+        };
+        if (typeof meta.pack?.description === "string") pack.description = meta.pack.description;
+        const major =
+            typeof meta.pack?.pack_format === "number"
+                ? meta.pack.pack_format
+                : Array.isArray(meta.pack?.min_format)
+                  ? Number(meta.pack.min_format[0])
+                  : null;
+        const found = PACK_VERSIONS.findIndex((v) => v.major === major);
+        if (found >= 0) pack.versionIndex = found;
+    } catch {
+        /* an unreadable pack.mcmeta keeps the defaults */
+    }
+    const namespaces = new Map<string, number>();
+    for (const [full, text] of files) {
+        if (!full.startsWith(root)) continue;
+        const path = full.slice(root.length);
+        if (path === "pack.mcmeta") continue;
+        const m = /^data\/([a-z0-9_.-]+)\/(.+)$/.exec(path);
+        if (m) namespaces.set(m[1]!, (namespaces.get(m[1]!) ?? 0) + 1);
+        const fn = /^data\/([a-z0-9_.-]+)\/functions?\/(.+)\.mcfunction$/.exec(path);
+        const tag = /^data\/([a-z0-9_.-]+)\/tags\/(items?|blocks?)\/(.+)\.json$/.exec(path);
+        if (fn && fn[1] !== "minecraft") {
+            pack.functions.push({
+                name: fn[2]!,
+                lines: text.replace(/\r/g, "").replace(/\n$/, "").split("\n"),
+                onLoad: false,
+                onTick: false,
+            });
+            continue;
+        }
+        if (tag && tag[1] !== "minecraft") {
+            try {
+                const t = JSON.parse(text) as { replace?: unknown; values?: unknown };
+                if (Array.isArray(t.values) && t.values.every((v) => typeof v === "string")) {
+                    pack.tags.push({
+                        name: tag[3]!,
+                        registry: tag[2]!.startsWith("item") ? "item" : "block",
+                        values: t.values as string[],
+                        replace: t.replace === true,
+                    });
+                    continue;
+                }
+            } catch {
+                /* kept below */
+            }
+        }
+        const load = /^data\/minecraft\/tags\/functions?\/(load|tick)\.json$/.exec(path);
+        if (load) continue; // rebuilt from each function's switches below
+        extra[path] = text;
+    }
+    const ns = [...namespaces]
+        .filter(([n]) => n !== "minecraft")
+        .sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (ns !== undefined) pack.namespace = ns;
+    for (const kind of ["load", "tick"] as const) {
+        const text =
+            files.get(`${root}data/minecraft/tags/function/${kind}.json`) ??
+            files.get(`${root}data/minecraft/tags/functions/${kind}.json`);
+        if (text === undefined) continue;
+        try {
+            for (const v of (JSON.parse(text) as { values?: string[] }).values ?? []) {
+                const f = pack.functions.find((x) => `${pack.namespace}:${x.name}` === v);
+                if (f) f[kind === "load" ? "onLoad" : "onTick"] = true;
+            }
+        } catch {
+            /* ignore an unreadable tag */
+        }
+    }
+    pack.extraFiles = extra;
+    return { pack, kept: Object.keys(extra).length };
 }

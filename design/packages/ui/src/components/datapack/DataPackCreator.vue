@@ -32,6 +32,7 @@ import {
     newFunction,
     newLootTable,
     newPredicate,
+    packFromFiles,
     newRecipe,
     newTag,
     packFiles,
@@ -41,6 +42,7 @@ import {
     type RecipeKind,
 } from "./datapackModel.js";
 import { zipStore } from "./zipStore.js";
+import { readZip } from "./zipRead.js";
 
 const { t } = useI18n();
 const STORE = "worldlens-datapack-draft";
@@ -218,6 +220,24 @@ const previewText = computed(
     () => files.value.get(preview.value) ?? files.value.get("pack.mcmeta") ?? "",
 );
 const exported = ref("");
+const opened = ref("");
+
+async function openZip(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    try {
+        const entries = await readZip(new Uint8Array(await file.arrayBuffer()));
+        const text = new Map([...entries].map(([k, v]) => [k, new TextDecoder().decode(v)]));
+        const { pack: loaded, kept } = packFromFiles(text);
+        pack.value = loaded;
+        section.value = "pack";
+        opened.value = t("datapack.opened", { name: file.name, kept }, "Opened {name}. Functions and tags are editable; {kept} other file(s) are kept exactly as they were.");
+    } catch (error) {
+        opened.value = error instanceof Error ? error.message : String(error);
+    }
+}
 
 /** Each drop's real chance per pick: its weight over the pool's total. */
 const lootChances = computed(() => {
@@ -300,6 +320,11 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
             :aria-label="t('datapack.contents', 'What the pack holds')"
         >
             <h2 class="wl-dp__title">{{ pack.namespace }}</h2>
+            <label class="wl-dp__open">
+                <input type="file" accept=".zip,application/zip" class="wl-dp__file-input" :aria-label="t('datapack.openZip', 'Open a pack (.zip)')" @change="openZip" />
+                <span>{{ t("datapack.openZip", "Open a pack (.zip)") }}</span>
+            </label>
+            <p v-if="opened" class="wl-dp__note" role="status">{{ opened }}</p>
             <v-select
                 v-model="pack.versionIndex"
                 :items="versionItems"
@@ -1069,6 +1094,9 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
 .wl-dp__file[aria-current="true"] { background: rgb(var(--v-theme-secondary-container, var(--v-theme-secondary))); }
 .wl-dp__file:focus-visible { outline: 2px solid rgb(var(--v-theme-primary)); }
 .wl-dp__folder { color: rgb(var(--v-theme-on-surface-variant)); }
+.wl-dp__open { display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border-radius: 20px; border: 1px solid rgb(var(--v-theme-outline, var(--v-theme-on-surface))); cursor: pointer; font: 500 14px Roboto, sans-serif; position: relative; align-self: flex-start; }
+.wl-dp__open:focus-within { outline: 3px solid rgb(var(--v-theme-primary)); outline-offset: 2px; }
+.wl-dp__file-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .wl-dp__drop {
     padding: 8px 0;
     border-top: 1px solid rgba(var(--v-theme-on-surface), 0.1);
