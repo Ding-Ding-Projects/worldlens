@@ -923,6 +923,31 @@ function chromeItems(input: PaletteCatalogInput, group: string): PaletteItem[] {
     }
 
     /*
+     * "Update coming soon" lives in the Updates section of Settings, which needs no viewer
+     * either, so this row opens Settings at that section and outlines it.
+     */
+    items.push({
+        kind: "destination",
+        id: "updates.comingSoon",
+        group,
+        title: t("palette.chrome.updateComingSoonTitle", "Update coming soon"),
+        description: t(
+            "palette.chrome.updateComingSoon",
+            "Shows the build that is being made but is not published yet, with its stages, times and what it will contain. It never installs anything.",
+        ),
+        keywords: [
+            "update",
+            "coming soon",
+            "build",
+            "new version",
+            "progress",
+            "not published yet",
+        ],
+        where: t("palette.where.section", "Opens Settings and outlines this setting."),
+        go: () => actions.revealSetting({ surface: "settings", anchor: "updates", missing: false }),
+    });
+
+    /*
      * Unlike the changelog above, the tour needs no viewer: it walks the make-a-map wizard,
      * the map tab and the publish tab, none of which need a rendered map open to visit.
      */

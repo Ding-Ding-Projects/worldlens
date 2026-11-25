@@ -871,6 +871,16 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
                 transport.off("update:event", forward);
             };
         },
+        comingSoonState: () => transport.invoke("update:comingSoon"),
+        refreshComingSoon: () => transport.invoke("update:comingSoonRefresh"),
+        watchComingSoon: (open: boolean) => transport.invoke("update:comingSoonWatching", open),
+        onComingSoonEvent: (listener: BridgeListener) => {
+            const forward = (_event: unknown, state: unknown): void => listener(state);
+            transport.on("update:comingSoonEvent", forward);
+            return () => {
+                transport.off("update:comingSoonEvent", forward);
+            };
+        },
 
         renderRuntimeModes: () => transport.invoke("render:runtimeModes"),
         wslRuntime: (distribution?: string) => transport.invoke("render:wsl", distribution),

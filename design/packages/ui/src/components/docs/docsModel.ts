@@ -108,6 +108,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "gh-cli-accounts.md",
     "github-cli-requirement.md",
     "automatic-updates.md",
+    "update-coming-soon.md",
     "worldlens-migration.md",
     "render-console.md",
     "renders-in-progress.md",

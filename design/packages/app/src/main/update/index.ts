@@ -112,6 +112,21 @@ export {
 } from "./controller.js";
 
 export {
+    COMING_SOON_EVENT_CHANNEL,
+    ComingSoonWatcher,
+    type ComingSoonState,
+    type ComingSoonWatcherOptions,
+    type FetchLike,
+} from "./comingSoon.js";
+
+export {
+    COMING_SOON_CHANNELS,
+    registerComingSoonHandlers,
+    type ComingSoonIpc,
+    type ComingSoonIpcOptions,
+} from "./comingSoonIpc.js";
+
+export {
     UPDATE_CHANNELS,
     UPDATE_EVENT_CHANNEL,
     installUpdateIpc,

@@ -51,6 +51,11 @@ import {
     installUpdateIpc,
     resolveFeed,
     UPDATE_EVENT_CHANNEL,
+    COMING_SOON_EVENT_CHANNEL,
+    ComingSoonWatcher,
+    registerComingSoonHandlers,
+    type ComingSoonIpc,
+    type FetchLike,
     type InstalledUpdates,
 } from "./update/index.js";
 import {
@@ -1492,6 +1497,8 @@ function startAppSettingsHistory(): AppSettingsHistoryIpc {
  * a captured list would keep allowing the folder somebody left.
  */
 let updatesInstalled: InstalledUpdates | null = null;
+let comingSoonWatcher: ComingSoonWatcher | null = null;
+let comingSoonIpc: ComingSoonIpc | null = null;
 
 function startUpdates(render: RenderIpc | null): void {
     if (updatesInstalled !== null) return;
@@ -1521,6 +1528,36 @@ function startUpdates(render: RenderIpc | null): void {
         },
     });
     app.on("will-quit", () => updatesInstalled?.dispose());
+    startComingSoon();
+}
+
+/**
+ * "Update coming soon": reads the repository's public build record so the Updates surface can
+ * say a newer build is on its way. It never installs, downloads or restarts anything, sends
+ * no credential, and does not run at all in a build that cannot update itself.
+ */
+function startComingSoon(): void {
+    if (comingSoonWatcher !== null) return;
+    const watcher = new ComingSoonWatcher({
+        repository: __WORLDLENS_REPOSITORY__,
+        currentVersion: app.getVersion(),
+        fetch: fetch as unknown as FetchLike,
+        enabled: () => app.isPackaged && __WORLDLENS_REPOSITORY__.includes("/"),
+        onChange: (state) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (!window.isDestroyed()) {
+                    window.webContents.send(COMING_SOON_EVENT_CHANNEL, state);
+                }
+            }
+        },
+    });
+    comingSoonWatcher = watcher;
+    comingSoonIpc = registerComingSoonHandlers(ipcMain, { watcher });
+    watcher.start();
+    app.on("will-quit", () => {
+        comingSoonIpc?.dispose();
+        watcher.dispose();
+    });
 }
 
 /**
