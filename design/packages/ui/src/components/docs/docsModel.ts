@@ -135,6 +135,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     // "Running it somewhere other than a desktop" in docs/README.md. Ways of running this
     // application rather than a fourth kind of thing, so they share its heading here.
     "hosted-mode.md",
+    "one-command-setup.md",
     "appliance.md",
     "player-relay.md",
     "share-host.md",

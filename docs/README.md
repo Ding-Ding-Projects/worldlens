@@ -46,6 +46,7 @@ application has. The in-app documentation browser groups them the same way, unde
 | Document | What it covers |
 | --- | --- |
 | [Hosted mode](./hosted-mode.md) | The same interface, served from a container and opened in a browser: one bridge factory with two transports, the fail-closed channel policy, the folders a deployment may touch, the mount root browser that replaces the native folder picker, and what the password does and does not protect. |
+| [One-command setup](./one-command-setup.md) | A single command that asks for what it cannot choose (arrow-key interface, validation, Back, a review screen), generates the password and port, writes the Compose files, starts the hosted application and prints a link it has checked. Also the unattended flags, the exit codes and the audit of every value that used to be made by hand. |
 | [Appliance images](./appliance.md) | Bootable images that run the map, the full app or a Minecraft server with its management site on a machine of their own, and how storage and first sign-in work. |
 | [Player relay](./player-relay.md) | Forwarding a server's game ports through a small public relay, such as an Oracle Cloud instance, so players can join a server behind a home connection. |
 | [Host the map](./share-host.md) | Turning a finished render into a working link in one dialog, on this PC or a saved SSH host. |
