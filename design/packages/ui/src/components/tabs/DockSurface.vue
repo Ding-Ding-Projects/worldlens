@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import {
-    nextTick,
     onBeforeUnmount,
     onMounted,
     ref,
     shallowReactive,
     watch,
-    type ShallowReactive,
 } from "vue";
 import { useI18n } from "vue-i18n";
 import { createDockview, type DockviewApi, type IDockviewPanel } from "dockview";
@@ -57,6 +55,8 @@ const props = defineProps<{
     strips: readonly { readonly id: string; readonly label: string }[];
     /** A previously saved arrangement, already checked against the strips by the caller. */
     initial: DockLayoutJson | null;
+    /** Spoken to assistive technology after an arrangement command; never drawn. */
+    announcement?: string;
 }>();
 
 const emit = defineEmits<{
@@ -79,7 +79,7 @@ const { t } = useI18n();
 
 const root = ref<HTMLElement | null>(null);
 /** Pane elements by strip id; reactive so the teleports follow dockview's own lifecycle. */
-const hosts: ShallowReactive<Record<string, HTMLElement>> = shallowReactive({});
+const hosts = shallowReactive<Record<string, HTMLElement>>({});
 
 let api: DockviewApi | null = null;
 const disposers: Array<() => void> = [];
@@ -131,7 +131,31 @@ function hideHeaders(): void {
     for (const group of api.groups) {
         group.header.hidden = true;
         group.locked = "no-drop-target";
+        neutraliseAria(group.element);
     }
+}
+
+/**
+ * Takes dockview's own tab roles out of the accessibility tree.
+ *
+ * Dockview draws a tab header and a tabpanel wrapper for every group, and with the header
+ * hidden they are empty shells that still carry `tab`, `tablist` and `tabpanel` roles. The
+ * real tabs and the real tabpanel are the strip's and the pane's, and a second set of those
+ * roles above them would give assistive technology two tab lists for one pane.
+ */
+function neutraliseAria(groupElement: HTMLElement): void {
+    for (const node of groupElement.querySelectorAll<HTMLElement>(
+        ".dv-tabs-and-actions-container [role], .dv-content-container[role]",
+    )) {
+        node.removeAttribute("role");
+        node.removeAttribute("aria-selected");
+        node.removeAttribute("aria-controls");
+        node.removeAttribute("aria-labelledby");
+        node.setAttribute("tabindex", "-1");
+    }
+    groupElement
+        .querySelector<HTMLElement>(".dv-tabs-and-actions-container")
+        ?.setAttribute("aria-hidden", "true");
 }
 
 function addStripPanel(index: number): void {
@@ -226,7 +250,7 @@ onMounted(() => {
     if (!props.enabled || root.value === null) return;
     api = createDockview(root.value, {
         theme: { name: "worldlens", className: "dockview-theme-worldlens", gap: 0 },
-        createComponent: (options) => createPane(options.id),
+        createComponent: (options: { id: string }) => createPane(options.id),
         // Without a header of its own to carry it, a floating group needs its titlebar.
         floatingGroupDragHandle: "titlebar",
     } as never);
@@ -234,8 +258,8 @@ onMounted(() => {
     const subscriptions = [
         live.onDidLayoutChange(scheduleEmit),
         live.onDidMaximizedGroupChange(refreshState),
-        live.onDidActivePanelChange((panel: IDockviewPanel | undefined) => {
-            if (panel !== undefined) emit("focus", panel.id);
+        live.onDidActivePanelChange((event: { panel: IDockviewPanel | undefined }) => {
+            if (event.panel !== undefined) emit("focus", event.panel.id);
         }),
         live.onDidAddGroup(hideHeaders),
     ];
@@ -349,12 +373,12 @@ function endDrag(): void {
     drag.value = null;
 }
 
-const ZONES: readonly { zone: "centre" | SplitDirection; label: string }[] = [
-    { zone: "left", label: "Split to the left" },
-    { zone: "right", label: "Split to the right" },
-    { zone: "above", label: "Split above" },
-    { zone: "below", label: "Split below" },
-    { zone: "centre", label: "Move into this pane" },
+const ZONES: readonly { zone: "centre" | SplitDirection }[] = [
+    { zone: "left" },
+    { zone: "right" },
+    { zone: "above" },
+    { zone: "below" },
+    { zone: "centre" },
 ];
 
 function zoneLabel(zone: "centre" | SplitDirection): string {
@@ -379,17 +403,20 @@ function onDrop(targetStripId: string, zone: "centre" | SplitDirection): void {
     emit("drop-tab", current.stripId, current.tabId, targetStripId, zone);
 }
 
-void nextTick;
 </script>
 
 <template>
     <div
         v-if="props.enabled"
-        ref="root"
-        class="mb-dock dockview-theme-worldlens"
+        class="mb-dock"
         @dragstart.capture="onDragStart"
         @dragend.capture="endDrag"
     >
+        <!-- Dockview owns this element's children; Vue owns everything else in the wrapper. -->
+        <div ref="root" class="mb-dock__engine dockview-theme-worldlens"></div>
+        <div class="mb-dock__live" role="status" aria-live="polite">
+            {{ props.announcement ?? "" }}
+        </div>
         <template v-for="strip in props.strips" :key="strip.id">
             <Teleport v-if="hosts[strip.id] !== undefined" :to="hosts[strip.id]">
                 <div class="mb-dock-pane__content">
@@ -411,9 +438,8 @@ void nextTick;
             </Teleport>
         </template>
     </div>
-    <div v-else class="mb-dock mb-dock--plain">
-        <slot v-if="props.strips[0] !== undefined" :strip-id="props.strips[0].id" />
-    </div>
+    <!-- Docking off: the first strip's pane alone, with no wrapper element of this component's own. -->
+    <slot v-else :strip-id="props.strips[0]?.id ?? ''" />
 </template>
 
 <style>
@@ -426,9 +452,18 @@ void nextTick;
     position: relative;
 }
 
-.mb-dock--plain {
-    display: flex;
-    flex-direction: column;
+.mb-dock__engine {
+    position: absolute;
+    inset: 0;
+}
+
+.mb-dock__live {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
 }
 
 /* The app's own tokens, so the layout engine never brings a theme of its own. */

@@ -209,7 +209,7 @@ const props = defineProps<{
      * When it is left out the strip draws no layout button and its tab menu has no
      * arrangement rows, which is every strip except the Work workspace.
      */
-    layoutHost?: WorkLayoutHost;
+    layoutHost?: WorkLayoutHost | undefined;
 }>();
 
 const jobs = computed(() => props.appearance === "jobs");

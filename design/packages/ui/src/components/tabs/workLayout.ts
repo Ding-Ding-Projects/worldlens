@@ -128,9 +128,10 @@ export function splitTabToNewStrip(
     stripId: string,
     tabId: string,
     label: string,
+    allowEmptyingSource = false,
 ): { readonly workspace: TabWorkspaceState; readonly stripId: string } | null {
     const origin = workspace.strips.find((strip) => strip.id === stripId);
-    if (origin === undefined || origin.tabs.length < 2) return null;
+    if (origin === undefined || (origin.tabs.length < 2 && !allowEmptyingSource)) return null;
     const detached = detach(origin, tabId);
     if (detached === null) return null;
 
@@ -149,7 +150,9 @@ export function splitTabToNewStrip(
         activeTabId: moved.id,
     });
     return {
-        workspace: { strips: [...replaceStrip(workspace, detached.source).strips, created] },
+        workspace: pruneEmptyStrips({
+            strips: [...replaceStrip(workspace, detached.source).strips, created],
+        }),
         stripId: id,
     };
 }
@@ -244,6 +247,57 @@ export function activateIn(
     const strip = workspace.strips.find((candidate) => candidate.id === stripId);
     if (strip === undefined) return workspace;
     return replaceStrip(workspace, setActiveTab(strip, tabId));
+}
+
+/**
+ * Folds every strip into the first one, losing no tab, pin, group or order.
+ *
+ * Ids that collide with ones already in the first strip are renamed, groups keep
+ * their name, colour and collapsed state, and pins stay pinned. This is what
+ * resetting a layout means: one pane again, with everything that was open.
+ */
+export function mergeStripsIntoFirst(workspace: TabWorkspaceState): TabWorkspaceState {
+    const [first, ...rest] = workspace.strips;
+    if (first === undefined || rest.length === 0) return workspace;
+    let tabs = [...first.tabs];
+    let groups = [...first.groups];
+    let pinnedOrder = [...first.pinnedOrder];
+    let slots = [...first.slots];
+    for (const other of rest) {
+        const tabIdMap = new Map<string, string>();
+        for (const tab of other.tabs) {
+            const taken = new Set(tabs.map((candidate) => candidate.id));
+            const id = taken.has(tab.id) ? nextId(taken, "tab") : tab.id;
+            tabIdMap.set(tab.id, id);
+            tabs = [...tabs, id === tab.id ? tab : { ...tab, id }];
+        }
+        const groupIdMap = new Map<string, string>();
+        for (const group of other.groups) {
+            const taken = new Set(groups.map((candidate) => candidate.id));
+            const id = taken.has(group.id) ? nextId(taken, "group") : group.id;
+            groupIdMap.set(group.id, id);
+            groups = [
+                ...groups,
+                {
+                    ...group,
+                    id,
+                    tabIds: group.tabIds.map((tabId) => tabIdMap.get(tabId) ?? tabId),
+                },
+            ];
+        }
+        pinnedOrder = [...pinnedOrder, ...other.pinnedOrder.map((id) => tabIdMap.get(id) ?? id)];
+        slots = [
+            ...slots,
+            ...other.slots.map((slot) =>
+                slot.kind === "tab"
+                    ? { kind: "tab" as const, tabId: tabIdMap.get(slot.tabId) ?? slot.tabId }
+                    : { kind: "group" as const, groupId: groupIdMap.get(slot.groupId) ?? slot.groupId },
+            ),
+        ];
+    }
+    return {
+        strips: [normalizeStrip({ ...first, tabs, groups, pinnedOrder, slots })],
+    };
 }
 
 /** The ids of every strip, which is what a saved layout has to account for exactly. */

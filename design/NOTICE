@@ -36,3 +36,9 @@ Licensed under the SIL Open Font License, Version 1.1. Bundled locally (via
 the @fontsource/roboto-mono npm packaging) so the application loads no remote
 fonts. It is the first family named by every monospace surface: file paths,
 config previews, engine logs, regex matches and keyboard keys.
+
+dockview - https://github.com/dockview/dockview
+Copyright (c) 2021 mathuo
+Licensed under the MIT License. Used from its published npm package (dockview and
+dockview-core) and bundled locally to lay out the Work workspace into panes; it
+loads no remote assets.

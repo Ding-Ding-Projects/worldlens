@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useId, watch } from "vue";
+import type { LayoutCommand as PaletteLayoutCommand } from "../tabs/workLayout.js";
 import { useI18n } from "vue-i18n";
 import { mdiArrowCollapse, mdiArrowExpand, mdiClose } from "@mdi/js";
 import { VBtn, VCard, VDialog, VDivider, VIcon, VTooltip } from "vuetify/components";
@@ -108,6 +109,7 @@ const emit = defineEmits<{
     "open-notice-centre": [];
     /** Open the tab strip's finder. */
     "open-tab-finder": [];
+    "run-layout-command": [command: PaletteLayoutCommand];
     /** Open the changelog, wherever the shell keeps it. */
     "open-changelog": [];
     /** Open the interactive tour. */
@@ -162,6 +164,7 @@ const actions: PaletteShellActions = {
     openPage: (pageId) => emit("open-page", pageId),
     openNoticeCentre: () => emit("open-notice-centre"),
     openTabFinder: () => emit("open-tab-finder"),
+    runLayoutCommand: (command) => emit("run-layout-command", command),
     openChangelog: () => emit("open-changelog"),
     openTutorial: (tour) => emit("open-tutorial", tour),
     openEula: () => emit("open-eula"),

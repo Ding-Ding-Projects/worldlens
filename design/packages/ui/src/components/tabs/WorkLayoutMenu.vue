@@ -213,7 +213,7 @@ function apply(id: string): void {
                         :key="row.command"
                         :data-layout-command="row.command"
                         :disabled="row.unavailable !== null"
-                        :subtitle="row.unavailable ?? undefined"
+                        v-bind="row.unavailable === null ? {} : { subtitle: row.unavailable }"
                         @click="choose(row)"
                     >
                         <template #prepend>
@@ -292,7 +292,7 @@ function apply(id: string): void {
                             >
                                 {{ layout.name }}
                             </v-btn>
-                            <template #append>
+                            <span class="mb-work-layouts__tools">
                                 <v-btn
                                     :icon="mdiPencil"
                                     size="x-small"
@@ -341,7 +341,7 @@ function apply(id: string): void {
                                         />
                                     </template>
                                 </ConfigSuperConfirm>
-                            </template>
+                            </span>
                         </template>
                     </v-list-item>
                 </v-list>
@@ -389,6 +389,12 @@ function apply(id: string): void {
 
 .mb-work-layouts__save > .v-input {
     flex: 1 1 140px;
+}
+
+.mb-work-layouts__tools {
+    display: inline-flex;
+    gap: 2px;
+    margin-inline-start: auto;
 }
 
 .mb-work-layouts__apply {

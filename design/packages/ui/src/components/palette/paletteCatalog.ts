@@ -80,6 +80,7 @@ import { PALETTE_SIZES, type PaletteSize } from "./palettePrefs.js";
 import { tutorialLaunchTourLabel, tutorialTourName } from "../tutorial/tutorialCopy.js";
 import { TUTORIAL_TOUR_IDS, type TutorialTourId } from "../tutorial/tutorialSteps.js";
 import { viewerSettingItems } from "./viewerSettings.js";
+import type { LayoutCommand as PaletteLayoutCommand } from "../tabs/workLayout.js";
 
 /**
  * The `SettingsTarget` the world bridge already defines, restated structurally.
@@ -148,6 +149,11 @@ export interface PaletteShellActions {
     readonly openNoticeCentre?: () => void;
     /** Open the tab strip's own finder, which searches every tab and group. */
     readonly openTabFinder?: () => void;
+    /**
+     * Run one pane-arrangement command on the Work workspace's focused pane: split, move,
+     * float, dock or maximise. The same commands the tab context menu offers.
+     */
+    readonly runLayoutCommand?: (command: PaletteLayoutCommand) => void;
     /** Open the changelog viewer, expanded, wherever the shell keeps it. */
     readonly openChangelog?: () => void;
     /** Open the interactive tour: see `components/tutorial/`. */
@@ -909,6 +915,43 @@ function chromeItems(input: PaletteCatalogInput, group: string): PaletteItem[] {
             keywords: ["tab", "group", "find", "search tabs", "pinned", "close tabs", "overflow"],
             run: () => openTabFinder(),
         });
+    }
+
+    /*
+     * The keyboard equivalents of dragging a tab to split the workspace. Each one acts on the
+     * focused pane's active tab, and the menu on the tab itself offers the same rows.
+     */
+    const runLayoutCommand = actions.runLayoutCommand;
+    if (runLayoutCommand !== undefined) {
+        const layoutRows: readonly [PaletteLayoutCommand, string, string][] = [
+            ["split-right", t("workLayout.splitRight", "Split this tab to the right"), "right"],
+            ["split-left", t("workLayout.splitLeft", "Split this tab to the left"), "left"],
+            ["split-above", t("workLayout.splitAbove", "Split this tab above"), "above top"],
+            ["split-below", t("workLayout.splitBelow", "Split this tab below"), "below bottom"],
+            ["next-pane", t("workLayout.nextPane", "Move this tab to the next pane"), "next"],
+            [
+                "previous-pane",
+                t("workLayout.previousPane", "Move this tab to the previous pane"),
+                "previous",
+            ],
+            ["float", t("workLayout.float", "Float this pane"), "floating window undock"],
+            ["dock", t("workLayout.dock", "Dock this floating pane back"), "floating window"],
+            ["maximize", t("workLayout.maximize", "Maximise this pane"), "maximise fullscreen restore"],
+        ];
+        for (const [command, title, extra] of layoutRows) {
+            items.push({
+                kind: "command",
+                id: `chrome.layout.${command}`,
+                group,
+                title,
+                description: t(
+                    "palette.chrome.layout",
+                    "Arranges the Work workspace into panes without dragging: the focused pane's active tab, or the pane itself.",
+                ),
+                keywords: ["pane", "split", "layout", "dock", "tab", "arrange", ...extra.split(" ")],
+                run: () => runLayoutCommand(command),
+            });
+        }
     }
 
     /*
