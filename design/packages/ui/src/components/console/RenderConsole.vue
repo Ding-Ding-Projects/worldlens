@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SettingsQuickAdd from "../settings/quickAdd/SettingsQuickAdd.vue";
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
@@ -945,6 +946,11 @@ function openSetting(target: SettingsTarget): void {
                         >
                             {{ t("world.console.openSetting", "Open the setting") }}
                         </v-btn>
+                        <SettingsQuickAdd
+                            v-if="annotation.settings"
+                            class="mb-console__quickAdd"
+                            :anchor="annotation.settings.anchor"
+                        />
                     </div>
                 </li>
 
@@ -1149,6 +1155,10 @@ function openSetting(target: SettingsTarget): void {
 
 .mb-console__text {
     grid-column: 4;
+}
+
+.mb-console__quickAdd {
+    flex: 1 1 100%;
 }
 
 .mb-console__advice {

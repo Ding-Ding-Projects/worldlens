@@ -105,6 +105,7 @@ import { PROVIDERTEXT_FIXED } from "./providerText.js";
 import { EDITORS_FIXED } from "./editors.js";
 import { EXTENSIONS_FIXED } from "./extensions.js";
 import { INFO_FIXED } from "./info.js";
+import { QUICKADD_FIXED } from "./quickAdd.js";
 import { COREPROTECT_FIXED } from "./coreprotect.js";
 import { WORLDTOOLS_FIXED } from "./worldTools.js";
 import {
@@ -186,6 +187,7 @@ export const SURFACE_FIXED = {
     ...EDITORS_FIXED,
     ...EXTENSIONS_FIXED,
     ...INFO_FIXED,
+    ...QUICKADD_FIXED,
     ...COREPROTECT_FIXED,
     ...WORLDTOOLS_FIXED,
     ...MEASUREDWORLDGEN_FIXED,

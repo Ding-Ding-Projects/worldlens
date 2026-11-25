@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SettingsQuickAdd from "../settings/quickAdd/SettingsQuickAdd.vue";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
@@ -229,6 +230,7 @@ function set(next: PlainValue): void {
                 <v-btn variant="tonal" size="small" density="comfortable" @click="emit('consent')">
                     {{ t("config.field.openConsent", "Open the download setting") }}
                 </v-btn>
+                <SettingsQuickAdd v-if="!accepted" anchor="mojang-download-consent" />
             </div>
         </div>
 

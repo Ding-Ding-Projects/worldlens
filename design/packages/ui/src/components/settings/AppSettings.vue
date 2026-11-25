@@ -52,6 +52,7 @@ import ExtensionsPanel from "../extensions/ExtensionsPanel.vue";
 import BlueMapSourceRow from "./BlueMapSourceRow.vue";
 import { blueMapSourceSearchValues } from "./bluemapSourceStore.js";
 import JavaRuntimeRow from "./JavaRuntimeRow.vue";
+import { lastQuickAddSave } from "./quickAdd/quickAddEvents.js";
 import EngineChoicePanel from "./EngineChoicePanel.vue";
 import SettingsSection from "./SettingsSection.vue";
 import StorageSettingRow from "./StorageSettingRow.vue";
@@ -203,6 +204,20 @@ const panel = ref<HTMLElement | null>(null);
 const tabsNav = ref<InstanceType<typeof TabbedNavigation> | null>(null);
 const consentRow = ref<InstanceType<typeof ConsentSettingsRow> | null>(null);
 const consentSection = ref<InstanceType<typeof SettingsSection> | null>(null);
+
+/**
+ * A quick entry beside a message that points here just wrote one of this surface's values.
+ * This sheet is hidden rather than unmounted, so its rows hold their own copy; reloading them
+ * is what keeps the row and the quick entry showing the same saved answer.
+ */
+watch(
+    () => lastQuickAddSave.value?.count,
+    () => {
+        const anchor = lastQuickAddSave.value?.anchor;
+        if (anchor === "map-storage-directory") void storage.load();
+        if (anchor === "mojang-download-consent") void consentRow.value?.reload();
+    },
+);
 const javaSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const renderEngineChoiceSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const storageSection = ref<InstanceType<typeof SettingsSection> | null>(null);

@@ -29,6 +29,7 @@ import {
     VDialog,
 } from "vuetify/components";
 import ActionArtwork from "../actionArtwork/ActionArtwork.vue";
+import SettingsQuickAdd from "../settings/quickAdd/SettingsQuickAdd.vue";
 import CloudRenderConfigWizard from "./CloudRenderConfigWizard.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
@@ -2261,6 +2262,7 @@ onBeforeUnmount(() => {
                         >
                             {{ t("cirender.eula.open", "Open the consent setting") }}
                         </VBtn>
+                        <SettingsQuickAdd anchor="mojang-download-consent" />
                     </VAlert>
 
                     <VAlert
@@ -2692,6 +2694,10 @@ onBeforeUnmount(() => {
                 >
                     {{ t("cirender.eula.open", "Open the consent setting") }}
                 </VBtn>
+                <SettingsQuickAdd
+                    v-if="renders.startFailure.value.needsEula"
+                    anchor="mojang-download-consent"
+                />
             </VAlert>
 
             <!--

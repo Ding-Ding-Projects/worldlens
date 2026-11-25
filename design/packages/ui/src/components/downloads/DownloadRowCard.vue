@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SettingsQuickAdd from "../settings/quickAdd/SettingsQuickAdd.vue";
 import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
@@ -366,6 +367,11 @@ const noResumeReason = computed(() =>
                         }}
                     </v-btn>
                 </div>
+
+                <SettingsQuickAdd
+                    v-if="advice.remedy.settings"
+                    :anchor="advice.remedy.settings.anchor"
+                />
 
                 <pre
                     v-if="detailOpen && advice.detail"
