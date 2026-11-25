@@ -130,6 +130,21 @@ describe.skipIf(!gitAvailable)("the profile folder as a Git repository", () => {
         expect(author.stdout.trim()).toBe(`${PROFILE_AUTHOR_NAME} <${PROFILE_AUTHOR_EMAIL}>`);
     });
 
+    it("still records the readable files when one file is held open by the running application", async () => {
+        // Stands in for a file the browser engine holds exclusively: Git's plain `add -A`
+        // aborts on it and stages nothing, and only `--ignore-errors` stages the rest.
+        const withOneLockedFile: GitRunner = async (args, options) => {
+            if (args.includes("add") && args.includes("-A") && !args.includes("--ignore-errors")) {
+                return { ...(await realGit(["--version"], options)), ok: false, stderr: "fatal: adding files failed" };
+            }
+            return await realGit(args, options);
+        };
+        await writeFile(join(root, "settings.json"), '{"theme":"dark"}');
+        const outcome = await commitSettledChanges(withOneLockedFile, root);
+        expect(outcome).toMatchObject({ committed: true, failed: false });
+        expect(await trackedFiles(root)).toContain("settings.json");
+    });
+
     it("keeps caches, locks, logs, temporary files and rebuildable data out of history", async () => {
         const files: Record<string, string> = {
             "settings.json": "{}",

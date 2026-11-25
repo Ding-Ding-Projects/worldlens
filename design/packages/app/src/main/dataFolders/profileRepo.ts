@@ -235,9 +235,11 @@ export async function commitSettledChanges(run: GitRunner, root: string): Promis
         if (!prepared.ready) {
             return { committed: false, sha: null, subject: null, reason: prepared.reason, failed: true };
         }
-        // `add` can fail for one locked file and still stage everything else, so the staged
-        // result decides, not the exit code.
-        await profileGit(run, root, ["add", "-A"]);
+        // While the application is running, the browser engine holds some files open
+        // exclusively. Without `--ignore-errors`, one such file makes `add` abort and stage
+        // nothing at all, which then reads as "nothing changed". With it, every readable file
+        // is staged, so the staged result decides, not the exit code.
+        await profileGit(run, root, ["add", "-A", "--ignore-errors"]);
         const names = await profileGit(run, root, ["diff", "--cached", "--name-status"]);
         if (!names.ok) {
             return {

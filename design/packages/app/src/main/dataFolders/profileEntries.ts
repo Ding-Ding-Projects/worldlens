@@ -30,6 +30,8 @@ export const VOLATILE_DIRECTORY_NAMES: readonly string[] = [
     "blob_storage",
     "Crashpad",
     "Session Storage",
+    "Network",
+    "Shared Dictionary",
     "logs",
 ];
 
@@ -41,6 +43,10 @@ export const VOLATILE_FILE_NAMES: readonly string[] = [
     "SingletonCookie",
     "SingletonSocket",
     ".worldlens-lock",
+    "DIPS",
+    "DIPS-wal",
+    "DIPS-shm",
+    "DevToolsActivePort",
 ];
 
 /** File name suffixes that mark temporary or lock files. */
