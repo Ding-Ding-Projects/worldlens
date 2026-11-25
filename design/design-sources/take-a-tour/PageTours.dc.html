@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WorldLens: Page tours</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+[data-wl-theme="dark"]{--wl-bg:#0B0E11;--wl-surface:#101418;--wl-surf-low:#191C20;--wl-surf-cont:#1D2024;--wl-surf-high:#272A2E;--wl-surf-highest:#323539;--wl-outline-var:#42474E;--wl-outline:#8C9199;--wl-on-surf-var:#C2C7CF;--wl-on-surf:#E1E2E8;--wl-primary:#8FCDFF;--wl-on-primary:#003351;--wl-prim-cont:#004B73;--wl-on-prim-cont:#CEE5FF;--wl-sec:#B7C9D9;--wl-sec-cont:#384956;--wl-on-sec-cont:#D3E5F5;--wl-tert:#D1BFE7;--wl-tert-cont:#4E4161;--wl-on-tert-cont:#EDDCFF;--wl-error:#FFB4AB;--wl-on-error:#410002;--wl-err-cont:#93000A;--wl-on-err-cont:#FFDAD6;--wl-scrim:rgba(0,0,0,.6)}
+[data-wl-theme="light"]{--wl-bg:#F7F9FF;--wl-surface:#FFFFFF;--wl-surf-low:#F1F4FA;--wl-surf-cont:#EBEEF4;--wl-surf-high:#E5E8EE;--wl-surf-highest:#DFE2E8;--wl-outline-var:#C1C7CE;--wl-outline:#6C737A;--wl-on-surf-var:#41474D;--wl-on-surf:#181C20;--wl-primary:#00639B;--wl-on-primary:#FFFFFF;--wl-prim-cont:#CDE5FF;--wl-on-prim-cont:#001D32;--wl-sec:#3B4A57;--wl-sec-cont:#D3E5F5;--wl-on-sec-cont:#0C1D29;--wl-tert:#66587B;--wl-tert-cont:#EDDCFF;--wl-on-tert-cont:#211634;--wl-error:#BA1A1A;--wl-on-error:#FFFFFF;--wl-err-cont:#FFDAD6;--wl-on-err-cont:#410002;--wl-scrim:rgba(0,0,0,.32)}
+[data-wl-theme="contrast"]{--wl-bg:#000000;--wl-surface:#000000;--wl-surf-low:#000000;--wl-surf-cont:#000000;--wl-surf-high:#141414;--wl-surf-highest:#1F1F1F;--wl-outline-var:#FFFFFF;--wl-outline:#FFFFFF;--wl-on-surf-var:#FFFFFF;--wl-on-surf:#FFFFFF;--wl-primary:#FFFFFF;--wl-on-primary:#000000;--wl-prim-cont:#FFFFFF;--wl-on-prim-cont:#000000;--wl-sec:#FFFF00;--wl-sec-cont:#000000;--wl-on-sec-cont:#FFFF00;--wl-tert:#FFFF00;--wl-tert-cont:#000000;--wl-on-tert-cont:#FFFF00;--wl-error:#FF5449;--wl-on-error:#000000;--wl-err-cont:#000000;--wl-on-err-cont:#FF5449;--wl-scrim:rgba(0,0,0,.85)}
+[data-wl-theme="contrast"] .card,[data-wl-theme="contrast"] .pane{outline:1px solid #FFFFFF}
+.msr{font-family:"Material Symbols Rounded";font-weight:normal;font-style:normal;font-size:24px;line-height:1;display:inline-block;white-space:nowrap;font-feature-settings:"liga";-webkit-font-smoothing:antialiased}
+.fill{font-variation-settings:"FILL" 1}
+a{color:var(--wl-primary);text-underline-offset:2px}a:hover{color:var(--wl-on-surf)}
+input::placeholder{color:var(--wl-on-surf-var);opacity:1}
+.sl{position:relative;overflow:hidden;cursor:pointer}
+.sl::after{content:"";position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0;transition:opacity 150ms cubic-bezier(.2,0,0,1);pointer-events:none}
+.sl:hover::after{opacity:.08}.sl:active::after{opacity:.10}
+.sl:focus-visible,.ri:focus-visible{outline:3px solid var(--wl-primary);outline-offset:2px}
+.ri{display:flex;flex-direction:column;align-items:center;gap:4px;width:80px;text-decoration:none;color:var(--wl-on-surf-var);font:500 12px/16px Roboto,sans-serif;letter-spacing:.5px}
+.ri:hover{color:var(--wl-on-surf)}
+.ri .ind{width:56px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;position:relative;transition:background 200ms cubic-bezier(.2,0,0,1)}
+.ri:hover .ind{background:var(--wl-surf-high)}
+.ri[aria-current] {color:var(--wl-on-surf)}
+.ri[aria-current] .ind{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont)}
+.ri[aria-current] .msr{font-variation-settings:"FILL" 1}
+.bdg{position:absolute;top:-4px;right:6px;min-width:16px;height:16px;border-radius:8px;background:var(--wl-error);color:var(--wl-on-error);font:500 11px/16px Roboto,sans-serif;text-align:center;padding:0 4px;box-sizing:border-box}
+.ib{width:48px;height:48px;border:0;border-radius:24px;background:transparent;color:var(--wl-on-surf-var);display:inline-flex;align-items:center;justify-content:center}
+.chip{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 6px 0 12px;border-radius:12px;border:1px solid var(--wl-outline-var);background:transparent;color:var(--wl-on-surf);font:500 14px/20px Roboto,sans-serif;box-sizing:border-box}
+.chip[aria-current]{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont);border-color:transparent}
+.fchip{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--wl-outline);background:transparent;color:var(--wl-on-surf);font:500 14px/20px Roboto,sans-serif}
+.fchip[aria-pressed="true"]{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont);border-color:transparent}
+.btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 20px;border-radius:20px;border:0;font:500 14px/20px Roboto,sans-serif;text-decoration:none}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{transition-duration:.001ms!important;animation-duration:.001ms!important}}
+
+.navi{display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:8px 16px 8px 12px;border:0;border-radius:28px;background:transparent;color:var(--wl-on-surf-var);text-align:left;font:500 14px/20px Roboto,sans-serif;box-sizing:border-box}
+.navi[aria-current="true"]{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont)}
+.navi[aria-current="true"] .msr{font-variation-settings:"FILL" 1}
+.navi small{display:block;font:400 12px/16px Roboto,sans-serif;color:inherit;opacity:.85}
+.hubtab{background:var(--wl-tert-cont);color:var(--wl-on-tert-cont);border-color:transparent}
+
+.tour-root{--tour-accent:#8FCDFF;--tour-on-accent:#003351}
+.tour-root[data-accent="green"]{--tour-accent:#7DDC9A;--tour-on-accent:#00391A}
+.tour-root[data-accent="amber"]{--tour-accent:#FFB95C;--tour-on-accent:#462A00}
+[data-wl-theme="light"] .tour-root{--tour-accent:#00639B;--tour-on-accent:#FFFFFF}
+[data-wl-theme="light"] .tour-root[data-accent="green"]{--tour-accent:#006D3A;--tour-on-accent:#FFFFFF}
+[data-wl-theme="light"] .tour-root[data-accent="amber"]{--tour-accent:#7D5700;--tour-on-accent:#FFFFFF}
+[data-wl-theme="contrast"] .tour-root{--tour-accent:#FFFF00;--tour-on-accent:#000000}
+.tour-anchor{position:relative;z-index:3;border-radius:16px;box-shadow:0 0 0 3px var(--tour-accent),0 0 0 7px color-mix(in srgb,var(--tour-accent) 30%,transparent),0 0 0 9999px var(--wl-scrim)}
+.tour-motion .tour-anchor{animation:tour-pulse 1600ms cubic-bezier(.2,0,0,1) infinite}
+@keyframes tour-pulse{0%,100%{box-shadow:0 0 0 3px var(--tour-accent),0 0 0 7px color-mix(in srgb,var(--tour-accent) 30%,transparent),0 0 0 9999px var(--wl-scrim)}50%{box-shadow:0 0 0 3px var(--tour-accent),0 0 0 12px color-mix(in srgb,var(--tour-accent) 12%,transparent),0 0 0 9999px var(--wl-scrim)}}
+.tour-scrim{position:absolute;inset:0;background:var(--wl-scrim);z-index:2}
+.tour-card{position:absolute;z-index:4;width:360px;box-sizing:border-box;padding:20px 20px 16px;border-radius:28px;background:var(--wl-surf-high);color:var(--wl-on-surf);box-shadow:0 4px 12px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:12px}
+.tour-motion .tour-card{animation:tour-in 300ms cubic-bezier(.05,.7,.1,1)}
+@keyframes tour-in{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+.tour-card h2{margin:0;font:500 22px/28px Roboto,sans-serif}
+.tour-card p{margin:0;font:400 14px/20px Roboto,sans-serif;color:var(--wl-on-surf-var)}
+.tour-step{font:500 12px/16px Roboto,sans-serif;letter-spacing:.5px;color:var(--tour-accent);text-transform:none}
+.tour-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tour-btn{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 16px;border:0;border-radius:20px;background:transparent;color:var(--tour-accent);font:500 14px/20px Roboto,sans-serif}
+.tour-btn.filled{background:var(--tour-accent);color:var(--tour-on-accent);padding:0 20px}
+.tour-btn.tonal{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont)}
+.tour-close{position:absolute;top:8px;right:8px;width:40px;height:40px;border:0;border-radius:20px;background:transparent;color:var(--wl-on-surf-var);display:inline-flex;align-items:center;justify-content:center}
+.tour-keys{font:400 12px/16px Roboto,sans-serif;color:var(--wl-on-surf-var);display:flex;gap:12px;flex-wrap:wrap}
+.tour-keys kbd{font:500 11px/16px 'Roboto Mono',monospace;padding:0 6px;border-radius:6px;background:var(--wl-surf-highest);color:var(--wl-on-surf)}
+.tour-dots{display:flex;gap:6px}
+.tour-dots span{width:6px;height:6px;border-radius:3px;background:var(--wl-outline-var)}
+.tour-dots span.on{width:18px;background:var(--tour-accent)}
+.tour-note{display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:16px;background:var(--wl-surf-highest)}
+.tour-note .msr{color:var(--tour-accent)}
+.blk{border-radius:16px;background:var(--wl-surf-cont)}
+.bar{height:8px;border-radius:4px;background:var(--wl-surf-highest)}
+</style>
+</helmet>
+<div class="tour-root {{motionClass}}" data-accent="{{accent}}" data-wl-theme="{{theme}}" style="position: relative; min-height: 900px; overflow: hidden; background: var(--wl-bg); color: var(--wl-on-surf); font-family: Roboto, Helvetica, sans-serif; display: flex; flex-direction: column;">
+  <header style="display: flex; align-items: center; gap: 16px; min-height: 64px; padding: 8px 16px 8px 24px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 12px;"><span style="font-size: 18px; line-height: 24px; font-weight: 500;">WorldLens</span></div>
+    <label class="{{a.search}}" style="flex: 1 1 320px; max-width: 640px; margin: 0 auto; display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 8px 0 16px; border-radius: 24px; background: var(--wl-surf-high); color: var(--wl-on-surf-var); box-sizing: border-box;">
+      <span class="msr" aria-hidden="true">search</span>
+      <span style="flex: 1; font: 400 16px/24px Roboto, sans-serif;">{{searchText}}</span>
+      <kbd style="font: 500 12px/16px 'Roboto Mono', monospace; padding: 4px 8px; border-radius: 8px; background: var(--wl-surf-highest);">Ctrl Shift F</kbd>
+    </label>
+    <button type="button" class="sl ib" aria-label="Notifications"><span class="msr" aria-hidden="true">notifications</span></button>
+  </header>
+  <div style="display: flex; flex: 1;">
+    <nav aria-label="Destinations" style="flex: 0 0 96px; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 12px 0 24px;">
+      <a href="#" class="ri {{a.rail_home}}"><span class="ind"><span class="msr" aria-hidden="true">home</span></span>Home</a><a href="#" class="ri {{a.rail_map}}"><span class="ind"><span class="msr" aria-hidden="true">public</span></span>Map</a><a href="#" class="ri {{a.rail_work}}" ><span class="ind"><span class="msr" aria-hidden="true">handyman</span></span>Work</a><a href="#" class="ri {{a.rail_servers}}"><span class="ind"><span class="msr" aria-hidden="true">dns</span></span>Servers</a>
+      <div style="flex: 1;"></div>
+      <a href="#" class="ri {{a.rail_settings}}"><span class="ind"><span class="msr" aria-hidden="true">settings</span></span>Settings</a>
+    </nav>
+    <main class="pane" style="position: relative; flex: 1; min-width: 0; margin: 0 16px 16px 0; background: var(--wl-surface); border-radius: 28px; padding: 16px 32px 40px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px;">
+      <sc-if value="{{isHome}}">
+        <div style="font-size: 36px; line-height: 44px;">What are you here to do?</div>
+        <div class="blk {{a.hero}}" style="padding: 24px; display: flex; align-items: center; gap: 16px; background: var(--wl-prim-cont); color: var(--wl-on-prim-cont);">
+          <span class="msr">add_location_alt</span><div style="flex: 1; font-size: 22px;">Make a map</div><span class="btn" style="background: var(--wl-primary); color: var(--wl-on-primary);">New map</span>
+        </div>
+        <div class="{{a.catalogues}}" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 4px;">
+          <div class="blk" style="height: 120px; padding: 16px; box-sizing: border-box;">Your maps</div><div class="blk" style="height: 120px; padding: 16px; box-sizing: border-box;">Share a map</div><div class="blk" style="height: 120px; padding: 16px; box-sizing: border-box;">Set up and help</div>
+        </div>
+      </sc-if>
+      <sc-if value="{{isMap}}">
+        <div class="blk {{a.canvas}}" style="flex: 1; min-height: 600px; position: relative; background: linear-gradient(160deg, #2E4A33, #1E3A4A);">
+          <div class="{{a.zoom}}" style="position: absolute; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; padding: 4px;"><span class="ib" style="background: var(--wl-surf-high);"><span class="msr">add</span></span><span class="ib" style="background: var(--wl-surf-high);"><span class="msr">remove</span></span></div>
+          <span class="chip {{a.layers}}" style="position: absolute; left: 16px; top: 16px; background: var(--wl-surf-high);"><span class="msr" style="font-size: 18px;">layers</span>Layers and markers</span>
+        </div>
+      </sc-if>
+      <sc-if value="{{isWork}}">
+        <div role="tablist" style="display: flex; gap: 8px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--wl-outline-var);">
+          <div class="{{a.tab_world}}" style="display: flex; gap: 8px; padding: 2px;"><span class="chip" aria-current="true">Make a map</span><span class="chip">Universal features</span><span class="chip">Projects</span></div>
+          <span class="chip {{a.tab_plus}}" style="border: 0; padding: 0 10px;"><span class="msr">add</span></span>
+          <div style="flex: 1;"></div>
+          <span class="chip {{a.tab_find}}" style="border: 0; padding: 0 10px;"><span class="msr">manage_search</span></span>
+        </div>
+        <div class="blk" style="height: 420px;"></div>
+      </sc-if>
+      <sc-if value="{{isServers}}">
+        <div style="font-size: 36px; line-height: 44px;">Servers</div>
+        <div style="display: grid; grid-template-columns: 360px 1fr; gap: 24px;">
+          <div class="{{a.serverlist}}" style="display: flex; flex-direction: column; gap: 8px; padding: 4px;">
+            <div class="blk" style="padding: 16px;">Bayville survival</div><div class="blk" style="padding: 16px;">Creative build</div>
+            <span class="btn {{a.addserver}}" style="background: var(--wl-prim-cont); color: var(--wl-on-prim-cont); align-self: start;"><span class="msr">add</span>Add a server</span>
+          </div>
+          <div class="blk {{a.detail}}" style="padding: 16px; min-height: 360px;"><div style="display: flex; gap: 8px;"><span class="chip" aria-current="true">Console</span><span class="chip">Files</span><span class="chip">Settings</span></div></div>
+        </div>
+      </sc-if>
+
+    </main>
+  </div>
+  <sc-if value="{{noAnchor}}"><div class="tour-scrim"></div></sc-if>
+  <section class="tour-card" role="dialog" aria-label="Interactive tour" style="{{cardStyle}}">
+    <button type="button" class="tour-close sl" aria-label="Close the tour"><span class="msr">close</span></button>
+    <div class="tour-step" aria-live="polite">{{stepLabel}}</div>
+    <h2>{{title}}</h2>
+    <p>{{body}}</p>
+    <sc-if value="{{missing}}">
+      <div class="tour-note"><span class="msr">visibility_off</span><p style="color: var(--wl-on-surf);">{{missingText}}</p></div>
+    </sc-if>
+    <sc-if value="{{showDots}}"><div class="tour-dots" aria-hidden="true"><sc-for list="{{dots}}" as="d" hint-placeholder-count="7"><span class="{{d.cls}}"></span></sc-for></div></sc-if>
+    <div class="tour-row" style="justify-content: space-between;">
+      <sc-if value="{{showBack}}"><button type="button" class="tour-btn sl" onClick="{{back}}"><span class="msr" style="font-size: 18px;">arrow_back</span>Back</button></sc-if>
+      <div style="flex: 1;"></div>
+      <sc-if value="{{showSkip}}"><button type="button" class="tour-btn sl" onClick="{{next}}">Skip this step</button></sc-if>
+      <sc-if value="{{missing}}"><button type="button" class="tour-btn tonal sl" onClick="{{reveal}}"><span class="msr" style="font-size: 18px;">visibility</span>{{revealLabel}}</button></sc-if>
+      <button type="button" class="tour-btn filled sl" onClick="{{primary}}">{{primaryLabel}}</button>
+    </div>
+    <div class="tour-keys"><span><kbd>&larr;</kbd> <kbd>&rarr;</kbd> move</span><span><kbd>Esc</kbd> closes, your place is kept</span></div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme": {"editor": "enum", "options": ["dark", "light", "contrast"], "default": "dark"}, "accent": {"editor": "enum", "options": ["blue", "green", "amber"], "default": "blue"}, "motion": {"editor": "enum", "options": ["on", "off"], "default": "on"}, "destination": {"editor": "enum", "options": ["home", "map", "work", "servers"], "default": "work"}, "step": {"editor": "enum", "options": ["1", "2", "3"], "default": "1"}, "$preview": {"width": 1440, "height": 900}}'>
+
+const ANCHORS = ["rail_home", "rail_map", "rail_work", "rail_servers", "rail_settings", "search", "tab_world", "tab_pages", "tab_plus", "tab_find", "find", "render", "hero", "catalogues", "canvas", "zoom", "layers", "serverlist", "addserver", "detail"];
+function anchors(active) { const a = {}; for (const k of ANCHORS) a[k] = k === active ? 'tour-anchor' : ''; return a; }
+function dots(n, at) { return Array.from({ length: n }, (_, i) => ({ cls: i === at ? 'on' : '' })); }
+
+const TOURS = {"home": [["search", "Search everything", "Every map, server, setting and command is one search away.", "left: 500px; top: 110px;"], ["hero", "Start a map", "New map opens Work on Projects, where a world becomes a map.", "left: 520px; top: 300px;"], ["catalogues", "Every feature has a home", "The catalogues list every feature by the job it belongs to.", "left: 520px; top: 560px;"]], "map": [["canvas", "Walk around your map", "Drag to move, scroll to zoom, right drag to turn.", "left: 560px; top: 360px;"], ["zoom", "Zoom and turn", "The same moves as buttons, for touch and keyboard.", "left: 960px; top: 620px;"], ["layers", "Layers and markers", "Show or hide markers, players and map layers.", "left: 160px; top: 200px;"]], "work": [["tab_world", "Your open jobs", "Each job you start gets a tab here. Make a map is pinned.", "left: 150px; top: 230px;"], ["tab_plus", "Add a job", "Plus opens every job grouped by its step in making a map.", "left: 480px; top: 230px;"], ["tab_find", "Find any open tab", "Search open tabs by name, with a regular expression if you want one.", "left: 1000px; top: 230px;"]], "servers": [["serverlist", "Your servers", "Every Minecraft server WorldLens knows about, local or remote.", "left: 500px; top: 220px;"], ["addserver", "Add a server", "Create a new one or connect to one that is already running.", "left: 360px; top: 380px;"], ["detail", "Console, files and settings", "Pick a server to see its console, files and settings.", "left: 600px; top: 520px;"]]};
+const NAMES = { home: 'Home', map: 'Map', work: 'Work', servers: 'Servers' };
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { step: null, dest: null }; }
+  renderVals() {
+    const p = this.props;
+    const dest = this.state.dest ?? (p.destination ?? 'work');
+    const steps = TOURS[dest];
+    const at = Math.max(0, Math.min(steps.length - 1, (this.state.step ?? Number(p.step ?? 1)) - 1));
+    const [anchor, title, body, pos] = steps[at];
+    const go = (d) => this.setState({ dest, step: Math.max(1, Math.min(steps.length, at + 1 + d)) });
+    return { theme: p.theme ?? 'dark', accent: p.accent ?? 'blue', motionClass: (p.motion ?? 'on') === 'on' ? 'tour-motion' : '',
+      searchText: 'Search maps, servers, settings and commands',
+      isHome: dest === 'home', isMap: dest === 'map', isWork: dest === 'work', isServers: dest === 'servers',
+      a: anchors(anchor), stepLabel: 'Step ' + (at + 1) + ' of ' + steps.length + ' of the ' + NAMES[dest] + ' tour',
+      title, body, cardStyle: pos, missing: false, noAnchor: false, showDots: true, dots: dots(steps.length, at),
+      showBack: at > 0, showSkip: at < steps.length - 1, primaryLabel: at === steps.length - 1 ? 'Finish' : 'Next',
+      primary: () => go(1), back: () => go(-1), next: () => go(1), missingText: '', revealLabel: '', reveal: () => {}, pagesTabDisplay: 'none' };
+  }
+}
+
+</script>
+</body>
+</html>
