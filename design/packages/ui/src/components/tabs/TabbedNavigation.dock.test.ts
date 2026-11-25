@@ -201,6 +201,9 @@ describe("a returning person's saved workspace", () => {
         // Pinned first, then the lone tab, then the group's members: the strip's own order.
         expect(tabLabels(view).slice(0, 4)).toEqual(["Map", "Make a map", "Servers", "Tools"]);
         expect(panes(view)).toBe(1);
+        // One strip means one tablist and one tabpanel: dockview's own roles are not exposed.
+        expect(view.findAll('[role="tablist"]')).toHaveLength(1);
+        expect(view.findAll('[role="tab"]')).toHaveLength(4);
         expect(view.findAll('[role="tabpanel"]')).toHaveLength(1);
         expect(view.find(".page-world").exists()).toBe(true);
 
@@ -312,6 +315,27 @@ describe("splitting and moving by command", () => {
         expect(strips.flatMap((s) => s.tabs.map((t) => t.pageId)).sort()).toEqual(["map", "servers", "tools", "world"]);
         // Everything that was open is still open, in exactly one pane each.
         expect(new Set(strips.flatMap((s) => s.tabs.map((t) => t.pageId))).size).toBe(4);
+    });
+
+    it("keeps a pinned tab pinned and protected when it is split into a new pane", async () => {
+        writeTabWorkspace(seedWorkspace(), undefined, KEY);
+        const view = await open();
+        const pinned = view.findAll('[role="tab"]').find((node) => node.attributes("aria-label") === "Map, pinned");
+        expect(pinned).toBeDefined();
+        await pinned?.trigger("click");
+        await settle();
+        nav(view).layoutCommand("split-right");
+        await settle();
+
+        expect(panes(view)).toBe(2);
+        expect(view.findAll('[role="tablist"]')).toHaveLength(2);
+        const names = view.findAll('[role="tab"]').map((node) => node.attributes("aria-label"));
+        expect(names).toContain("Map, pinned");
+        expect(names).not.toContain("Map");
+        const strips = storedStrips() as unknown as { pinnedOrder: string[]; tabs: { id: string; pageId: string }[] }[];
+        const holder = strips.find((strip) => strip.tabs.some((tab) => tab.pageId === "map"));
+        const mapId = holder?.tabs.find((tab) => tab.pageId === "map")?.id ?? "";
+        expect(holder?.pinnedOrder).toContain(mapId);
     });
 
     it("moves the focused tab to the next pane and removes a pane it empties", async () => {

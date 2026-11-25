@@ -85,6 +85,44 @@ describe("moveTabToStrip", () => {
     });
 });
 
+describe("pinned tabs", () => {
+    const pinnedWs: TabWorkspaceState = {
+        strips: [
+            strip("a", [tab("tab-1", "map"), tab("tab-2", "world"), tab("tab-3", "servers")], {
+                pinnedOrder: ["tab-1"],
+                slots: [
+                    { kind: "tab", tabId: "tab-2" },
+                    { kind: "tab", tabId: "tab-3" },
+                ],
+            }),
+        ],
+    };
+
+    it("stays pinned when it is split into a new pane", () => {
+        const result = splitTabToNewStrip(pinnedWs, "a", "tab-1", "Pane 2");
+        const created = result?.workspace.strips[1];
+        expect(created?.pinnedOrder).toEqual(["tab-1"]);
+        expect(created?.slots).toEqual([]);
+        expect(result?.workspace.strips[0]?.pinnedOrder).toEqual([]);
+    });
+
+    it("stays pinned when it is moved to another pane, and an unpinned tab stays unpinned", () => {
+        const split = splitTabToNewStrip(pinnedWs, "a", "tab-3", "Pane 2");
+        const two = split?.workspace as TabWorkspaceState;
+        const moved = moveTabToStrip(two, "a", "tab-1", split?.stripId ?? "");
+        const target = moved?.strips.find((s) => s.id === split?.stripId);
+        expect(target?.pinnedOrder).toEqual(["tab-1"]);
+        expect(target?.tabs.map((t) => t.id)).toContain("tab-3");
+        expect(target?.pinnedOrder).not.toContain("tab-3");
+    });
+
+    it("merging panes keeps the pin too", () => {
+        const split = splitTabToNewStrip(pinnedWs, "a", "tab-1", "Pane 2");
+        const merged = mergeStripsIntoFirst(split?.workspace as TabWorkspaceState);
+        expect(merged.strips[0]?.pinnedOrder).toHaveLength(1);
+    });
+});
+
 describe("pruneEmptyStrips and adjacentStripId", () => {
     it("never removes the only strip, even when it is empty", () => {
         const empty: TabWorkspaceState = { strips: [strip("a", [])] };

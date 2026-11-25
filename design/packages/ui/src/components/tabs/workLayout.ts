@@ -137,6 +137,8 @@ export function splitTabToNewStrip(
 
     const id = nextStripId(workspace);
     const moved = adoptTab(workspace, detached.tab, origin.id);
+    // A pinned tab stays pinned, and so stays protected from a bulk close, wherever it goes.
+    const wasPinned = origin.pinnedOrder.includes(tabId);
     const created: TabStripState = normalizeStrip({
         id,
         label,
@@ -145,8 +147,8 @@ export function splitTabToNewStrip(
         placement: origin.placement,
         tabs: [moved],
         groups: [],
-        pinnedOrder: [],
-        slots: [{ kind: "tab", tabId: moved.id }],
+        pinnedOrder: wasPinned ? [moved.id] : [],
+        slots: wasPinned ? [] : [{ kind: "tab", tabId: moved.id }],
         activeTabId: moved.id,
     });
     return {
@@ -192,10 +194,12 @@ export function moveTabToStrip(
     if (detached === null) return null;
 
     const tab = adoptTab(workspace, detached.tab, origin.id);
+    const wasPinned = origin.pinnedOrder.includes(tabId);
     const received: TabStripState = normalizeStrip({
         ...target,
         tabs: [...target.tabs, tab],
-        slots: [...target.slots, { kind: "tab", tabId: tab.id }],
+        pinnedOrder: wasPinned ? [...target.pinnedOrder, tab.id] : target.pinnedOrder,
+        slots: wasPinned ? target.slots : [...target.slots, { kind: "tab", tabId: tab.id }],
         activeTabId: tab.id,
     });
     return pruneEmptyStrips({

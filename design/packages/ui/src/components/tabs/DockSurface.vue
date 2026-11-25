@@ -112,16 +112,36 @@ function scheduleEmit(): void {
     }, 120);
 }
 
-function createPane(id: string): { element: HTMLElement; init: () => void; dispose: () => void } {
+/**
+ * The element a strip's pane is drawn into, made on first need and then kept.
+ *
+ * Pane elements exist before dockview does: they are created here at setup for every strip, so
+ * the first render already has somewhere to put each pane and the workspace is on screen the
+ * moment the component is mounted rather than a tick later. Dockview is then handed the same
+ * element when it asks for the pane. Keeping the element across a layout reload also keeps the
+ * page inside it mounted, which matters because one page owns a map renderer.
+ */
+function paneElement(id: string): HTMLElement {
+    const existing = hosts[id];
+    if (existing !== undefined) return existing;
     const element = document.createElement("div");
     element.className = "mb-dock-pane";
     element.dataset["stripId"] = id;
     hosts[id] = element;
+    return element;
+}
+
+if (props.enabled) for (const strip of props.strips) paneElement(strip.id);
+
+function createPane(id: string): { element: HTMLElement; init: () => void; dispose: () => void } {
+    const element = paneElement(id);
     return {
         element,
         init: () => undefined,
         dispose: () => {
-            if (hosts[id] === element) delete hosts[id];
+            // Only a strip that is gone loses its element; a reload keeps it.
+            if (!props.strips.some((strip) => strip.id === id) && hosts[id] === element)
+                delete hosts[id];
         },
     };
 }
@@ -201,7 +221,6 @@ function reconcilePanels(): void {
 function buildDefault(): void {
     if (api === null) return;
     api.clear();
-    for (const key of Object.keys(hosts)) delete hosts[key];
     props.strips.forEach((_, index) => addStripPanel(index));
     hideHeaders();
 }
@@ -229,7 +248,6 @@ function load(layout: DockLayoutJson | null): boolean {
     const ids = props.strips.map((strip) => strip.id);
     if (layout !== null && layoutMatchesStrips(layout, ids)) {
         try {
-            for (const key of Object.keys(hosts)) delete hosts[key];
             api.fromJSON(layout as never);
             hideHeaders();
             if (consistent()) {
