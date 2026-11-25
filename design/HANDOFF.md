@@ -1,5 +1,36 @@
 # Handoff
 
+## 2026-11-25 Blank Work fix, guided tours, data folders, update card, quick add, PDF edition, one-command setup
+
+The session stopped early, so read "Unfinished" first.
+
+On `main` and released:
+
+- Work no longer opens blank when a personal vocabulary value contains `@`, `{`, `}`, `|` or `$` (`0aee8b86`). Values are escaped before they enter translated messages. Confirmed in installed 1.0.2467 on a real profile.
+- The interface keeps the same local port between launches, so saved layout survives a restart (`0f542563`).
+- Generation and bot handlers accept the app's own renderer (`fbc8506c`). Nobody has pressed "Generate and start project" in the running app since.
+
+On `main`, release pending at the time of writing (CI runs 45689772875, 45691736703 and 45692002811 were still in progress):
+
+- Guided tours (`e76cdcc0`): eight page tours beside the overall tour, a step that says when its control is hidden and offers to show it, arrow keys, entries in the palette, Help and Settings. Seen once in a packaged build on a throwaway profile (step 1 of the overall tour).
+- Quick add beside Settings pointers (`59a223fc`): maps folder and download consent, on six surfaces. Not driven in the app.
+- Update coming soon card (`14b30d12`): fed by the public build status. Tested with a fake fetch only.
+- Data folders (`7570eadf`): choose the profile and save folders; the profile folder keeps Git history. In a packaged build on a throwaway profile the section rendered and two versions were recorded while the app ran. A real move with a restart, the native picker and a push to a remote were not run.
+- Phone-size PDF of the documentation in the release job (`fecebcb8`). Built locally (2048 pages, about 27 MiB) with Edge. The hosted release job had not reached this step when the session stopped. If the release job fails at "Build and verify the phone PDF documentation edition", no release publishes until that step is fixed.
+- One-command setup for the hosted application (`a572e49f`): `scripts/setup.mjs`, 30 tests. No real container was started.
+- Design boards for the tour under `design/design-sources/take-a-tour/` (`3a20b9f4`). No rendered frames or review pass.
+- The delivery inventory tracks 127 requirements; ten were added and four mapped (`a481a72d`, `330e322f`). Everything stays pending review.
+
+Unfinished, saved as checkpoint branches on the remote. None is tested, type-checked, reviewed or merged:
+
+- `ai/wip/20261125-rich-text-editor` (`0ce8085e`): TinyMCE field for marker notes.
+- `ai/wip/20261125-type-generator` (`3ad9184b`): type generator and JSON editor.
+- `ai/wip/20261125-dockview-workspace` (`3268d1f2`): dockview under the Work tabs, using the public `dockview` package. It edits `TabStrip.vue`, `TabbedNavigation.vue` and `tabStorage.ts` and stopped mid-edit, so expect it not to build.
+
+Known red tests on a Windows checkout, present before this session's merges and not investigated: two cases in `pathFieldPolicy.test.ts` (the `GenerationProjectDialog.vue` exemption, probably line endings) and one quiet-hours case in `narrator.test.ts`. `scripts/lint-workflows.mjs` reports 7 older problems for the image jobs.
+
+Not done: the hosted-mode articles on the site still show hand-made environment variables; no tour capture in the README or site; the "New folder" label in the Data folders section looked drawn over the field text in one screenshot and was not rechecked; the installed app on this PC is still 1.0.2467.
+
 ## 2026-11-24 Palette freeze, tools tab, contract checks, data pack studio parts
 
 All on `main`, unit and component tests only; none of it was driven in the packaged app yet.

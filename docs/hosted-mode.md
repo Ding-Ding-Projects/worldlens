@@ -35,6 +35,11 @@ Two things about the transport are worth knowing because they look wrong at a gl
 
 ## Configuration
 
+**Nobody needs to write these by hand.** One command asks for what it cannot choose, generates
+the password and port, writes the Compose files and starts the container; see
+[one-command setup](one-command-setup.md). The table below is the reference for what that setup
+writes.
+
 Everything comes from the environment, because the thing that starts this is a `docker run`
 line or a compose file.
 
