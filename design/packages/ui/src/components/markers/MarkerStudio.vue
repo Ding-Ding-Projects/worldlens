@@ -15,6 +15,7 @@ import {
 import { mdiContentCopy, mdiMapMarkerPlusOutline, mdiPencilOutline } from "@mdi/js";
 
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
+import RichTextField from "../richText/RichTextField.vue";
 import MarkerSearchField from "./MarkerSearchField.vue";
 import SpatialPicker from "./SpatialPicker.vue";
 import { activeProfile } from "../../stores/profiles.js";
@@ -438,11 +439,10 @@ function positionText(marker: StudioMarker): string {
                 {{ problemFor("position") }}
             </p>
 
-            <VTextarea
+            <RichTextField
                 v-model="draft.detail"
                 :label="t('markers.studio.detail', 'Note (optional)')"
-                rows="2"
-                density="compact"
+                :min-height="140"
                 data-test="marker-detail"
             />
             <VTextField

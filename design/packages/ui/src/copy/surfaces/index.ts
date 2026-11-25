@@ -20,6 +20,7 @@
 import { APPEARANCE_FACTS, APPEARANCE_FIXED, APPEARANCE_VOICED } from "./appearance.js";
 import { APPLOGO_FACTS, APPLOGO_FIXED, APPLOGO_VOICED } from "./appLogo.js";
 import { DATAFOLDERS_FIXED } from "./dataFolders.js";
+import { RICHTEXT_FIXED } from "./richText.js";
 import { BACKUP_FACTS, BACKUP_FIXED, BACKUP_VOICED } from "./backup.js";
 import {
     BROWSEREXTENSION_FACTS,
@@ -201,6 +202,7 @@ export const SURFACE_FIXED = {
     ...APPEARANCE_FIXED,
     ...APPLOGO_FIXED,
     ...DATAFOLDERS_FIXED,
+    ...RICHTEXT_FIXED,
     ...BACKUP_FIXED,
     ...BROWSEREXTENSION_FIXED,
     ...CHANGELOG_FIXED,
