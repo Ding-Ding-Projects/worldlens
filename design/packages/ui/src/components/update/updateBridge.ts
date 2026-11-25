@@ -83,7 +83,94 @@ export type UpdateRestartResult =
     | { readonly ok: true; readonly version: string; readonly transition: "requested" }
     | { readonly ok: false; readonly code: UpdateRestartRefusal; readonly message: string };
 
+export type ComingSoonStageState = "waiting" | "running" | "done" | "failed" | "skipped";
+export type ComingSoonStageKind = "source" | "queue" | "part" | "publish";
+
+export interface ComingSoonStage {
+    readonly id: string;
+    readonly kind: ComingSoonStageKind;
+    /** A job's own name for a `part` or `publish` stage; empty for the two fixed stages. */
+    readonly label: string;
+    readonly state: ComingSoonStageState;
+    readonly startedAt: string | null;
+    readonly completedAt: string | null;
+}
+
+export interface ComingSoonEstimate {
+    readonly typicalMs: number;
+    readonly sampleCount: number;
+}
+
+export interface ComingSoonCommit {
+    readonly sha: string;
+    readonly subject: string;
+}
+
+export interface ComingSoonContents {
+    readonly commits: readonly ComingSoonCommit[];
+    readonly total: number;
+    readonly truncated: boolean;
+}
+
+export type ComingSoonUnknownReason =
+    "offline" | "rate-limited" | "unavailable" | "refused" | "disabled";
+
+/** Mirrors `ComingSoonState` in `main/update/comingSoon.ts`, field for field. */
+export type ComingSoonState =
+    | {
+          readonly kind: "none";
+          readonly checkedAt: string | null;
+          readonly lastOutcome: "published" | null;
+      }
+    | {
+          readonly kind: "building";
+          readonly runNumber: number;
+          readonly version: string;
+          readonly phase: "queued" | "running";
+          readonly createdAt: string | null;
+          readonly startedAt: string | null;
+          readonly stalled: boolean;
+          readonly lastActivityAt: string | null;
+          readonly stages: readonly ComingSoonStage[];
+          readonly stagesDone: number;
+          readonly stagesTotal: number;
+          readonly estimate: ComingSoonEstimate | null;
+          readonly contents: ComingSoonContents | null;
+          readonly contentsUnavailable: "no-base" | "failed" | null;
+          readonly replacedRun: number | null;
+          readonly checkedAt: string;
+      }
+    | {
+          readonly kind: "failed";
+          readonly runNumber: number;
+          readonly version: string;
+          readonly conclusion: string;
+          readonly failedStage: string | null;
+          readonly endedAt: string | null;
+          readonly checkedAt: string;
+      }
+    | {
+          readonly kind: "unknown";
+          readonly reason: ComingSoonUnknownReason;
+          readonly retryAt: string | null;
+          readonly checkedAt: string | null;
+      };
+
+/**
+ * The read-only view of the coming build. Nothing here can install, download or restart; the
+ * only things it can ask for are a description and a fresh look.
+ */
+export interface ComingSoonBridge {
+    state(): Promise<ComingSoonState>;
+    refresh(): Promise<ComingSoonState>;
+    /** Says whether the Updates surface is open, which only changes how often the record is read. */
+    watch(open: boolean): Promise<ComingSoonState>;
+    onEvent(listener: (state: ComingSoonState) => void): () => void;
+}
+
 export interface UpdateBridge {
+    /** Absent or null when this build cannot report a coming build at all. */
+    readonly comingSoon?: ComingSoonBridge | null;
     state(): Promise<UpdateState>;
     /** Called only after the renderer has applied the durable prior-install outcome. */
     acknowledgeInstallOutcome(): Promise<void>;
@@ -105,6 +192,10 @@ type Host = Partial<{
     checkForUpdates: () => Promise<UpdateState>;
     restartToInstallUpdate: (unsavedWork: boolean) => Promise<UpdateRestartResult>;
     onUpdateEvent: (listener: (state: UpdateState) => void) => () => void;
+    comingSoonState: () => Promise<ComingSoonState>;
+    refreshComingSoon: () => Promise<ComingSoonState>;
+    watchComingSoon: (open: boolean) => Promise<ComingSoonState>;
+    onComingSoonEvent: (listener: (state: ComingSoonState) => void) => () => void;
 }>;
 
 function isFunction(value: unknown): value is (...args: never[]) => unknown {
@@ -130,7 +221,24 @@ export function resolveUpdateBridge(): UpdateBridge | null {
     const canRestart = isFunction(host.restartToInstallUpdate);
     const canCheck = isFunction(host.checkForUpdates);
 
+    const { comingSoonState, refreshComingSoon, watchComingSoon, onComingSoonEvent } = host;
+    // All four or none: a card that could be read but never told of a change would go stale,
+    // and one that could be told but never asked would be blank until the first change.
+    const comingSoon: ComingSoonBridge | null =
+        isFunction(comingSoonState) &&
+        isFunction(refreshComingSoon) &&
+        isFunction(watchComingSoon) &&
+        isFunction(onComingSoonEvent)
+            ? {
+                  state: () => comingSoonState(),
+                  refresh: () => refreshComingSoon(),
+                  watch: (open) => watchComingSoon(open),
+                  onEvent: (listener) => onComingSoonEvent(listener),
+              }
+            : null;
+
     return {
+        comingSoon,
         state: () => updateState(),
         acknowledgeInstallOutcome: () =>
             isFunction(host.acknowledgeUpdateInstallOutcome)

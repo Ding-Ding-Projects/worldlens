@@ -323,6 +323,116 @@ export const UPDATE_FIXED = {
         en: "No download size was reported, so there is no percentage to show.",
         yue: "冇報告下載大小，所以顯示唔到百分比。",
     },
+    /*
+     * "Update coming soon". Fixed rather than voiced for the same reason as the progress
+     * labels above: every sentence here carries a build number, a time, a count or a stage
+     * name, and a level that reworded it would be styling a measurement. Version numbers,
+     * times and counts arrive as placeholders and are interpolated after the string is
+     * chosen.
+     */
+    "update.comingSoon.title": { en: "Update coming soon", yue: "更新即將推出" },
+    "update.comingSoon.building": {
+        en: "Build {version} is being made and is not published yet.",
+        yue: "版本 {version} 製作緊，未發佈。",
+    },
+    "update.comingSoon.queued": {
+        en: "Build {version} is waiting its turn to be made.",
+        yue: "版本 {version} 等緊輪到佢製作。",
+    },
+    "update.comingSoon.nothingInstalls": {
+        en: "This only tells you what is coming. Nothing is downloaded or installed, and your automatic-update choice is unchanged. When the build is published it appears here as an ordinary update.",
+        yue: "呢度只係話你知有咩嚟緊，唔會下載或者安裝任何嘢，你揀嘅自動更新設定亦都冇變。版本發佈之後，會當一般更新喺呢度出現。",
+    },
+    "update.comingSoon.replaced": {
+        en: "Build {previous} ended without publishing, so build {version} replaces it.",
+        yue: "版本 {previous} 冇完成發佈，所以由版本 {version} 取代。",
+    },
+    "update.comingSoon.stalled": {
+        en: "No stage has changed for over an hour, so this build looks stalled. It may still finish.",
+        yue: "已經超過一個鐘冇任何階段有變化，所以呢個版本似乎停咗。佢仍然有可能完成。",
+    },
+    "update.comingSoon.progress": {
+        en: "{done} of {total} stages done",
+        yue: "{total} 個階段完成咗 {done} 個",
+    },
+    "update.comingSoon.label.stages": { en: "Stages", yue: "階段" },
+    "update.comingSoon.label.started": { en: "Started", yue: "開始時間" },
+    "update.comingSoon.label.elapsed": { en: "Running for", yue: "已經行咗" },
+    "update.comingSoon.label.estimate": { en: "Estimate", yue: "估計" },
+    "update.comingSoon.label.contents": { en: "What it will contain", yue: "會包含啲乜" },
+    "update.comingSoon.stage.source": { en: "Source received", yue: "已收到原始碼" },
+    "update.comingSoon.stage.queue": { en: "Waiting for a build machine", yue: "等緊build機" },
+    "update.comingSoon.state.waiting": { en: "waiting", yue: "等緊" },
+    "update.comingSoon.state.running": { en: "running", yue: "進行緊" },
+    "update.comingSoon.state.done": { en: "done", yue: "完成" },
+    "update.comingSoon.state.failed": { en: "failed", yue: "失敗" },
+    "update.comingSoon.state.skipped": { en: "skipped", yue: "跳過" },
+    "update.comingSoon.estimate.remaining": {
+        en: "About {remaining} left. This is an estimate: the middle time of the last {count} builds, which was {typical}.",
+        yue: "大約仲有 {remaining}。呢個只係估計：以最近 {count} 次build嘅中位數 {typical} 計。",
+    },
+    "update.comingSoon.estimate.overrun": {
+        en: "Taking longer than the usual {typical}. The usual time is an estimate from the last {count} builds, so no countdown is shown.",
+        yue: "比平時嘅 {typical} 長。平時嘅時間係以最近 {count} 次build估計，所以冇倒數可以顯示。",
+    },
+    "update.comingSoon.estimate.none": {
+        en: "No estimate: fewer than {needed} earlier builds to compare with.",
+        yue: "冇估計：可以比較嘅舊build少過 {needed} 次。",
+    },
+    "update.comingSoon.contents.more": {
+        en: "and {count} more changes not listed here",
+        yue: "仲有 {count} 項改動未喺度列出",
+    },
+    "update.comingSoon.contents.none": {
+        en: "No changes were listed for this build.",
+        yue: "呢個版本冇列出任何改動。",
+    },
+    "update.comingSoon.contents.noBase": {
+        en: "The list of changes could not be read because the installed version's release tag was not found.",
+        yue: "讀唔到改動清單，因為搵唔到已安裝版本嘅發佈標籤。",
+    },
+    "update.comingSoon.contents.failed": {
+        en: "The list of changes could not be read right now.",
+        yue: "而家讀唔到改動清單。",
+    },
+    "update.comingSoon.failed.title": {
+        en: "The coming build did not finish",
+        yue: "即將推出嘅版本冇完成",
+    },
+    "update.comingSoon.failed.body": {
+        en: "Build {version} ended with the result {conclusion}. Nothing was installed and your version is unchanged.",
+        yue: "版本 {version} 嘅結果係 {conclusion}。冇安裝任何嘢，你嘅版本冇變。",
+    },
+    "update.comingSoon.failed.stage": {
+        en: "The stage that failed: {stage}.",
+        yue: "失敗嗰個階段：{stage}。",
+    },
+    "update.comingSoon.unknown.offline": {
+        en: "Could not check for a coming build: this computer could not reach the public build record.",
+        yue: "查唔到有冇版本嚟緊：呢部電腦連唔到公開嘅build記錄。",
+    },
+    "update.comingSoon.unknown.rateLimited": {
+        en: "Could not check for a coming build right now because the build record's hourly limit is used up. It will look again at {time}.",
+        yue: "而家查唔到有冇版本嚟緊，因為build記錄每小時嘅次數用晒。佢會喺 {time} 再睇。",
+    },
+    "update.comingSoon.unknown.rateLimitedNoTime": {
+        en: "Could not check for a coming build right now because the build record's hourly limit is used up. It will look again later.",
+        yue: "而家查唔到有冇版本嚟緊，因為build記錄每小時嘅次數用晒。佢遲啲會再睇。",
+    },
+    "update.comingSoon.unknown.unavailable": {
+        en: "Could not check for a coming build: the public build record did not answer as expected.",
+        yue: "查唔到有冇版本嚟緊：公開嘅build記錄冇按預期回應。",
+    },
+    "update.comingSoon.action.refresh": { en: "Check again", yue: "再查一次" },
+    "update.comingSoon.a11y.progress": {
+        en: "Build {version}: {done} of {total} stages done. Current stage: {stage}.",
+        yue: "版本 {version}：{total} 個階段完成咗 {done} 個。而家：{stage}。",
+    },
+    "update.comingSoon.a11y.progressNone": {
+        en: "Build {version}: {done} of {total} stages done.",
+        yue: "版本 {version}：{total} 個階段完成咗 {done} 個。",
+    },
+    "update.comingSoon.a11y.stage": { en: "{stage}: {state}", yue: "{stage}：{state}" },
 } as const satisfies Readonly<Record<string, { readonly en: string; readonly yue: string }>>;
 
 export type UpdateVoicedKey = keyof typeof UPDATE_VOICED;

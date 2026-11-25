@@ -19,6 +19,7 @@
 
 export { default as UpdateBanner } from "./UpdateBanner.vue";
 export { default as UpdateStatusRow } from "./UpdateStatusRow.vue";
+export { default as ComingSoonCard } from "./ComingSoonCard.vue";
 
 export {
     resolveUpdateBridge,
@@ -60,5 +61,14 @@ export {
     type UpdateStatusModel,
     type UpdateTone,
 } from "./updateModel.js";
+
+export {
+    comingSoonFor,
+    estimateFor,
+    formatClock24,
+    formatDuration,
+    type ComingSoonModel,
+    type ComingSoonStageModel,
+} from "./comingSoonModel.js";
 
 export { createUpdates, type UpdatesController, type UpdatesOptions } from "./useUpdates.js";

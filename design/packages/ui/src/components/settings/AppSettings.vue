@@ -59,6 +59,7 @@ import StorageSettingRow from "./StorageSettingRow.vue";
 import SurfacePlacementRow from "./SurfacePlacementRow.vue";
 import WorldFolderRow from "./WorldFolderRow.vue";
 import UpdateStatusRow from "../update/UpdateStatusRow.vue";
+import ComingSoonCard from "../update/ComingSoonCard.vue";
 import { updateText } from "../update/updateCopy.js";
 import type { UpdatesController } from "../update/useUpdates.js";
 import { SimpleHistoryPanel, simpleHistoryHostFrom } from "../history/index.js";
@@ -941,6 +942,18 @@ const updatesDismissed = computed(
         !props.updates.banner.value.visible,
 );
 
+/*
+ * The build that is on its way but not published yet. Opening Settings tells the main process
+ * someone may be looking, which only makes it read the public build record more often, and
+ * closing it slows that down again. Nothing about this installs or downloads anything.
+ */
+watch(
+    () => props.open,
+    (open) => props.updates.watchComingSoon(open),
+    { immediate: true },
+);
+onBeforeUnmount(() => props.updates.watchComingSoon(false));
+
 function checkForUpdate(): void {
     void props.updates.check();
 }
@@ -1586,6 +1599,11 @@ function onDrawer(value: boolean): void {
                         :title="copy.updates.title"
                         :description="copy.updates.description"
                     >
+                        <ComingSoonCard
+                            :coming-soon="props.updates.comingSoon.value"
+                            :update-state="props.updates.state.value"
+                            @refresh="props.updates.refreshComingSoon()"
+                        />
                         <UpdateStatusRow
                             :state="props.updates.state.value"
                             :model="props.updates.status.value"

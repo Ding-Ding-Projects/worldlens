@@ -25,6 +25,7 @@ import {
 } from "./updateModel.js";
 import {
     resolveUpdateBridge,
+    type ComingSoonState,
     type UpdateBridge,
     type UpdateRestartResult,
     type UpdateState,
@@ -39,6 +40,15 @@ export interface UpdatesController {
     readonly available: boolean;
     /** The last refusal, so a surface can show why Restart did not restart. */
     readonly refusal: Ref<string | null>;
+    /**
+     * The build that is being made but is not published yet, or null before the main process
+     * has said anything (and always in a build that cannot report one). Read-only: nothing
+     * about it can install, download or restart.
+     */
+    readonly comingSoon: Ref<ComingSoonState | null>;
+    /** Tells the main process whether the Updates surface is showing; only changes polling speed. */
+    watchComingSoon(open: boolean): void;
+    refreshComingSoon(): Promise<void>;
     check(): Promise<void>;
     restart(): Promise<UpdateRestartResult>;
     /** Puts this version's banner away. The settings row brings it back. */
@@ -67,6 +77,8 @@ export function createUpdates(options: UpdatesOptions = {}): UpdatesController {
     const state = ref<UpdateState>(unknownUpdateState(options.currentVersion ?? ""));
     const dismissed = ref<string | null>(readDismissedUpdate());
     const refusal = ref<string | null>(null);
+    const comingSoon = ref<ComingSoonState | null>(null);
+    let unsubscribeComingSoon: (() => void) | null = null;
 
     let unsubscribe: (() => void) | null = null;
     /**
@@ -110,6 +122,24 @@ export function createUpdates(options: UpdatesOptions = {}): UpdatesController {
         );
     }
 
+    const comingSoonBridge = bridge?.comingSoon ?? null;
+    if (comingSoonBridge !== null) {
+        let comingSoonPushed = false;
+        unsubscribeComingSoon = comingSoonBridge.onEvent((next) => {
+            comingSoonPushed = true;
+            comingSoon.value = next;
+        });
+        void comingSoonBridge.state().then(
+            (first) => {
+                // An answer that lands after a push is older than the push.
+                if (!comingSoonPushed) comingSoon.value = first;
+            },
+            () => {
+                // No answer means no card, never an invented one.
+            },
+        );
+    }
+
     const banner = computed(() =>
         bannerFor(state.value, {
             dismissedVersion: dismissed.value,
@@ -132,6 +162,24 @@ export function createUpdates(options: UpdatesOptions = {}): UpdatesController {
         status,
         available: bridge !== null,
         refusal,
+        comingSoon,
+        watchComingSoon(open: boolean): void {
+            if (comingSoonBridge === null) return;
+            void comingSoonBridge.watch(open).then(
+                (next) => {
+                    comingSoon.value = next;
+                },
+                () => {},
+            );
+        },
+        async refreshComingSoon(): Promise<void> {
+            if (comingSoonBridge === null) return;
+            try {
+                comingSoon.value = await comingSoonBridge.refresh();
+            } catch {
+                // Nothing is shown rather than a made-up state.
+            }
+        },
         async check(): Promise<void> {
             if (bridge === null) return;
             refusal.value = null;
@@ -206,6 +254,8 @@ export function createUpdates(options: UpdatesOptions = {}): UpdatesController {
         stop(): void {
             unsubscribe?.();
             unsubscribe = null;
+            unsubscribeComingSoon?.();
+            unsubscribeComingSoon = null;
         },
     };
 }

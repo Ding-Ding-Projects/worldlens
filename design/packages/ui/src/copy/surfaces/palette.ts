@@ -756,6 +756,22 @@ export const PALETTE_VOICED = {
             "每一個已發佈嘅版本，入面改咗啲乜，可以按日期篩選、可以搜尋，每一項都實實在在連返去整出佢嗰個 commit。",
         ],
     },
+    "palette.chrome.updateComingSoon": {
+        en: [
+            "Shows the build that is being made but is not published yet, with its stages, times and what it will contain. It never installs anything.",
+            "Shows the build that is being made but is not published yet, with its stages, times and what it will contain. It never installs anything.",
+            "Shows the build that is being made but not published yet: its stages, its times and what it will contain. It never installs anything.",
+            "Shows the build still in the oven: its stages, its times and what it will contain. It never installs anything.",
+            "Shows the build still in the oven, stage by stage, with its times and what it will contain. It never installs anything, it only lets you peek.",
+        ],
+        yue: [
+            "顯示製作緊但未發佈嘅版本，包括階段、時間同會有啲乜。唔會安裝任何嘢。",
+            "顯示製作緊但未發佈嘅版本，包括階段、時間同會有啲乜。唔會安裝任何嘢。",
+            "顯示製作緊但未發佈嘅版本：階段、時間同會有啲乜。唔會安裝任何嘢。",
+            "顯示仲喺焗爐入面嘅版本：階段、時間同會有啲乜。唔會安裝任何嘢。",
+            "顯示仲喺焗爐入面嘅版本，一個階段一個階段咁睇，連時間同內容都有。佢唔會安裝任何嘢，只係畀你睇下。",
+        ],
+    },
     "palette.chrome.tutorial": {
         en: [
             "A short guided walkthrough of finding a world, rendering it, and opening the result, with the real controls highlighted as it goes.",
@@ -1413,6 +1429,7 @@ export const PALETTE_FIXED = {
     "palette.shell.adultMode": { en: "Opens the one grown-up gate before switching out of Kid Mode.", yue: "轉返做大人模式之前，會先開嗰個大人閘。" },
     "palette.where.adultMode": { en: "Opens the grown-up gate in Kid Mode.", yue: "喺小朋友模式度開個大人閘。" },
     "palette.dialogEmoji.title": { en: "Show emojis in dialogs", yue: "對話框顯示 emoji" },
+    "palette.chrome.updateComingSoonTitle": { en: "Update coming soon", yue: "更新即將推出" },
 } as const satisfies Record<string, FixedString>;
 
 export const PALETTE_FACTS = {
@@ -1527,6 +1544,10 @@ export const PALETTE_FACTS = {
     "palette.chrome.changelog": {
         en: ["date filter", "commit"],
         yue: ["日期篩選", "commit"],
+    },
+    "palette.chrome.updateComingSoon": {
+        en: ["installs anything"],
+        yue: ["唔會安裝任何嘢"],
     },
     "palette.chrome.tutorial": {
         en: ["guided walkthrough"],

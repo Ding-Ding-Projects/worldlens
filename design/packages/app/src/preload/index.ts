@@ -2,7 +2,11 @@ import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
 import { createWorldlensBridge } from "@worldlens/bridge";
 import type { BridgeTransport } from "@worldlens/bridge";
 import type { IpcRendererEvent } from "electron";
-import type { UpdateState, UpdateRestartResult } from "../main/update/index.js";
+import type {
+    ComingSoonState,
+    UpdateState,
+    UpdateRestartResult,
+} from "../main/update/index.js";
 import type { EulaLoadResult } from "../main/eula/index.js";
 import type {
     DownloaderChunkAnswer,
@@ -3862,6 +3866,16 @@ interface WorldlensBridge {
      */
     restartToInstallUpdate(unsavedWork: boolean): Promise<UpdateRestartResult>;
     onUpdateEvent(listener: (state: UpdateState) => void): () => void;
+    /**
+     * The build that is being made but is not published yet ("Update coming soon").
+     *
+     * A description only: nothing reachable from here installs, downloads or restarts.
+     */
+    comingSoonState(): Promise<ComingSoonState>;
+    refreshComingSoon(): Promise<ComingSoonState>;
+    /** Says whether the Updates surface is open, which only changes how often the build record is read. */
+    watchComingSoon(open: boolean): Promise<ComingSoonState>;
+    onComingSoonEvent(listener: (state: ComingSoonState) => void): () => void;
 
     /* ---- Folders this application owns ---------------------------------- */
 
