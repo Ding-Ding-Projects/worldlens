@@ -82,21 +82,27 @@ function readOutline(doc) {
 /** Pure check of an outline tree against the inventory; exported for tests. */
 export function checkOutline(outline, inventory) {
     const problems = [];
-    const partNodes = outline.filter((node) => Object.values(PART_TITLES).includes(node.title));
+    // Chromium re-flows whitespace when it writes outline titles, and where a title wraps
+    // depends on the fonts of the machine that rendered it, so compare without whitespace.
+    const squash = (value) => value.replace(/\s+/gu, "");
+    const partTitles = Object.values(PART_TITLES).map(squash);
+    const partNodes = outline.filter((node) => partTitles.includes(squash(node.title)));
     const articleTitles = partNodes.flatMap((part) => part.children.map((child) => child.title));
     const want = inventory.entries.map((entry) => entry.title);
     if (articleTitles.length !== want.length) {
-        problems.push(`outline has ${articleTitles.length} article entries, inventory has ${want.length}`);
+        problems.push(
+            `outline has ${articleTitles.length} article entries, inventory has ${want.length}; top-level outline entries: ${outline
+                .map((node) => `${JSON.stringify(node.title)} (${node.children.length})`)
+                .join(", ")}`,
+        );
     }
-    // Chromium re-flows whitespace when it writes outline titles, so compare without it.
-    const squash = (value) => value.replace(/\s+/gu, "");
     for (let i = 0; i < Math.min(want.length, articleTitles.length); i += 1) {
         if (squash(articleTitles[i]) !== squash(want[i])) {
             problems.push(`outline entry ${i + 1} is "${articleTitles[i]}", inventory says "${want[i]}"`);
             break;
         }
     }
-    if (!outline.some((node) => node.title === "Contents")) problems.push("outline has no Contents entry");
+    if (!outline.some((node) => squash(node.title) === "Contents")) problems.push("outline has no Contents entry");
     return problems;
 }
 

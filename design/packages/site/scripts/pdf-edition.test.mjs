@@ -107,6 +107,18 @@ test("outline check compares titles in order and tolerates re-flowed whitespace"
     assert.equal(checkOutline(outline(["Three", "One, two"]), inventory).length > 0, true);
 });
 
+test("outline check finds a part whose own title was re-flowed", () => {
+    // A part heading that wraps on the rendering machine comes back with different
+    // whitespace. Its articles must still be counted.
+    const inventory = { entries: [{ title: "One" }, { title: "Two" }] };
+    const outline = [
+        { title: "Contents", depth: 1, children: [] },
+        { title: "Part 1. Site articles", depth: 1, children: [{ title: "One", depth: 2, children: [] }] },
+        { title: "Part 2. Reference\ndocuments", depth: 1, children: [{ title: "Two", depth: 2, children: [] }] },
+    ];
+    assert.deepEqual(checkOutline(outline, inventory), []);
+});
+
 async function tinyPdf(destinationIsRealPage) {
     const doc = await PDFDocument.create();
     const page = doc.addPage([PHONE_PAGE.widthPx * 0.75, PHONE_PAGE.heightPx * 0.75]);
