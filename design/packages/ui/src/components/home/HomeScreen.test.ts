@@ -487,7 +487,7 @@ describe("every capability from the scout's inventory is represented", () => {
         const view = render();
         expect(view.text()).toContain("Make a map");
         expect(view.text()).toContain("What is this?");
-        expect(view.text()).toContain("Take the tour");
+        expect(view.text()).toContain("Take a tour");
         // All three are in the always-visible top of the page, not behind a disclosure.
         for (const id of ["world", "what-is-bluemap", "tour"]) {
             expect(view.find(`[data-capability="${id}"]`).isVisible(), id).toBe(true);

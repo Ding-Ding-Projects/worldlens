@@ -341,6 +341,7 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
                 v-model:regex="regexMode"
                 v-model:flags="flags"
                 class="wl-dash__search"
+                data-tutorial-anchor="home-search"
                 density="default"
                 :label="
                     t('shell.home.search.everything', 'Search every feature, setting and article')
@@ -360,7 +361,12 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
                 aside while a search is showing results, so the results sit straight under the
                 field that produced them.
             -->
-            <section v-if="!searching" class="wl-machine" aria-labelledby="wl-dash-machine-title">
+            <section
+                v-if="!searching"
+                class="wl-machine"
+                aria-labelledby="wl-dash-machine-title"
+                data-tutorial-anchor="home-machine"
+            >
                 <div class="wl-section-head">
                     <h2 id="wl-dash-machine-title" class="wl-section-head__name">
                         {{ t("shell.home.machine.title", "On this machine") }}
@@ -673,7 +679,7 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
                 The six catalogues: the hero spans both columns, the other five sit two by two.
                 A fixed two rather than an auto-fit, so the hero never gains a sibling beside it.
             -->
-            <div v-else class="wl-dash__grid">
+            <div v-else class="wl-dash__grid" data-tutorial-anchor="home-catalogues">
                 <v-card
                     v-if="hero"
                     class="wl-hero"

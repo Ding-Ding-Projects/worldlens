@@ -1326,6 +1326,10 @@ export const PALETTE_VOICED = {
 export const PALETTE_FIXED = {
     /* The palette's own chrome. */
     "palette.title": { en: "Command palette", yue: "指令面板" },
+    "palette.chrome.tutorialTour": {
+        en: "A short guided walkthrough of this part of the application, with its real controls highlighted as it goes.",
+        yue: "一個簡短嘅導覽，帶你睇程式呢個部分，沿途會標示出真正嘅控制項。",
+    },
     "palette.close": { en: "Close the command palette", yue: "閂咗指令面板" },
     "palette.shortcut": { en: "Ctrl+Shift+F", yue: "Ctrl+Shift+F" },
     "palette.search.label": { en: "Search everything", yue: "搜尋所有嘢" },

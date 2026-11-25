@@ -80,6 +80,7 @@ import { createDownloadConcurrencySetting } from "./downloadConcurrencySetting.j
 import DownloadConcurrencyRow from "./DownloadConcurrencyRow.vue";
 import NotificationDurationRow from "./NotificationDurationRow.vue";
 import ActionSoundsRow from "./ActionSoundsRow.vue";
+import TourList from "../tutorial/TourList.vue";
 import { notices } from "../../stores/notices.js";
 import {
     dockPlacementLabel,
@@ -1075,7 +1076,7 @@ function onDrawer(value: boolean): void {
         </template>
 
         <template #prepend>
-            <div class="mb-settings__search">
+            <div class="mb-settings__search" data-tutorial-anchor="settings-search">
                 <ConfigSearchField
                     v-model="query"
                     v-model:regex="regexMode"
@@ -1681,6 +1682,7 @@ function onDrawer(value: boolean): void {
                         :description="copy.diagnostics.description"
                     >
                         <RepairPanel />
+                        <TourList />
                     </SettingsSection>
                 </template>
             </TabbedNavigation>

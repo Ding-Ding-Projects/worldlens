@@ -34,6 +34,7 @@ import {
     type PaletteDiscoveryState,
 } from "./paletteDiscovery.js";
 import { readPaletteSize, writePaletteSize, type PaletteSize } from "./palettePrefs.js";
+import type { TutorialTourId } from "../tutorial/tutorialSteps.js";
 import { useKidMode } from "../../kid/kidMode.js";
 
 /**
@@ -110,7 +111,7 @@ const emit = defineEmits<{
     /** Open the changelog, wherever the shell keeps it. */
     "open-changelog": [];
     /** Open the interactive tour. */
-    "open-tutorial": [];
+    "open-tutorial": [tour?: TutorialTourId];
     /** Open the docked licence panel the shell mounts. */
     "open-eula": [];
     /** Open the docked "what is this?" panel the shell mounts. */
@@ -162,7 +163,7 @@ const actions: PaletteShellActions = {
     openNoticeCentre: () => emit("open-notice-centre"),
     openTabFinder: () => emit("open-tab-finder"),
     openChangelog: () => emit("open-changelog"),
-    openTutorial: () => emit("open-tutorial"),
+    openTutorial: (tour) => emit("open-tutorial", tour),
     openEula: () => emit("open-eula"),
     openWelcome: () => emit("open-welcome"),
 };

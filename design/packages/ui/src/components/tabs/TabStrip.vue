@@ -1333,6 +1333,7 @@ const tabCountLabel = computed(() =>
     <div
         ref="stripRowEl"
         class="mb-tabs-strip-row"
+        data-tutorial-anchor="work-strip"
         :class="{ 'mb-tabs-strip-row--jobs': jobs }"
         :data-placement="strip.placement"
     >
@@ -1700,6 +1701,7 @@ const tabCountLabel = computed(() =>
                         :icon="mdiPlus"
                         :aria-label="t('tabs.strip.newTab', 'Open a new tab')"
                         class="mb-tabs-strip__new"
+                        data-tutorial-anchor="work-new-tab"
                         :color="jobs ? 'on-surface-variant' : undefined"
                         variant="text"
                         size="small"

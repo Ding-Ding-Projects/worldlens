@@ -490,7 +490,7 @@ function askToForget(world: string): void {
             >
                 {{ t("project.list.refresh", "Look again") }}
             </v-btn>
-            <v-btn :prepend-icon="mdiPlus" color="primary" variant="tonal" size="small" @click="emit('create')">
+            <v-btn :prepend-icon="mdiPlus" color="primary" variant="tonal" size="small" data-tutorial-anchor="projects-new" @click="emit('create')">
                 {{ t("project.list.new", "New project") }}
             </v-btn>
         </v-card-title>

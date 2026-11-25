@@ -189,6 +189,117 @@ export const TUTORIAL_FIXED = {
     "tutorial.step.publish.title": { en: "Sharing it, if you want to", yue: "想分享都得" },
     "tutorial.step.wrapUp.title": { en: "Come back any time", yue: "隨時返嚟睇" },
 
+    /* The short per-destination tours: one title and one body per step, one name per tour. */
+    "tutorial.tour.overall": { en: "Getting started", yue: "新手上路" },
+    "tutorial.tour.home": { en: "Home", yue: "主頁" },
+    "tutorial.tour.map": { en: "Map", yue: "地圖" },
+    "tutorial.tour.work": { en: "Work", yue: "工作區" },
+    "tutorial.tour.world": { en: "Make a map", yue: "整張地圖" },
+    "tutorial.tour.projects": { en: "Projects", yue: "專案" },
+    "tutorial.tour.pages": { en: "Publish", yue: "發佈" },
+    "tutorial.tour.toolkit": { en: "General tools", yue: "一般工具" },
+    "tutorial.tour.settings": { en: "Settings", yue: "設定" },
+
+    "tutorial.step.homeRail.title": { en: "Home", yue: "主頁" },
+    "tutorial.step.homeRail.body": {
+        en: "Home is where you start. It shows what is happening on this computer and lists everything this application does.",
+        yue: "主頁係起點，會顯示呢部電腦而家發生緊乜，同列出呢個程式做到嘅所有嘢。",
+    },
+    "tutorial.step.homeSearch.title": { en: "Search everything", yue: "搜尋所有嘢" },
+    "tutorial.step.homeSearch.body": {
+        en: "Type here to find any feature, setting or article. The button beside the box opens the pattern builder for more precise searches.",
+        yue: "喺呢度打字就可以搵到任何功能、設定或者文章。格仔旁邊嘅掣會打開模式產生器，搜尋可以更精準。",
+    },
+    "tutorial.step.homeMachine.title": { en: "On this machine", yue: "呢部電腦" },
+    "tutorial.step.homeMachine.body": {
+        en: "This section shows what is moving right now, such as renders in progress, so you can jump straight back to them.",
+        yue: "呢個區顯示而家進行緊嘅嘢，例如算緊嘅地圖，可以即刻跳返去睇。",
+    },
+    "tutorial.step.homeCatalogues.title": { en: "The catalogues", yue: "功能目錄" },
+    "tutorial.step.homeCatalogues.body": {
+        en: "Everything the application does is grouped by the job it belongs to. Open a catalogue to see every item in it, one line each.",
+        yue: "程式所有功能按用途分組。打開一個目錄，就會見到入面每一項，每項一行。",
+    },
+    "tutorial.step.mapRail.title": { en: "The Map button", yue: "地圖掣" },
+    "tutorial.step.mapRail.body": {
+        en: "This opens the map BlueMap made. It stays on the navigation rail so you can get back to it from anywhere.",
+        yue: "撳呢個掣會打開 BlueMap 整好嘅地圖。佢一直喺側邊導覽欄，喺邊度都可以返嚟。",
+    },
+    "tutorial.step.mapPage.title": { en: "The map area", yue: "地圖範圍" },
+    "tutorial.step.mapPage.body": {
+        en: "The map shows here. With no map open it says so and offers Make a map; once one is open, this area is the viewer with its own menu.",
+        yue: "地圖會喺呢度顯示。未開地圖嗰陣會寫明，並提供「整張地圖」；開咗之後，呢個範圍就係檢視器，仲有自己嘅選單。",
+    },
+    "tutorial.step.workRail.title": { en: "Work", yue: "工作區" },
+    "tutorial.step.workRail.body": {
+        en: "Work holds the jobs you have open, each in its own tab: making a map, projects, publishing and the tools.",
+        yue: "工作區放你打開咗嘅工作，每樣一個分頁：整地圖、專案、發佈同各種工具。",
+    },
+    "tutorial.step.workStrip.title": { en: "Your open tabs", yue: "已開分頁" },
+    "tutorial.step.workStrip.body": {
+        en: "Each job is a tab. Tabs can be reordered, pinned and grouped, and they are kept when you restart.",
+        yue: "每樣工作都係一個分頁。分頁可以調位、釘住同分組，重新開程式都會記住。",
+    },
+    "tutorial.step.workNewTab.title": { en: "Open another job", yue: "開另一樣工作" },
+    "tutorial.step.workNewTab.body": {
+        en: "The plus button opens a menu of every job this application can show, so any tool is one click away.",
+        yue: "加號掣會打開選單，列出程式可以開嘅所有工作，任何工具都係一撳就到。",
+    },
+    "tutorial.step.projectsTab.title": { en: "Projects", yue: "專案" },
+    "tutorial.step.projectsTab.body": {
+        en: "Projects holds your saved render projects, so you can render the same world again with the same settings.",
+        yue: "專案放你儲存咗嘅算圖專案，可以用同一套設定再算同一個世界。",
+    },
+    "tutorial.step.projectsPage.title": { en: "Your saved projects", yue: "你嘅專案" },
+    "tutorial.step.projectsPage.body": {
+        en: "This page lists every saved render project and opens an editor for the one you pick.",
+        yue: "呢頁列出所有已儲存嘅算圖專案，揀一個就會打開編輯器。",
+    },
+    "tutorial.step.projectsNew.title": { en: "Start a new project", yue: "新增專案" },
+    "tutorial.step.projectsNew.body": {
+        en: "New project creates a project you can configure beyond the five questions the guide asks.",
+        yue: "新增專案會建立一個專案，設定可以多過精靈問嗰五條問題。",
+    },
+    "tutorial.step.pagesTab.title": { en: "Publish to GitHub Pages", yue: "發佈去 GitHub Pages" },
+    "tutorial.step.pagesTab.body": {
+        en: "This tab publishes a finished map to GitHub Pages, a free address anyone can open.",
+        yue: "呢個分頁會將算好嘅地圖發佈去 GitHub Pages，一個人人都開到嘅免費網址。",
+    },
+    "tutorial.step.toolsTab.title": { en: "General tools", yue: "一般工具" },
+    "tutorial.step.toolsTab.body": {
+        en: "General tools gathers the smaller tools, including the documentation, in one tab.",
+        yue: "一般工具將較細嘅工具集合喺一個分頁，包括說明文件。",
+    },
+    "tutorial.step.toolsList.title": { en: "Pick a tool", yue: "揀工具" },
+    "tutorial.step.toolsList.body": {
+        en: "Choose a tool from this list and it opens beside it. In a narrow window the list becomes a dropdown instead.",
+        yue: "喺呢個清單揀一個工具，就會喺旁邊打開。視窗窄嗰陣，清單會變成下拉選單。",
+    },
+    "tutorial.step.settingsRail.title": { en: "Settings", yue: "設定" },
+    "tutorial.step.settingsRail.body": {
+        en: "Settings opens from the foot of the navigation rail. Pressing it again closes it.",
+        yue: "設定喺側邊導覽欄最底打開，再撳一下就關返。",
+    },
+    "tutorial.step.settingsSearch.title": { en: "Search settings", yue: "搜尋設定" },
+    "tutorial.step.settingsSearch.body": {
+        en: "Type here to find a setting by its name or description. The button beside the box opens the pattern builder.",
+        yue: "喺呢度打字，用名稱或者描述搵設定。格仔旁邊嘅掣會打開模式產生器。",
+    },
+
+    /* The card's own chrome for a step whose control is not on screen, and the tour list. */
+    "tutorial.tour.heading": { en: "Tour: {tour}", yue: "導覽：{tour}" },
+    "tutorial.missing.message": {
+        en: "This step points at a control that is not showing right now. It may be on another page, or hidden by the window size.",
+        yue: "呢一步指住嘅控制項而家冇顯示，可能喺另一頁，或者視窗太細畀佢收埋咗。",
+    },
+    "tutorial.missing.still": {
+        en: "Still not showing. Try a larger window, or skip this step.",
+        yue: "仍然冇顯示。試吓放大視窗，或者跳過呢步。",
+    },
+    "tutorial.controls.reveal": { en: "Show it", yue: "帶我去" },
+    "tutorial.launch.tour": { en: "Take a tour: {tour}", yue: "開始導覽：{tour}" },
+    "tutorial.tours.heading": { en: "Guided tours", yue: "導覽" },
+
     "tutorial.controls.next": { en: "Next", yue: "下一步" },
     "tutorial.controls.finish": { en: "Finish", yue: "完成" },
     "tutorial.controls.back": { en: "Back", yue: "上一步" },
@@ -196,7 +307,7 @@ export const TUTORIAL_FIXED = {
     "tutorial.controls.exit": { en: "Exit the tour", yue: "退出導覽" },
 
     /* The button that opens the tour: from Info, from Docs, and from the command palette. */
-    "tutorial.launch.start": { en: "Take the tour", yue: "開始導覽" },
+    "tutorial.launch.start": { en: "Take a tour", yue: "開始導覽" },
     "tutorial.launch.replay": { en: "Replay the tour", yue: "重睇導覽" },
 
     /* The overlay's own accessible region name, in case a step's title has not loaded yet. */

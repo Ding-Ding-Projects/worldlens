@@ -281,7 +281,7 @@ const capabilities = computed<HomeCapability[]>(() => {
         tile({
             id: "tour",
             group: t("home.section.getStarted", "Get started"),
-            title: t("tutorial.launch.start", "Take the tour"),
+            title: t("tutorial.launch.start", "Take a tour"),
             description: t(
                 "palette.chrome.tutorial",
                 "A short guided walkthrough of finding a world, rendering it, and opening the result, with the real controls highlighted as it goes.",

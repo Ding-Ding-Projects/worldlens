@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { TUTORIAL_STEP_IDS, TUTORIAL_STEPS, tutorialStepIndex } from "./tutorialSteps.js";
+import {
+    TUTORIAL_STEP_IDS,
+    TUTORIAL_STEPS,
+    TUTORIAL_TOUR_IDS,
+    TUTORIAL_TOURS,
+    isTutorialTourId,
+    tutorialStepIndex,
+} from "./tutorialSteps.js";
 
 describe("the tour's itinerary", () => {
     it("has one step per declared id, in the same order", () => {
@@ -31,6 +38,46 @@ describe("the tour's itinerary", () => {
             "publish",
             "wrapUp",
         ]);
+    });
+
+    it("declares every tour, each with a real, anchored step list", () => {
+        expect(Object.keys(TUTORIAL_TOURS).sort()).toEqual([...TUTORIAL_TOUR_IDS].sort());
+        for (const tour of TUTORIAL_TOUR_IDS) {
+            const steps = TUTORIAL_TOURS[tour];
+            for (const step of steps) {
+                expect(step.pageId.length, `${tour}/${step.id}`).toBeGreaterThan(0);
+                expect(step.anchor, `${tour}/${step.id}`).toContain("data-tutorial-anchor=");
+            }
+            expect(new Set(steps.map((step) => step.id)).size, tour).toBe(steps.length);
+        }
+    });
+
+    it("gives every destination tour between two and four steps", () => {
+        for (const tour of TUTORIAL_TOUR_IDS) {
+            if (tour === "overall") continue;
+            expect(TUTORIAL_TOURS[tour].length, tour).toBeGreaterThanOrEqual(2);
+            expect(TUTORIAL_TOURS[tour].length, tour).toBeLessThanOrEqual(4);
+        }
+    });
+
+    it("covers Home, Map, Work, Make a map, Projects, Publish, the general tools tab and Settings", () => {
+        expect([...TUTORIAL_TOUR_IDS]).toEqual([
+            "overall",
+            "home",
+            "map",
+            "work",
+            "world",
+            "projects",
+            "pages",
+            "toolkit",
+            "settings",
+        ]);
+    });
+
+    it("isTutorialTourId accepts only declared tours", () => {
+        expect(isTutorialTourId("map")).toBe(true);
+        expect(isTutorialTourId("nope")).toBe(false);
+        expect(isTutorialTourId(3)).toBe(false);
     });
 
     it("tutorialStepIndex finds each step at its real position", () => {
