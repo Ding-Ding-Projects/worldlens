@@ -1,9 +1,43 @@
+<script lang="ts">
+// The strip is drawn once per pane and the first pane takes the host's own attributes, so
+// attribute inheritance is done by hand in the template rather than by the root element.
+export default { inheritAttrs: false };
+</script>
+
 <script setup lang="ts">
-import { computed, ref, useId, watch } from "vue";
+import { computed, nextTick, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { VBtn, VIcon } from "vuetify/components";
 import { raiseNotice } from "../../stores/notices.js";
 import TabStrip from "./TabStrip.vue";
+import DockSurface from "./DockSurface.vue";
+import {
+    applyNamedLayout,
+    deleteNamedLayout,
+    readDockLayout,
+    readNamedLayouts,
+    renameNamedLayout,
+    saveNamedLayout,
+    writeDockLayout,
+    writeNamedLayouts,
+    type DockLayoutJson,
+    type NamedLayout,
+} from "./dockLayoutStorage.js";
+import {
+    activateIn,
+    adjacentStripId,
+    mergeStripsIntoFirst,
+    moveTabToStrip,
+    nextWorkspaceGroupId,
+    nextWorkspaceTabId,
+    pruneEmptyStrips,
+    splitDirectionOf,
+    splitTabToNewStrip,
+    stripIds,
+    type LayoutCommand,
+    type SplitDirection,
+} from "./workLayout.js";
+import type { SaveLayoutResult, WorkLayoutHost } from "./workLayoutHost.js";
 import { applyClosePlan, type TabClosePlan } from "./closePlans.js";
 import {
     addTab,
@@ -216,6 +250,7 @@ const props = withDefaults(
         // `seedablePages()` reads as "seed every declared page, as this component always has".
         defaultPlacement: DEFAULT_TAB_PLACEMENT,
         fileNewTabsIntoSeedGroups: false,
+        dock: false,
     },
 );
 

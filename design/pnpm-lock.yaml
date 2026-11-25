@@ -395,6 +395,9 @@ importers:
       '@worldlens/viewer':
         specifier: workspace:*
         version: link:../viewer
+      dockview:
+        specifier: 8.9.1
+        version: 8.9.1
       sql.js:
         specifier: 1.14.1
         version: 1.14.1
@@ -2023,6 +2026,12 @@ packages:
 
   dmg-builder@26.15.3:
     resolution: {integrity: sha512-O3zJUFUYHJKgzPqioHxfxzBzlSC1eXCSr79gMSBKBP5AgjjpmrydMsMLotEg9fAJF36vdUncb+4ndRNxoPdlSQ==}
+
+  dockview-core@8.9.1:
+    resolution: {integrity: sha512-OzqB63P65qeSquFoyYjQi5yT85ERcmceaJ0+YdQL68IZJmBd5kAfe4UD9bl3xILuXJ1tlXIoExdZ+vLpv30u1g==}
+
+  dockview@8.9.1:
+    resolution: {integrity: sha512-y35BxYANBtHJ4q7AIkd2c1Oh2pPx3dsaMhm6s4YvMXyIWlklxHRZupXtN6bS8QuJ/hmy/5ih/Ow2oARbEx4Yog==}
 
   dompurify@3.4.12:
     resolution: {integrity: sha512-zQvGet8Z2sWbQhCmfFz/T5QWH2oBmjnqK3qvOjaqaNLrLEF912WamU+ohnTp0TCep/MFVHpdJuCZEdFOdTnEFg==}
@@ -5606,6 +5615,12 @@ snapshots:
     transitivePeerDependencies:
       - electron-builder-squirrel-windows
       - supports-color
+
+  dockview-core@8.9.1: {}
+
+  dockview@8.9.1:
+    dependencies:
+      dockview-core: 8.9.1
 
   dompurify@3.4.12:
     optionalDependencies:

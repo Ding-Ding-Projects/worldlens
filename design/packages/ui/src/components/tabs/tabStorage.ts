@@ -283,3 +283,22 @@ export function writeTabWorkspace(
         // Private mode or a full quota. A remembered tab layout is not worth a toast.
     }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Strips as plain JSON, for the named layouts                                */
+/* -------------------------------------------------------------------------- */
+
+/** The strips of a workspace as the exact JSON the storage key holds, nothing runtime. */
+export function workspaceStripsToJson(workspace: TabWorkspaceState): unknown[] {
+    return workspace.strips.map(writableStrip);
+}
+
+/**
+ * Strips read back from {@link workspaceStripsToJson}, through the same validator a
+ * stored workspace goes through. Anything unreadable is dropped, never trusted.
+ */
+export function workspaceStripsFromJson(value: unknown): TabStripState[] {
+    return Array.isArray(value)
+        ? value.map(readStrip).filter((strip): strip is TabStripState => strip !== null)
+        : [];
+}
