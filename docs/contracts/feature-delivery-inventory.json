@@ -6996,6 +6996,436 @@
       "sourceEvidence": [],
       "focusedInventory": null,
       "reviewState": "pending-review"
+    },
+    {
+      "id": "guided-tour",
+      "title": "Guided Take a tour",
+      "requirement": "Every surface ships a guided tour: a small card anchored beside the real control it explains, a highlight ring, a step heading, Back, Skip this step, Next and close. A step whose control is hidden says so and offers to reveal it. The tour is offered once after setup, reachable from Help, Settings and the command palette as Take a tour, resumes where it stopped, has a short tour per destination, and is keyboard, screen-reader and reduced-motion safe.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "applicable",
+          "reason": "An overall seven-step tour exists; per-destination tours, the hidden-control step and the Help and Settings entries are in progress.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "hosted-workspace": {
+          "applicability": "applicable",
+          "reason": "Shares the desktop interface.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "documentation-site": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; not yet reviewed on this surface.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; not yet reviewed on this surface.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "repository-deliverables": {
+          "applicability": "applicable",
+          "reason": "README and site must show a captured tour step.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        }
+      },
+      "sourceEvidence": []
+    },
+    {
+      "id": "update-coming-soon",
+      "title": "Update coming soon with detailed progress",
+      "requirement": "An application that updates itself shows an Update coming soon state while a newer build is being made but is not yet published: the build number, every stage with its own state, 24-hour start and elapsed time, a labelled estimate and what the build will contain. It never installs anything, never invents progress, and becomes the ordinary update offer once published.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "applicable",
+          "reason": "The desktop app updates itself from published releases.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "hosted-workspace": {
+          "applicability": "not-applicable",
+          "reason": "The hosted image is updated by its operator, not from inside the interface.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "documentation-site": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; not yet reviewed on this surface.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "not-applicable",
+          "reason": "The embedded viewer is delivered with its host and has no updater.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "repository-deliverables": {
+          "applicability": "not-applicable",
+          "reason": "Runtime surface only.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        }
+      },
+      "sourceEvidence": []
+    },
+    {
+      "id": "settings-quick-add",
+      "title": "Quick add beside every Settings pointer",
+      "requirement": "Anything that tells the person to add, set or paste a value in Settings carries the matching input and Save right there, writing the same stored value as the Settings row with the same validation, keeping credentials masked, and confirming without blocking.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; not yet reviewed on this surface.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "hosted-workspace": {
+          "applicability": "applicable",
+          "reason": "Shares the desktop interface.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "documentation-site": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; not yet reviewed on this surface.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; not yet reviewed on this surface.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "repository-deliverables": {
+          "applicability": "not-applicable",
+          "reason": "Runtime surface only.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        }
+      },
+      "sourceEvidence": []
+    },
+    {
+      "id": "data-folder-choice",
+      "title": "Choose the profile folder and save folder; the profile folder keeps its own Git history",
+      "requirement": "Settings lets the person choose the application profile folder and its save folder with a real folder picker, validation, a verified move that never loses data, and reset to default. The profile folder is a Git repository whose settled changes are committed at safe points, with caches, locks and logs ignored. Pushing to a remote is optional, private by default, set up through assisted GitHub CLI sign-in, and leaves credential files out unless the person chooses a self-hosted server on the local network.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "applicable",
+          "reason": "The desktop app owns a profile folder and a default save location.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "hosted-workspace": {
+          "applicability": "applicable",
+          "reason": "Fixed volumes: the location is shown and chosen at deployment setup.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "documentation-site": {
+          "applicability": "not-applicable",
+          "reason": "The site stores visitor preferences in the browser only.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "not-applicable",
+          "reason": "The viewer owns no profile folder.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "repository-deliverables": {
+          "applicability": "not-applicable",
+          "reason": "Runtime surface only.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        }
+      },
+      "sourceEvidence": []
+    },
+    {
+      "id": "first-account-owner",
+      "title": "The first account created becomes the owner",
+      "requirement": "A fresh hosted instance has no setup code: the first registration becomes the owner inside one atomic check so only one can win, and every later attempt is refused with a pointer to sign-in. The setup form, console output, launcher output and README all say so.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "not-applicable",
+          "reason": "The desktop app has no accounts of its own.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "hosted-workspace": {
+          "applicability": "applicable",
+          "reason": "The hosted workspace has owner sign-in.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "documentation-site": {
+          "applicability": "not-applicable",
+          "reason": "No accounts.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "not-applicable",
+          "reason": "No accounts.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "repository-deliverables": {
+          "applicability": "applicable",
+          "reason": "README setup sections must state the rule.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        }
+      },
+      "sourceEvidence": []
+    },
+    {
+      "id": "dockview-workspace",
+      "title": "Workspaces use dockview",
+      "requirement": "Movable tabs, split panes, docking, floating groups and saved layouts are built on a bundled, pinned dockview, with the existing tab features layered on top so the interface does not look replaced.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "applicable",
+          "reason": "The Work tab strip is hand-built today; no dockview dependency is present.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "hosted-workspace": {
+          "applicability": "applicable",
+          "reason": "Shares the desktop interface.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "documentation-site": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; not yet reviewed on this surface.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "not-applicable",
+          "reason": "Single-surface viewer with no workspace.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "repository-deliverables": {
+          "applicability": "not-applicable",
+          "reason": "Runtime surface only.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        }
+      },
+      "sourceEvidence": []
+    },
+    {
+      "id": "rich-text-editor",
+      "title": "Every rich text box uses TinyMCE",
+      "requirement": "Any field where a person formats text uses a self-hosted, pinned, current TinyMCE build with no cloud script or key; plain text stays a text area and code stays in a code editor. Saved HTML is sanitized.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "applicable",
+          "reason": "Marker HTML and similar formatted fields need review; no TinyMCE dependency is present.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "hosted-workspace": {
+          "applicability": "applicable",
+          "reason": "Shares the desktop interface.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "documentation-site": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; not yet reviewed on this surface.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "not-applicable",
+          "reason": "The viewer renders sanitized marker HTML and has no editing field.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "repository-deliverables": {
+          "applicability": "not-applicable",
+          "reason": "Runtime surface only.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        }
+      },
+      "sourceEvidence": []
+    },
+    {
+      "id": "quicktype-studio",
+      "title": "Type generator and structured JSON editor",
+      "requirement": "The application ships a local type generator that turns JSON, JSON Schema, TypeScript and GraphQL into typed models for every supported target language, live and offline, with every engine option as a control, plus a structured JSON editor.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; not yet reviewed on this surface.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "hosted-workspace": {
+          "applicability": "applicable",
+          "reason": "Shares the desktop interface.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "documentation-site": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; not yet reviewed on this surface.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "not-applicable",
+          "reason": "Not a tool surface.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "repository-deliverables": {
+          "applicability": "not-applicable",
+          "reason": "Runtime surface only.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        }
+      },
+      "sourceEvidence": []
+    },
+    {
+      "id": "site-pdf-edition",
+      "title": "Phone-size PDF edition of the documentation site",
+      "requirement": "Every release carries a PDF edition of the documentation site with phone-size pages, the complete articles and wiki content, a tappable table of contents and working internal links, generated from the same reviewed source in the release build.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "not-applicable",
+          "reason": "Site deliverable.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "hosted-workspace": {
+          "applicability": "not-applicable",
+          "reason": "Site deliverable.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "documentation-site": {
+          "applicability": "applicable",
+          "reason": "Generated from the site content.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "not-applicable",
+          "reason": "Site deliverable.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "repository-deliverables": {
+          "applicability": "applicable",
+          "reason": "Attached to every normal release.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        }
+      },
+      "sourceEvidence": []
+    },
+    {
+      "id": "interactive-setup",
+      "title": "One-command setup with an interactive prompt for every value",
+      "requirement": "Every setup is one copy-and-paste command. Any value a person would otherwise create by hand is asked for in an interactive terminal interface with defaults, validation, Back and a review screen, or generated; a plain prompt fallback and a non-interactive flags path exist; re-runs keep existing values; the command ends by running the application and printing the verified link.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "not-applicable",
+          "reason": "Installed by its installer; nothing is hand-edited.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "hosted-workspace": {
+          "applicability": "applicable",
+          "reason": "Container and appliance setup.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "documentation-site": {
+          "applicability": "applicable",
+          "reason": "Setup sections must show the one command.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "not-applicable",
+          "reason": "Delivered with its host.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "repository-deliverables": {
+          "applicability": "applicable",
+          "reason": "README setup sections.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        }
+      },
+      "sourceEvidence": []
     }
   ],
   "deliveryObligations": [

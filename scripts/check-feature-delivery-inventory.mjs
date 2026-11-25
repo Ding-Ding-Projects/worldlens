@@ -123,6 +123,16 @@ export const REQUIRED_IDS = Object.freeze([
   "drawesome-drawing",
   "live-charts",
   "job-experience-document-label",
+  "guided-tour",
+  "update-coming-soon",
+  "settings-quick-add",
+  "data-folder-choice",
+  "first-account-owner",
+  "dockview-workspace",
+  "rich-text-editor",
+  "quicktype-studio",
+  "site-pdf-edition",
+  "interactive-setup",
 ]);
 // Required delivery contracts also exist outside the feature catalogue. Keep this
 // independent list so omission of an entire companion cannot pass the checker.

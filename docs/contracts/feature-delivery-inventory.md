@@ -4,7 +4,7 @@ Generated from `feature-delivery-inventory.json`. Run `node scripts/check-featur
 
 Baseline: `11cd248f9a13c6547474a0cfe168b2958751be60`. Incomplete implementation and acceptance inventory; no all-feature completion claim.
 
-117 feature requirements and 3 additional delivery obligations are tracked across 5 separately assessed scopes. Public identifiers retain ordinary technical wording. Source mappings identify code presence only. They do not establish implementation completeness, runtime acceptance or capture acceptance. Per-surface reasons, limitations and evidence remain in the JSON.
+127 feature requirements and 3 additional delivery obligations are tracked across 5 separately assessed scopes. Public identifiers retain ordinary technical wording. Source mappings identify code presence only. They do not establish implementation completeness, runtime acceptance or capture acceptance. Per-surface reasons, limitations and evidence remain in the JSON.
 
 | Identifier | Requirement | Scopes with recorded source mapping | Source paths | Review state |
 | --- | --- | --- | --- | --- |
@@ -125,6 +125,16 @@ Baseline: `11cd248f9a13c6547474a0cfe168b2958751be60`. Incomplete implementation 
 | `drawesome-drawing` | Drawing and annotation | desktop, hosted-workspace | `design/packages/ui/src/components/drawing/DrawingBoard.vue`, `design/packages/ui/src/components/drawing/drawingModel.ts` | pending-review |
 | `live-charts` | Live charts in the Liveline style | desktop, hosted-workspace | `design/packages/ui/src/components/charts/LiveChart.vue`, `design/packages/ui/src/components/charts/liveChartModel.ts`, `design/packages/ui/src/components/progress/RenderThroughput.vue` | pending-review |
 | `job-experience-document-label` | Job Experience Document product label | None recorded | Not yet mapped | pending-review |
+| `guided-tour` | Guided Take a tour | None recorded | Not yet mapped | pending-review |
+| `update-coming-soon` | Update coming soon with detailed progress | None recorded | Not yet mapped | pending-review |
+| `settings-quick-add` | Quick add beside every Settings pointer | None recorded | Not yet mapped | pending-review |
+| `data-folder-choice` | Choose the profile folder and save folder; the profile folder keeps its own Git history | None recorded | Not yet mapped | pending-review |
+| `first-account-owner` | The first account created becomes the owner | None recorded | Not yet mapped | pending-review |
+| `dockview-workspace` | Workspaces use dockview | None recorded | Not yet mapped | pending-review |
+| `rich-text-editor` | Every rich text box uses TinyMCE | None recorded | Not yet mapped | pending-review |
+| `quicktype-studio` | Type generator and structured JSON editor | None recorded | Not yet mapped | pending-review |
+| `site-pdf-edition` | Phone-size PDF edition of the documentation site | None recorded | Not yet mapped | pending-review |
+| `interactive-setup` | One-command setup with an interactive prompt for every value | None recorded | Not yet mapped | pending-review |
 | `documentation-companion` | Additional documentation companion | None recorded | Not yet mapped | pending-review |
 | `build-gui-companion` | Portable build GUI companion | None recorded | Not yet mapped | pending-review |
 | `hosted-deployment-tools` | Container deployment and setup tools | None recorded | Not yet mapped | pending-review |
