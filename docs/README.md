@@ -144,6 +144,7 @@ application has. The in-app documentation browser groups them the same way, unde
 | [Release notes and other provider text](./provider-text.md) | Rendering release notes, issue text and README previews as markup through one isolated renderer. |
 | [Control guides](./control-guides.md) | The explanation button beside a control, saying what it does and what each choice changes. |
 | [CoreProtect inspector](./coreprotect-inspector.md) | Opening a CoreProtect database to see who changed which blocks, highlighted on the live map and in the hosted map, with replay, file watching and copy-ready admin commands. |
+| [Phone PDF edition](./pdf-edition.md) | The documentation as one PDF with phone-size pages, a tappable contents page, working internal links and every article and reference document, built in the release and attached to every release. |
 | [NBT editor](./nbt-editor.md) | A visual editor for level.dat, player data, region chunks and any NBT file, with typed editing, SNBT, search, undo, and a local Git history of every save with semantic diffs and restore. |
 | [NBT research notes](./nbt-research.md) | The facts behind the NBT editor's readable names and tailored controls: tag types, packed long arrays, Bedrock storage, and where each field's control comes from. |
 | [Data pack creator](./data-pack-creator.md) | Making a data pack with typed controls: recipes on a crafting grid, functions, tags, advancements, loot tables, predicates and biomes, checked against the chosen game version and saved as a .zip. |

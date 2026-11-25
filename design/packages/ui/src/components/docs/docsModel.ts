@@ -128,6 +128,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "provider-text.md",
     "control-guides.md",
     "coreprotect-inspector.md",
+    "pdf-edition.md",
     "nbt-editor.md",
     "nbt-research.md",
     "data-pack-creator.md",
