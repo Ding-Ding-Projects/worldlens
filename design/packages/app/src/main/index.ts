@@ -205,6 +205,12 @@ import { RuntimeCredentialStore, RuntimeSourceRegistry } from "./runtimeSettings
 import { createRuntimeSettingsService } from "./runtimeSettings/service.js";
 import { RuntimeHistoryService } from "./runtimeSettings/history.js";
 import { forgetAppRenderer, isAppRendererSender, trustAppRenderer } from "./appRendererSender.js";
+import {
+    EMBEDDED_SERVER_PORT_FILE,
+    listenPreferringPort,
+    readPreferredPort,
+    writePreferredPort,
+} from "./embeddedServerPort.js";
 
 const squirrelStartupHandled = handleSquirrelShortcutEvent({
     platform: process.platform,
@@ -415,11 +421,19 @@ let embeddedServer: Promise<string> | null = null;
 
 async function startEmbeddedServer(): Promise<string> {
     embeddedServer ??= (async () => {
-        const server = new HttpServer({ host: "127.0.0.1", port: 0, authToken });
-        server.addHandler(remoteProxy);
-        server.addHandler(localMaps);
-        server.addHandler(new StaticHandler(resolveUiRoot()));
-        const address = await server.listen();
+        // The same port as last launch where possible: the interface's storage is kept per
+        // origin, port included, so a new port every launch emptied it. See
+        // `embeddedServerPort.ts`.
+        const portFile = path.join(app.getPath("userData"), EMBEDDED_SERVER_PORT_FILE);
+        const uiRoot = resolveUiRoot();
+        const { server, address } = await listenPreferringPort((port) => {
+            const candidate = new HttpServer({ host: "127.0.0.1", port, authToken });
+            candidate.addHandler(remoteProxy);
+            candidate.addHandler(localMaps);
+            candidate.addHandler(new StaticHandler(uiRoot));
+            return candidate;
+        }, await readPreferredPort(portFile));
+        await writePreferredPort(portFile, address.port);
         app.on("will-quit", () => void server.close());
         return `http://127.0.0.1:${address.port}`;
     })();

@@ -201,6 +201,42 @@ describe("Work after the app opens again", () => {
         expect(storedPageIds()).toContain("projects");
     });
 
+    it("never opens Work blank on a saved strip the old build emptied", async () => {
+        // The exact shape an installed profile was left in by the stale-strip defect: no tabs,
+        // the four seeded groups still present as empty slots, the migration recorded as done
+        // and the one-time page offer already used.
+        const groups = ["seed-worlds", "seed-rendering", "seed-finished", "seed-copies"];
+        cells.set(
+            DEFAULT_TAB_STORAGE_KEY,
+            JSON.stringify({
+                version: 2,
+                strips: [
+                    {
+                        ...emptyStrip(),
+                        groups: groups.map((id) => ({
+                            id,
+                            name: id,
+                            color: "info",
+                            collapsed: false,
+                            tabIds: [],
+                            appearance: null,
+                        })),
+                        slots: groups.map((groupId) => ({ kind: "group", groupId })),
+                    },
+                ],
+            }),
+        );
+        markMigrationRan();
+        markPagesOffered();
+        shell();
+        await settle();
+        await goTo("Work");
+
+        // A strip in that shape is not accepted as a saved layout, so Work opens on its own
+        // fresh layout instead of on nothing.
+        expect(tabLabels()).toContain("Make a map, pinned");
+    });
+
     it("does not let the first launch's stale strip overwrite the migrated workspace", async () => {
         // A workspace from before the shell moved to jobs, with Home and Map as tabs.
         cells.set(
