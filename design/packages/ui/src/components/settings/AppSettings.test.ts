@@ -60,6 +60,7 @@ const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
     "map-storage-directory": "Where rendered maps go",
     "world-folder": "World folder",
     "github-account": "GitHub account",
+    "data-folders": "Data folders and history",
     "language-and-tone": "Language and tone",
     display: "Display and ease of use",
     "kid-mode": "Kid Mode and Adult Mode",

@@ -12,6 +12,7 @@ import {
     mdiDownloadMultiple,
     mdiEngineOutline,
     mdiFolderOutline,
+    mdiFolderSyncOutline,
     mdiFolderSearchOutline,
     mdiHistory,
     mdiHumanHandsup,
@@ -56,6 +57,7 @@ import { lastQuickAddSave } from "./quickAdd/quickAddEvents.js";
 import EngineChoicePanel from "./EngineChoicePanel.vue";
 import SettingsSection from "./SettingsSection.vue";
 import StorageSettingRow from "./StorageSettingRow.vue";
+import DataFoldersRow from "../dataFolders/DataFoldersRow.vue";
 import SurfacePlacementRow from "./SurfacePlacementRow.vue";
 import WorldFolderRow from "./WorldFolderRow.vue";
 import UpdateStatusRow from "../update/UpdateStatusRow.vue";
@@ -224,6 +226,7 @@ const javaSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const renderEngineChoiceSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const storageSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const worldSection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const dataFoldersSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const githubSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const languageSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const displaySection = ref<InstanceType<typeof SettingsSection> | null>(null);
@@ -315,6 +318,7 @@ const SECTION_ICONS: Readonly<Record<SettingsSectionAnchor, string>> = {
     "java-runtime": mdiCoffeeOutline,
     "render-engine-choice": mdiEngineOutline,
     "map-storage-directory": mdiFolderOutline,
+    "data-folders": mdiFolderSyncOutline,
     "world-folder": mdiFolderSearchOutline,
     "github-account": mdiAccountCircleOutline,
     "language-and-tone": mdiTranslate,
@@ -528,6 +532,20 @@ const sections = computed<SettingsSectionText[]>(() => {
             title: text["world-folder"].title,
             description: text["world-folder"].description,
             values: [worldCopy.perMap, worldCopy.where],
+        },
+        {
+            anchor: "data-folders",
+            title: text["data-folders"].title,
+            description: text["data-folders"].description,
+            values: [
+                t("dataFolders.profile.title", "Profile folder"),
+                t("dataFolders.save.title", "Save folder"),
+                t("dataFolders.history.title", "Profile history"),
+                t("dataFolders.remote.title", "Send the history to a repository (optional)"),
+                t("dataFolders.apply", "Apply"),
+                t("dataFolders.reset", "Reset to default"),
+                t("dataFolders.credentials.include", "Also send sign-in files (own-network servers only)"),
+            ],
         },
         {
             anchor: "github-account",
@@ -871,6 +889,8 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return storageSection.value;
         case "world-folder":
             return worldSection.value;
+        case "data-folders":
+            return dataFoldersSection.value;
         case "github-account":
             return githubSection.value;
         case "language-and-tone":
@@ -1303,6 +1323,20 @@ function onDrawer(value: boolean): void {
                     section is reached by opening Settings, and is listed and searched exactly
                     like the four that a failure can link to.
                 -->
+                <template #data-folders>
+                    <SettingsSection
+                        ref="dataFoldersSection"
+                        anchor="data-folders"
+                        :icon="SECTION_ICONS['data-folders']"
+                        :status="sectionStatus['data-folders']?.text ?? null"
+                        :status-tone="sectionStatus['data-folders']?.tone ?? 'neutral'"
+                        :title="copy['data-folders'].title"
+                        :description="copy['data-folders'].description"
+                    >
+                        <DataFoldersRow @open-github="goToSection('github-account')" />
+                    </SettingsSection>
+                </template>
+
                 <template #github-account>
                     <SettingsSection
                         ref="githubSection"

@@ -48,6 +48,16 @@ import type {
 } from "../main/cirender/index.js";
 import type { GhRepositoryChoice, GhRepositoryCreateResult } from "../main/ghcli/repositories.js";
 import type {
+    DataFoldersStatus,
+    FolderKind as DataFolderKind,
+    MoveMode as DataFolderMoveMode,
+    MoveResult as DataFolderMoveResult,
+} from "../main/dataFolders/service.js";
+import type { FolderValidation as DataFolderValidation } from "../main/dataFolders/validate.js";
+import type { MoveProgress as DataFolderMoveProgress } from "../main/dataFolders/move.js";
+import type { PushOutcome as DataFolderPushOutcome } from "../main/dataFolders/mirror.js";
+import type { HistoryEvent as DataFolderHistoryEvent } from "../main/dataFolders/service.js";
+import type {
     Answer as PagesAnswer,
     PagesCandidate,
     PagesEvent,
@@ -3452,6 +3462,62 @@ interface WorldlensBridge {
 
     /** Subscribes to secret-free code, URL, countdown, and verification progress. */
     onGhCliLoginState(listener: (state: GhCliLoginState) => void): () => void;
+
+    /* ---------------------------------------------------------------------- */
+    /* Data folders: the profile folder, the save folder and the profile history */
+    /* ---------------------------------------------------------------------- */
+
+    /** Where the profile and save folders are, the history state, and the remote choice. */
+    dataFoldersStatus(): Promise<DataFoldersStatus>;
+
+    /** Checks a folder choice without changing anything. */
+    dataFoldersValidate(request: {
+        kind: DataFolderKind;
+        folder: string;
+        mode: DataFolderMoveMode;
+    }): Promise<DataFolderValidation>;
+
+    /** Copies, verifies and switches to a new folder. Progress arrives on onDataFoldersProgress. */
+    dataFoldersMove(request: {
+        kind: DataFolderKind;
+        folder: string;
+        mode: DataFolderMoveMode;
+    }): Promise<DataFolderMoveResult>;
+
+    /** Stops a move in progress, leaving everything as it was. */
+    dataFoldersCancel(): Promise<{ cancelled: boolean }>;
+
+    /** Removes the folder a move left behind, after the new copy is proven complete. */
+    dataFoldersRemoveOld(request: {
+        kind: DataFolderKind;
+        confirm: boolean;
+    }): Promise<{ ok: boolean; message: string }>;
+
+    /** Records the profile folder's pending changes now. */
+    dataFoldersCommitNow(): Promise<{ ok: boolean; committed: boolean; message: string }>;
+
+    /** Changes the remote choice: address, on or off, credential files, and account. */
+    dataFoldersChangeRemote(request: {
+        enabled?: boolean;
+        url?: string | null;
+        includeCredentials?: boolean;
+        accountId?: string | null;
+    }): Promise<{ ok: boolean; message: string }>;
+
+    /** Sends the filtered history to the chosen remote and reads it back. Never forces. */
+    dataFoldersPushNow(): Promise<DataFolderPushOutcome>;
+
+    /** Drops a chosen profile folder that could not be reached, so the default is used. */
+    dataFoldersForgetUnreachable(): Promise<{ ok: boolean; message: string }>;
+
+    /** Restarts the application so a new profile folder takes effect. */
+    dataFoldersRestart(): Promise<{ ok: boolean }>;
+
+    onDataFoldersProgress(
+        listener: (progress: DataFolderMoveProgress & { kind: DataFolderKind }) => void,
+    ): () => void;
+
+    onDataFoldersHistory(listener: (event: DataFolderHistoryEvent) => void): () => void;
 
     /**
      * Reading and writing a BlueMap config folder, for the options screen.
