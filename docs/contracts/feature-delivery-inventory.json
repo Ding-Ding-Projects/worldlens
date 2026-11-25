@@ -7270,7 +7270,20 @@
           "reason": "The Work tab strip is hand-built today; no dockview dependency is present.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/tabs/DockSurface.vue",
+              "design/packages/ui/src/components/tabs/TabsPane.vue",
+              "design/packages/ui/src/components/tabs/workLayout.ts",
+              "design/packages/ui/src/components/tabs/dockLayoutStorage.ts",
+              "design/packages/ui/src/components/tabs/WorkLayoutMenu.vue",
+              "docs/workspace-layouts.md"
+            ],
+            "consumer": "The Work tab workspace lays its strips out with the public dockview package; the existing tab strip draws inside each pane, and layouts are saved, named and reset.",
+            "limitation": "In a packaged build on a throwaway profile Work opened unchanged and a split to the right produced two panes. That look predates the fix that keeps a pinned tab pinned across a split, which is covered by tests only. Floating, maximise, pointer drag, saved layouts and popout windows (not offered) were not seen running.",
+            "sourceCommit": "1c88349adcb48e068ce351a2d41190c5553124ae"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -7313,7 +7326,19 @@
           "reason": "Marker HTML and similar formatted fields need review; no TinyMCE dependency is present.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/richText/RichTextField.vue",
+              "design/packages/ui/src/components/richText/tinymceLoader.ts",
+              "design/packages/ui/src/components/richText/sanitizeRichText.ts",
+              "design/packages/ui/src/components/richText/richTextInventory.ts",
+              "docs/rich-text-editor.md"
+            ],
+            "consumer": "The marker note, the only field that keeps formatting, uses a bundled, pinned TinyMCE and saves sanitized HTML; a guard lists every other multi-line box with its reason.",
+            "limitation": "Not run in the packaged app; whether the content security policy lets the editor load is unconfirmed (a plain editable box shows if it does not). The Cantonese pack is partial.",
+            "sourceCommit": "1c88349adcb48e068ce351a2d41190c5553124ae"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -7356,7 +7381,20 @@
           "reason": "Universal interactive-surface requirement; not yet reviewed on this surface.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/typegen/TypeGeneratorScreen.vue",
+              "design/packages/ui/src/components/typegen/typeGenEngine.ts",
+              "design/packages/ui/src/components/typegen/typeGen.worker.ts",
+              "design/packages/ui/src/components/typegen/JsonEditorPanel.vue",
+              "design/packages/ui/src/components/typegen/jsonDocModel.ts",
+              "docs/type-generator.md"
+            ],
+            "consumer": "A tool in the general tools hub generates typed models from JSON, JSON Schema and GraphQL in a worker and edits the same document as a tree or table.",
+            "limitation": "TypeScript input is listed but disabled with its reason. Never run in a browser or the packaged app. No JSONPath bar, drag and drop or several sources.",
+            "sourceCommit": "1c88349adcb48e068ce351a2d41190c5553124ae"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -7427,7 +7465,19 @@
           "reason": "Attached to every normal release.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/scripts/build-pdf-edition.mjs",
+              "design/packages/site/scripts/verify-pdf-edition.mjs",
+              "design/packages/site/scripts/pdf-edition-lib.mjs",
+              ".github/workflows/ci.yml",
+              "docs/pdf-edition.md"
+            ],
+            "consumer": "The release job builds and verifies a phone-size PDF of the site articles and reference documents and attaches it to the release.",
+            "limitation": "Release v1.0.2490 carries worldlens-docs-v1.0.2490.pdf (about 32 MB). The separate GitHub wiki is not included. Tables and long code lines were not reviewed page by page.",
+            "sourceCommit": "1c88349adcb48e068ce351a2d41190c5553124ae"
+          }
         }
       },
       "sourceEvidence": []
@@ -7449,7 +7499,17 @@
           "reason": "Container and appliance setup.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "scripts/setup.mjs",
+              "scripts/setup.test.mjs",
+              "docs/one-command-setup.md"
+            ],
+            "consumer": "One command opens an interactive setup that generates the password, picks a port, writes the Compose file, starts the container and prints the links.",
+            "limitation": "No real container was started and the arrow-key path was driven with scripted keys only. The site's hosting articles still show the hand-made variables.",
+            "sourceCommit": "1c88349adcb48e068ce351a2d41190c5553124ae"
+          }
         },
         "documentation-site": {
           "applicability": "applicable",

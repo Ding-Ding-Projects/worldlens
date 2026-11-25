@@ -1,5 +1,17 @@
 # Handoff
 
+## 2026-11-25 (later) Rich text, type generator, dockview and the PDF fix
+
+This entry supersedes the "Unfinished" list in the entry below: the three checkpoint branches were finished and merged.
+
+- Release job fixed (`987da24e`): the PDF check matched part headings exactly, and the hosted runner wrapped one differently. Run 45695515131 is green and release v1.0.2490 carries the PDF.
+- TinyMCE for marker notes (`2d2e2308`). Not run in the packaged app; the content security policy has not been checked against it.
+- Type generator and JSON editor (`d01e7221`). TypeScript input is disabled with its reason. Not run in the packaged app.
+- Dockview under the Work tabs, from the public `dockview` package (`1c88349a`). The first version broke six whole-shell tests because panes were created a tick after mounting; panes are now created at setup and `App.test.ts` passes 49 of 49. A pinned tab now keeps its pin across a split. In a packaged build Work opened unchanged and a split produced two panes; that look was taken before the pin fix.
+- Seen in installed 1.0.2490 on a throwaway profile: the eight page tours in the palette, and the Work tour's first step.
+
+Still not done: the update card, quick add, a real profile-folder move and "Generate and start project" have not been seen in a running app; no tour capture in the README or site; the site's hosting articles still show hand-made variables; the three known red tests on Windows are uninvestigated.
+
 ## 2026-11-25 Blank Work fix, guided tours, data folders, update card, quick add, PDF edition, one-command setup
 
 The session stopped early, so read "Unfinished" first.
