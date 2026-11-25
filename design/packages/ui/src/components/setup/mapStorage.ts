@@ -23,7 +23,9 @@ import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
 export type SetupPlatform = "windows" | "macos" | "linux";
 
-const STORAGE_DIR_KEY = "worldlens.maps.directory";
+/** The stored key both the Settings row and every quick-add entry write. */
+export const MAP_STORAGE_DIR_KEY = "worldlens.maps.directory";
+const STORAGE_DIR_KEY = MAP_STORAGE_DIR_KEY;
 
 /**
  * `electron-builder.config.cjs`'s `productName` - the display name in the installer, the

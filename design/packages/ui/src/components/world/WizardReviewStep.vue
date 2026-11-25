@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SettingsQuickAdd from "../settings/quickAdd/SettingsQuickAdd.vue";
 import AccessPreparationPanel from "../preview/AccessPreparationPanel.vue";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -249,6 +250,7 @@ async function copyConfig(): Promise<void> {
                     {{ t("world.review.consentAction", "Open the setting") }}
                 </v-btn>
             </template>
+            <SettingsQuickAdd anchor="mojang-download-consent" />
         </v-alert>
 
         <v-alert v-if="!canRender" type="info" density="compact" variant="tonal" class="mt-3">

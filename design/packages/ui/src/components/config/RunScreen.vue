@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SettingsQuickAdd from "../settings/quickAdd/SettingsQuickAdd.vue";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiConsole, mdiContentCopy, mdiInformationOutline } from "@mdi/js";
@@ -180,6 +181,7 @@ async function copyCommand(): Promise<void> {
                             {{ t("config.run.openConsent", "Open the setting") }}
                         </v-btn>
                     </template>
+                    <SettingsQuickAdd anchor="mojang-download-consent" />
                 </v-alert>
             </v-card-text>
         </v-card>
