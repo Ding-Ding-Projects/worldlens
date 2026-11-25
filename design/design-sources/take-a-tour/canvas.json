@@ -1,0 +1,26 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-11-25T18:00:00Z" },
+  "title": "WorldLens: Take a tour",
+  "launch": { "view": "canvas", "page": "card" },
+  "pages": [
+    { "id": "card", "name": "Tour card" },
+    { "id": "pages", "name": "Tours for each page" },
+    { "id": "entries", "name": "Where the tour starts" }
+  ],
+  "boards": {
+    "TourCard.dc.html": { "x": 0, "y": 0, "w": 1440, "h": 900, "title": "Tour card", "page": "card", "expand": "fill", "is_interactive": true },
+    "PageTours.dc.html": { "x": 0, "y": 0, "w": 1440, "h": 900, "title": "Tours for each page", "page": "pages", "expand": "fill", "is_interactive": true },
+    "TourEntries.dc.html": { "x": 0, "y": 0, "w": 1440, "h": 900, "title": "Where the tour starts", "page": "entries", "expand": "fill", "is_interactive": true }
+  },
+  "order": ["TourCard.dc.html", "PageTours.dc.html", "TourEntries.dc.html"],
+  "notes": {
+    "tCard": { "x": 0, "y": -300, "text": "Take a tour: the card", "kind": "title1", "maxW": 1440, "page": "card" },
+    "nCard": { "x": 1500, "y": 0, "w": 560, "fill": "blue", "page": "card", "text": "Shows: the coach card beside the real control it explains, with the highlight ring, the step heading, Back, Skip this step, Next and close.\nTry: Stage (step, missing, finished) and Step 1 to 7. The missing stage is the card saying the control is hidden and offering to show it.\nTweaks: theme, accent, motion (off stills the ring and the card), stage, step.\nUnbuilt: the missing-control stage and arrow-key movement are targets; the seven-step tour itself exists." },
+    "tPages": { "x": 0, "y": -300, "text": "Take a tour: one short tour per page", "kind": "title1", "maxW": 1440, "page": "pages" },
+    "nPages": { "x": 1500, "y": 0, "w": 560, "fill": "blue", "page": "pages", "text": "Shows: a two or three step tour for Home, Map, Work and Servers, each pointing at controls on that page only.\nTry: Destination and Step.\nTweaks: theme, accent, motion, destination, step.\nUnbuilt: per-page tours are a target; today there is one overall tour." },
+    "tEntries": { "x": 0, "y": -300, "text": "Take a tour: where it starts", "kind": "title1", "maxW": 1440, "page": "entries" },
+    "nEntries": { "x": 1500, "y": 0, "w": 560, "fill": "blue", "page": "entries", "text": "Shows: the four ways in. The command palette row named Take a tour, the Help list of tours, the Settings rows (offer after setup, progress, reset) and the one-time offer after setup.\nTry: Entry.\nTweaks: theme, accent, motion, entry.\nUnbuilt: the Help and Settings lists and the rename from Take the tour are targets." }
+  },
+  "designSystems": []
+}
