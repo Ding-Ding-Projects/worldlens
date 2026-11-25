@@ -47,6 +47,7 @@ import {
     mdiImageMultipleOutline,
     mdiHarddisk,
     mdiCodeBraces,
+    mdiCodeJson,
     mdiLanConnect,
     mdiFileTreeOutline,
 } from "@mdi/js";
@@ -83,6 +84,7 @@ export type CoreJobId =
     | "screenshots"
     | "virtualDisks"
     | "base64"
+    | "typeGenerator"
     | "drawing"
     | "coreprotect";
 
@@ -136,6 +138,7 @@ export const JOB_IDS_BY_SEMANTIC_NAME = {
     screenshots: "screenshots",
     virtualDisks: "virtualDisks",
     base64: "base64",
+    typeGenerator: "typeGenerator",
     drawing: "drawing",
     coreprotect: "coreprotect",
     browserExtension: "browserExtension",
@@ -505,6 +508,15 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         labelKey: "tabs.page.base64",
         labelFallback: "Base64",
         icon: mdiCodeBraces,
+        seedGroup: null,
+        pinnedOnFreshWorkspace: false,
+    },
+    {
+        id: "typeGenerator",
+        semanticName: "typeGenerator",
+        labelKey: "tabs.page.typeGenerator",
+        labelFallback: "Type generator",
+        icon: mdiCodeJson,
         seedGroup: null,
         pinnedOnFreshWorkspace: false,
     },

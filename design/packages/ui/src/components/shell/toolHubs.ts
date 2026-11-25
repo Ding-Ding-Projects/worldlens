@@ -58,6 +58,7 @@ export const TOOL_HUBS: readonly ToolHubDefinition[] = [
             "docs",
             "converter",
             "base64",
+            "typeGenerator",
             "drawing",
             "authenticator",
             "locks",

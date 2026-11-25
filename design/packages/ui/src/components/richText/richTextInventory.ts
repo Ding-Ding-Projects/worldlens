@@ -69,5 +69,6 @@ export const PLAIN_TEXT_BOXES: readonly PlainTextBoxEntry[] = [
     { file: "components/nbteditor/NbtDialogs.vue", count: 1, kind: "code", reason: "A tag in SNBT, the game's text form." },
     { file: "components/ollama/OllamaScreen.vue", count: 2, kind: "plain", reason: "A model's system prompt and the chat message being sent, both plain text for the model." },
     { file: "components/repair/IssueReportPanel.vue", count: 3, kind: "plain", reason: "A reviewed issue report: its title, its sections and a read-only preview of the exact submitted body." },
+    { file: "components/typegen/TypeGenGeneratePanel.vue", count: 3, kind: "code", reason: "The JSON, schema or GraphQL source being turned into types, and its query. Source text, kept exactly as typed." },
     { file: "components/vdisk/VirtualDisksScreen.vue", count: 1, kind: "data", reason: "A metadata value stored as UTF-8." },
 ];

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import GenerationProjectDialog from "./components/mcserver/GenerationProjectDialog.vue";
 import VocabularyWindowDrop from "./components/vocabulary/VocabularyWindowDrop.vue";
-import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from "vue";
+import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { i18nModule, loadLanguage, setLanguage } from "./i18n.js";
 import {
@@ -13,6 +13,7 @@ import {
     mdiImageMultipleOutline,
     mdiHarddisk,
     mdiCodeBraces,
+    mdiCodeJson,
     mdiDatabaseSearchOutline,
     mdiDraw,
     mdiCubeOutline,
@@ -124,6 +125,8 @@ import BrowserExtensionScreen from "./components/browserExtension/BrowserExtensi
 import ScreenshotGalleryScreen from "./components/gallery/ScreenshotGalleryScreen.vue";
 import VirtualDisksScreen from "./components/vdisk/VirtualDisksScreen.vue";
 import Base64Screen from "./components/base64/Base64Screen.vue";
+/* The type generator pulls in quicktype, so it loads as its own chunk the first time it is opened. */
+const TypeGeneratorScreen = defineAsyncComponent(() => import("./components/typegen/TypeGeneratorScreen.vue"));
 import DrawingBoard from "./components/drawing/DrawingBoard.vue";
 import CoreProtectInspector from "./components/coreprotect/CoreProtectInspector.vue";
 import CoreProtectLayerHost from "./components/coreprotect/CoreProtectLayerHost.vue";
@@ -645,6 +648,8 @@ const PAGE_SCREENSHOTS = "screenshots";
 const PAGE_VIRTUAL_DISKS = "virtualDisks";
 /* The local Base64 toolkit: text, streamed files beside their source, history and undo. */
 const PAGE_BASE64 = "base64";
+/* The type generator and structured JSON editor, running quicktype locally in a worker. */
+const PAGE_TYPE_GENERATOR = "typeGenerator";
 /* The drawing board: seven pens and a partial eraser on a picture or a blank board. */
 const PAGE_DRAWING = "drawing";
 /* The CoreProtect inspector: block changes from a server's CoreProtect database, highlighted on the map. */
@@ -972,6 +977,11 @@ const pages = computed<TabPage[]>(() => [
         id: PAGE_BASE64,
         label: t("tabs.page.base64", "Base64"),
         icon: mdiCodeBraces,
+    },
+    {
+        id: PAGE_TYPE_GENERATOR,
+        label: t("tabs.page.typeGenerator", "Type generator"),
+        icon: mdiCodeJson,
     },
     {
         id: PAGE_DRAWING,
@@ -3084,6 +3094,11 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <Base64Screen />
                     </div>
                 </template>
+                <template #typeGenerator>
+                    <div class="mb-world-host mb-interactive">
+                        <TypeGeneratorScreen />
+                    </div>
+                </template>
                 <template #drawing>
                     <div class="mb-world-host mb-interactive">
                         <DrawingBoard />
@@ -3752,6 +3767,11 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             <template #base64>
                                 <div class="mb-world-host mb-interactive">
                                     <Base64Screen />
+                                </div>
+                            </template>
+                            <template #typeGenerator>
+                                <div class="mb-world-host mb-interactive">
+                                    <TypeGeneratorScreen />
                                 </div>
                             </template>
                             <template #drawing>

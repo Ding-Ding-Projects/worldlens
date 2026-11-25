@@ -157,6 +157,7 @@ export const KID_JOB_LABELS: Readonly<Record<string, FixedString>> = {
     "CoreProtect inspector": { en: "Who changed what", yue: "邊個郁過乜" },
     "Drawing board": { en: "Drawing paper", yue: "畫畫紙" },
     Base64: { en: "Secret letters", yue: "密碼字母" },
+    "Type generator": { en: "Make code shapes", yue: "整程式碼形狀" },
     "Virtual disks": { en: "Pretend drives", yue: "扮嘢磁碟" },
     Locks: { en: "Locks list", yue: "鎖頭清單" },
     "Support Tickets": { en: "Ask for help", yue: "揾人幫手" },

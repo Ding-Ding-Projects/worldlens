@@ -52,3 +52,12 @@ Version 26.11.2. Community packaging of the TinyMCE language packs; its own
 tooling is MIT and the language files carry TinyMCE's licence. Only the Hong Kong
 Cantonese pack is imported, so the editor can show its interface in Cantonese
 without fetching a file.
+quicktype-core and quicktype-graphql-input - https://github.com/glideapps/quicktype
+Copyright quicktype contributors
+Licensed under the Apache License, Version 2.0. Bundled in the type generator,
+which runs it locally in a Web Worker.
+
+graphql - https://github.com/graphql/graphql-js
+Copyright GraphQL Contributors
+Licensed under the MIT License. Used by the type generator to turn GraphQL SDL
+into the introspection form quicktype reads.
