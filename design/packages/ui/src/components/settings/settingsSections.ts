@@ -154,6 +154,7 @@ export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
 export const SETTINGS_SECTIONS = [
     ...SETTINGS_ANCHORS,
     "render-engine-choice",
+    "data-folders",
     "github-account",
     "language-and-tone",
     "display",

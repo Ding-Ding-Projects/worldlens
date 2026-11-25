@@ -52,6 +52,12 @@ const SECTIONS: SettingsSectionText[] = [
         values: ["Automatic", "upstream-java", "typescript", "JVM", "capabilities"],
     },
     {
+        anchor: "data-folders",
+        title: "Data folders and history",
+        description: "Choose where the app keeps its profile and where it saves your files.",
+        values: ["Profile folder", "Save folder", "Profile history"],
+    },
+    {
         anchor: "github-account",
         title: "GitHub account",
         description: "Signing in lets the app reach private repositories.",
@@ -235,6 +241,7 @@ describe("every section the surface renders", () => {
             "map-storage-directory",
             "world-folder",
             "render-engine-choice",
+            "data-folders",
             "github-account",
             "language-and-tone",
             "display",

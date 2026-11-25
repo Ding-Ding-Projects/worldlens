@@ -81,6 +81,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "The Minecraft world a map is rendered from. This is set per map in the map wizard rather than once for the whole app, so there is no folder to change on this screen.",
             ),
         },
+        "data-folders": {
+            title: t("settings.dataFolders.title", "Data folders and history"),
+            description: t(
+                "settings.dataFolders.description",
+                "Choose where the app keeps its profile and where it saves your files. Existing data is checked and copied before anything switches, and the profile keeps a version history of its own that you can optionally send to a private repository.",
+            ),
+        },
         "github-account": {
             title: t("settings.github.title", "GitHub account"),
             description: t(

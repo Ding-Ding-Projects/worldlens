@@ -562,6 +562,25 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "closes no tab at all. Nothing here touches a clause of the document; a closed tab " +
             "is a way back in, and the viewer's own note says so.",
     },
+    "components/dataFolders/DataFolderRow.vue": {
+        count: 1,
+        destroys: "the folder a profile or save folder move left behind, and everything in it",
+        standing: "gated",
+        gatedIn: "components/dataFolders/DataFolderRow.vue",
+        note:
+            "Removal is requested only from ConfigSuperConfirm's confirm event. The main process refuses " +
+            "unless the new folder matches the old one file by file (size and SHA-256), the saved " +
+            "versions agree, the folders do not overlap and the save folder is not inside it.",
+    },
+    "components/dataFolders/dataFoldersStore.ts": {
+        count: 1,
+        destroys: "the folder a profile or save folder move left behind (the store's call into the removal channel)",
+        standing: "gated",
+        gatedIn: "components/dataFolders/DataFolderRow.vue",
+        note:
+            "The store only forwards the request. Its one caller is DataFolderRow.vue, which is declared " +
+            "above and reaches this call only from ConfigSuperConfirm's confirm event.",
+    },
     "components/github/LegacyCredentialCleanup.vue": {
         count: 1,
         destroys: "retired Worldlens-owned local GitHub credential files",

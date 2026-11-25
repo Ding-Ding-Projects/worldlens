@@ -171,6 +171,21 @@ import { registerGhCliHandlers } from "./ghcli/ipc.js";
 import type { GhCliIpc } from "./ghcli/ipc.js";
 import { GhCredentialBroker } from "./ghcli/credentialBroker.js";
 import { nodeProcessRunner } from "./cirender/gh.js";
+import {
+    DATA_FOLDERS_HISTORY_CHANNEL,
+    DATA_FOLDERS_PROGRESS_CHANNEL,
+    DataFoldersService,
+    EMPTY_POINTER,
+    defaultSystemFolders,
+    isHistoryRelevantPath,
+    pointerFilePath,
+    readPointerSync,
+    registerDataFoldersHandlers,
+    remoteHost,
+    resolveProfileFolder,
+} from "./dataFolders/index.js";
+import type { DataFoldersIpc } from "./dataFolders/index.js";
+import { runGit } from "./history/git.js";
 import { WORLDLENS_IDENTITY } from "@worldlens/shared";
 import { migrateWorldlensProfile, profileMigrationPlan } from "./migration/index.js";
 import { profileMigrationConsentCopy } from "./migration/copy.js";
@@ -257,10 +272,25 @@ const smokeMode = directLaunch || process.env.WORLDLENS_SCREENSHOTS === "1";
 const screenshotUserData = smokeMode
     ? directLaunchUserData || app.commandLine.getSwitchValue("user-data-dir").trim()
     : "";
-app.setPath(
-    "userData",
-    screenshotUserData || join(applicationDataDirectory, WORLDLENS_IDENTITY.dataDirectoryName),
-);
+// The profile folder may have been moved in Settings. The choice is kept in a pointer file
+// beside the default location (it cannot live in the profile it describes) and is applied here,
+// before anything reads `userData`. A capture or smoke run never reads the real pointer.
+const defaultProfileFolder = join(applicationDataDirectory, WORLDLENS_IDENTITY.dataDirectoryName);
+const dataFolderPointerFile = pointerFilePath(applicationDataDirectory, WORLDLENS_IDENTITY.dataDirectoryName);
+const profileStartup = resolveProfileFolder({
+    defaultFolder: defaultProfileFolder,
+    readout: smokeMode
+        ? { pointer: EMPTY_POINTER, invalid: false, problem: null }
+        : readPointerSync(dataFolderPointerFile),
+    isDirectory: (candidate) => {
+        try {
+            return fs.statSync(candidate).isDirectory();
+        } catch {
+            return false;
+        }
+    },
+});
+app.setPath("userData", screenshotUserData || profileStartup.folder);
 
 // Kept beside, not inside, the profile being migrated. A collision or unreadable profile is
 // exactly when diagnostics must not depend on writing into that profile.
@@ -1332,6 +1362,121 @@ function startGhCliAccounts(): GhCliIpc {
 }
 
 /**
+ * Where the profile and save folders live, moving them safely, and the profile folder's own
+ * version history. Registered once. History needs a real profile, so a capture or smoke run
+ * (which uses an isolated folder) registers the handlers and starts nothing else.
+ */
+let dataFoldersIpc: DataFoldersIpc | null = null;
+
+function startDataFolders(render: RenderIpc, github: GhCliIpc | null): DataFoldersIpc {
+    if (dataFoldersIpc !== null) return dataFoldersIpc;
+    const profileFolder = app.getPath("userData");
+    const installFolders = [path.dirname(process.execPath), app.getAppPath()];
+    const squirrelRoot = path.resolve(path.dirname(process.execPath), "..");
+    if (app.isPackaged && fs.existsSync(path.join(squirrelRoot, "Update.exe"))) installFolders.push(squirrelRoot);
+
+    const broadcast = (channel: string, payload: unknown): void => {
+        for (const window of BrowserWindow.getAllWindows()) {
+            if (!window.isDestroyed()) window.webContents.send(channel, payload);
+        }
+    };
+    const plainRunner = async (args: readonly string[], cwd: string) =>
+        await runGit(args, { cwd, env: { GIT_TERMINAL_PROMPT: "0", GIT_ASKPASS: "" } });
+
+    const service = new DataFoldersService({
+        pointerFile: dataFolderPointerFile,
+        profileFolder,
+        startup: profileStartup,
+        saveFolder: () => render.storageDirectory(),
+        defaultSaveFolder: () => defaultStorageDirectory(profileFolder),
+        installFolders,
+        systemFolders: defaultSystemFolders(),
+        run: runGit,
+        pushRunner: async (accountId, url) => {
+            if (remoteHost(url)?.toLowerCase() !== "github.com") return plainRunner;
+            // A GitHub remote is reached as the GitHub CLI account the person chose, with no
+            // token in this process or on any command line.
+            if (github === null) return null;
+            try {
+                const lease = await github.broker.account(accountId ?? undefined, "write");
+                if (lease === null) return null;
+                return async (args, cwd) =>
+                    await lease.withAccount(async (runner) => {
+                        const result = await runner.run(
+                            "git",
+                            [
+                                "-C",
+                                cwd,
+                                "-c",
+                                "credential.helper=",
+                                "-c",
+                                "credential.helper=!gh auth git-credential",
+                                "-c",
+                                "credential.interactive=false",
+                                ...args,
+                            ],
+                            {},
+                        );
+                        return {
+                            ok: result.started && result.code === 0,
+                            code: result.code,
+                            stdout: result.stdout,
+                            stderr: result.stderr,
+                            spawnError: result.started ? null : "ENOENT",
+                        };
+                    });
+            } catch {
+                return null;
+            }
+        },
+        onHistoryEvent: (event) => broadcast(DATA_FOLDERS_HISTORY_CHANNEL, event),
+    });
+
+    dataFoldersIpc = registerDataFoldersHandlers({
+        ipcMain,
+        service,
+        authorizeSender: (event) => isAppRendererSender(event),
+        sendProgress: (event, progress) => {
+            if (!event.sender.isDestroyed()) event.sender.send(DATA_FOLDERS_PROGRESS_CHANNEL, progress);
+        },
+        restart: async () => {
+            await service.flush();
+            app.relaunch();
+            app.quit();
+        },
+    });
+    app.on("will-quit", () => dataFoldersIpc?.dispose());
+
+    if (!smokeMode) {
+        // History starts in the background and never delays the window. A change under the
+        // profile folder restarts a quiet-period timer; the version is recorded when it ends.
+        void service.startHistory().then(() => service.commitNow());
+        try {
+            const watcher = fs.watch(profileFolder, { recursive: true }, (_event, filename) => {
+                if (filename === null || isHistoryRelevantPath(String(filename).split(path.sep).join("/"))) {
+                    service.scheduleCommit();
+                }
+            });
+            watcher.on("error", () => watcher.close());
+            app.on("will-quit", () => watcher.close());
+        } catch {
+            // No watcher on this platform: history is still recorded on start and on quit.
+        }
+        let flushedOnQuit = false;
+        app.on("before-quit", (event) => {
+            if (flushedOnQuit) return;
+            flushedOnQuit = true;
+            event.preventDefault();
+            void Promise.race([
+                service.commitNow(),
+                new Promise<void>((resolve) => setTimeout(resolve, 8000)),
+            ]).finally(() => app.quit());
+        });
+    }
+    return dataFoldersIpc;
+}
+
+/**
  * Reading and writing a BlueMap config folder, for the options screen.
  *
  * Registered once, for the same reason everything above it is. It holds nothing and
@@ -2365,6 +2510,14 @@ async function createWindow(): Promise<void> {
     if (render !== null && github !== null) {
         await attempt("network", "backups", "Backups are unavailable in this launch", () =>
             startBackups(render, github),
+        );
+    }
+    if (render !== null) {
+        await attempt(
+            "initialization",
+            "data-folders",
+            "Data folder controls are unavailable in this launch",
+            () => startDataFolders(render, github),
         );
     }
     if (render !== null) {

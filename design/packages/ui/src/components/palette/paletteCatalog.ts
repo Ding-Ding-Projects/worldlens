@@ -593,7 +593,17 @@ function settingsSectionItems(input: PaletteCatalogInput, group: string): Palett
         const keywords =
             anchor === "language-and-tone" && schoolModeEnabled()
                 ? [section.title]
-                : anchor === "kid-mode"
+                : anchor === "data-folders"
+                  ? [
+                        anchor.replaceAll("-", " "),
+                        t("dataFolders.profile.title", "Profile folder"),
+                        t("dataFolders.save.title", "Save folder"),
+                        t("dataFolders.history.title", "Profile history"),
+                        t("dataFolders.remote.title", "Send the history to a repository (optional)"),
+                        t("dataFolders.reset", "Reset to default"),
+                        t("dataFolders.credentials.include", "Also send sign-in files (own-network servers only)"),
+                    ]
+                  : anchor === "kid-mode"
                   ? [
                         anchor.replaceAll("-", " "),
                         t("settings.kidMode.kidModeOption", "Kid Mode"),

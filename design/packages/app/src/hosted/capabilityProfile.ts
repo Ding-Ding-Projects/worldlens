@@ -288,6 +288,10 @@ const BY_PREFIX: Readonly<Record<string, ChannelPolicy>> = Object.freeze({
     clipboard: refused(
         "The clipboard belongs to the computer running the browser, not to the server.",
     ),
+    dataFolders: refused(
+        "The data folders of a container are the volumes its operator mounted, so there is no folder to move from inside the app.",
+        "Change the mounted volumes in the container setup instead.",
+    ),
     dialog: refused(
         "A container has no desktop, so there are no native dialogs to open.",
         "Choose from the folders the operator mounted.",

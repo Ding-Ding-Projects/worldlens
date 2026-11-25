@@ -282,6 +282,18 @@ function fieldIdentity(field: { readonly key: string | null; readonly tag: strin
     return field.key ?? field.tag.slice(0, 60);
 }
 const PATH_FIELD_EXEMPTIONS: Record<string, Exemption> = {
+    "components/dataFolders/ProfileHistoryPanel.vue::dataFolders.remote.address": {
+        reason: "not-a-location",
+        note:
+            "The address of a Git repository on a server, like https://github.com/you/profile.git. It names a " +
+            "remote repository, not a file or folder on this computer, so there is nothing to browse to.",
+    },
+    "components/dataFolders/ProfileHistoryPanel.vue::dataFolders.remote.name": {
+        reason: "not-a-location",
+        note:
+            "The name of a new repository to create on GitHub. It is a name the person is composing, " +
+            "not a file or folder on this computer.",
+    },
     "components/datapack/EnchantmentEffects.vue::datapack.ench.function": {
         reason: "not-a-location",
         note:

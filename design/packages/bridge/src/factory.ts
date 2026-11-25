@@ -539,6 +539,31 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             };
         },
 
+        dataFoldersStatus: () => transport.invoke("dataFolders:status"),
+        dataFoldersValidate: (request: unknown) => transport.invoke("dataFolders:validate", request),
+        dataFoldersMove: (request: unknown) => transport.invoke("dataFolders:move", request),
+        dataFoldersCancel: () => transport.invoke("dataFolders:cancel"),
+        dataFoldersRemoveOld: (request: unknown) => transport.invoke("dataFolders:removeOld", request),
+        dataFoldersCommitNow: () => transport.invoke("dataFolders:commitNow"),
+        dataFoldersChangeRemote: (request: unknown) => transport.invoke("dataFolders:changeRemote", request),
+        dataFoldersPushNow: () => transport.invoke("dataFolders:pushNow"),
+        dataFoldersRestart: () => transport.invoke("dataFolders:restart"),
+        dataFoldersForgetUnreachable: () => transport.invoke("dataFolders:forgetUnreachable"),
+        onDataFoldersProgress: (listener: BridgeListener) => {
+            const forward = (_event: unknown, payload: unknown): void => listener(payload);
+            transport.on("dataFolders:progress", forward);
+            return () => {
+                transport.off("dataFolders:progress", forward);
+            };
+        },
+        onDataFoldersHistory: (listener: BridgeListener) => {
+            const forward = (_event: unknown, payload: unknown): void => listener(payload);
+            transport.on("dataFolders:historyEvent", forward);
+            return () => {
+                transport.off("dataFolders:historyEvent", forward);
+            };
+        },
+
         config: {
             readFolder: (folder: unknown) => transport.invoke("config:readFolder", folder),
             writeFiles: (folder: unknown, files: unknown) =>
