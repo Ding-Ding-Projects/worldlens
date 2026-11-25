@@ -1321,6 +1321,24 @@ jobs:
             printf 'ordinal=%s\n' "$ordinal"
           } >> "$GITHUB_OUTPUT"
 
+      # The phone-size PDF edition of the documentation is a packaging step: it is generated
+      # from the same reviewed sources as the hosted site, checked against the site's own
+      # inventory, and then read back and verified (page size, outline, contents links and
+      # every internal link). It runs only when this job will publish, and a failure here
+      # fails the job on purpose: a release must not ship without it, and a verifier that
+      # was skipped would only look like one that passed.
+      - name: Build and verify the phone PDF documentation edition
+        if: steps.tag.outputs.publish == 'true'
+        working-directory: design/packages/site
+        env:
+          PDF_EDITION_VERSION: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          pnpm exec playwright install --with-deps chromium
+          node scripts/build-pdf-edition.mjs --out "$GITHUB_WORKSPACE/pdf-out" --version "$PDF_EDITION_VERSION"
+          node scripts/verify-pdf-edition.mjs --dir "$GITHUB_WORKSPACE/pdf-out" --version "$PDF_EDITION_VERSION"
+          ls -l "$GITHUB_WORKSPACE/pdf-out"
+
       - name: Verify nominated release already exists
         if: steps.tag.outputs.publish == 'false'
         env:
@@ -1424,6 +1442,7 @@ jobs:
           assets=(installer-out/*Setup.exe installer-out/*-full.nupkg installer-out/RELEASES)
           assets+=(installer-out/*-delta.nupkg)
           assets+=("$jars.zip" "$extras.zip" jars-out/bluemap-jars.sha256.txt)
+          assets+=(pdf-out/worldlens-docs-*.pdf)
           assets+=(split-out/*)
           node scripts/release-asset-manifest.mjs create \
             --manifest release-assets.json \
@@ -1459,6 +1478,8 @@ jobs:
             echo
             echo "> [!WARNING]"
             echo "> Worldlens for Windows is intentionally and permanently unsigned. Windows SmartScreen may warn that the publisher is unknown; review the exact SHA-256 digest on this release before choosing to run it. The Squirrel package hash detects changed bytes, but an unsigned package does not authenticate who published or authored those bytes."
+            echo
+            echo "The phone documentation edition, the \`worldlens-docs-<tag>.pdf\` download, is every documentation article and reference document in one PDF with phone-size pages, a tappable contents page and working internal links. It supplements the hosted documentation site."
             echo
             echo "The seven \`bluemap-*.jar\` files are a separate download and are not needed to install the desktop application. Take one only to run BlueMap on a Minecraft server or from a command line; the table below says which is which."
             echo
