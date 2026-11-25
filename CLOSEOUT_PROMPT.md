@@ -11,7 +11,7 @@ Read first: design/HANDOFF.md, the two entries dated 2026-11-25.
 
 On main now: guided tours, quick add, update coming soon card, data folders with Git history, phone-size PDF in the release job (proved in release v1.0.2490), one-command setup, TinyMCE for marker notes, type generator and JSON editor, dockview under the Work tabs (public dockview package).
 
-FIRST: updates are broken from v1.0.2493 to v1.0.2497 (the update package passed 2,000,000,000 bytes and was split, so the updater gets a 404). A fix is on main (source maps no longer packaged; the release job now fails rather than split an update package) but no hosted run has proved it. Check the newest release has ONE Worldlens-<version>-full.nupkg under 2,000,000,000 bytes, then run Update.exe --update against it and confirm the new app-<version> folder appears. If the release job fails on size, shrink the package further.
+Updates were broken from v1.0.2493 to v1.0.2497 (the update package passed 2,000,000,000 bytes and was split). Fixed and proved in v1.0.2500: one package of 1,989,935,163 bytes, and this PC updated to it. The margin is about 10 MB; the release job now fails rather than split an update package, so watch the size when adding anything large.
 
 Next steps:
 1. gh run list --branch main --limit 5 and confirm the newest run is green and published a release.

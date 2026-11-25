@@ -1,12 +1,12 @@
 # Handoff
 
-## 2026-11-25 (last) Updates were broken from v1.0.2493; fix pushed, not yet proved
+## 2026-11-25 (last) Updates were broken from v1.0.2493 to v1.0.2497; fixed in v1.0.2500
 
-Read this first.
+Proved after this entry was first written: run 45713421770 is green, release v1.0.2500 carries one `Worldlens-1.0.2500-full.nupkg` of 1,989,935,163 bytes, and `Update.exe --update` against it on this PC exited 0 and created `app-1.0.2500` with no source maps inside. Launched on a throwaway profile, Work opened and a split kept the pinned tab pinned. The margin under the cap is about 10 MB, so the warning below still stands.
 
 - From v1.0.2493 the full update package was over 2,000,000,000 bytes (v1.0.2490 was 1,996,764,547; the TinyMCE merge added about 8 MB). The release job split it into `.001` and `.002` parts, and the updater, which downloads the package as one file by the name in `RELEASES`, gets a 404. Every installed copy stopped updating. Releases v1.0.2493 through v1.0.2497 are affected. This PC is still on 1.0.2490.
 - Fix: the interface's source maps (about 60 MB, read by nothing at run time) are no longer packaged (`design/packages/app/electron-builder.config.cjs`). The release job now fails if an update package would have to be split, instead of publishing a release that cannot be installed as an update.
-- NOT proved: no hosted run has built a package with this change. The next release must show a single `Worldlens-<version>-full.nupkg` under 2,000,000,000 bytes, and `Update.exe --update` against it must create the new `app-<version>` folder. If the package is still too large the release job will now fail, on purpose; shrink the application further (the bundled runtimes are the bulk).
+- When this was written no hosted run had built a package with this change. The check is: the next release must show a single `Worldlens-<version>-full.nupkg` under 2,000,000,000 bytes, and `Update.exe --update` against it must create the new `app-<version>` folder. If the package is still too large the release job will now fail, on purpose; shrink the application further (the bundled runtimes are the bulk).
 - The margin is thin either way. Anything that adds tens of megabytes will hit the cap again.
 
 ## 2026-11-25 (later) Rich text, type generator, dockview and the PDF fix
