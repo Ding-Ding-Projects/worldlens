@@ -29,7 +29,7 @@ export const TYPEGEN_FIXED = {
     "typegen.source.schemaText": { en: "JSON Schema", yue: "JSON Schema" },
     "typegen.source.graphqlSchema": { en: "GraphQL schema (introspection JSON or SDL)", yue: "GraphQL 結構（內省 JSON 或者 SDL）" },
     "typegen.source.graphqlQuery": { en: "GraphQL query", yue: "GraphQL 查詢" },
-    "typegen.source.placeholder": { en: "Paste or type here, or open a file. Types appear as you type.", yue: "喺度貼上或者打字，或者開個檔案。打緊字嘅時候類型就會出現。" },
+    "typegen.source.placeholder": { en: "Paste or type here. Types appear as you type.", yue: "喺度貼上或者打字。打緊字嘅時候類型就會出現。" },
     "typegen.source.open": { en: "Open file", yue: "開檔案" },
     "typegen.source.clear": { en: "Clear", yue: "清空" },
     "typegen.source.size": { en: "{count} of {max} characters", yue: "{count} / {max} 個字元" },

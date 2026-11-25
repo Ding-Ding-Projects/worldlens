@@ -36,3 +36,13 @@ Licensed under the SIL Open Font License, Version 1.1. Bundled locally (via
 the @fontsource/roboto-mono npm packaging) so the application loads no remote
 fonts. It is the first family named by every monospace surface: file paths,
 config previews, engine logs, regex matches and keyboard keys.
+
+quicktype-core and quicktype-graphql-input - https://github.com/glideapps/quicktype
+Copyright quicktype contributors
+Licensed under the Apache License, Version 2.0. Bundled in the type generator,
+which runs it locally in a Web Worker.
+
+graphql - https://github.com/graphql/graphql-js
+Copyright GraphQL Contributors
+Licensed under the MIT License. Used by the type generator to turn GraphQL SDL
+into the introspection form quicktype reads.

@@ -303,7 +303,7 @@ defineExpose({ run });
                 v-else
                 v-model="text"
                 :label="settings.kind === 'schema' ? t('typegen.source.schemaText', 'JSON Schema') : t('typegen.source.jsonText', 'JSON')"
-                :placeholder="t('typegen.source.placeholder', 'Paste or type here, or open a file. Types appear as you type.')"
+                :placeholder="t('typegen.source.placeholder', 'Paste or type here. Types appear as you type.')"
                 rows="10"
                 auto-grow
                 max-rows="20"
