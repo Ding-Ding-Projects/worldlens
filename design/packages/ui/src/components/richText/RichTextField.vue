@@ -255,7 +255,7 @@ watch([dark, language], () => void restartEditor());
             :readonly="readOnly"
             :disabled="disabled"
             :aria-describedby="[disabled && disabledReason ? reasonId : '', status !== 'ready' ? statusId : ''].filter(Boolean).join(' ') || undefined"
-            :rows="Math.max(4, Math.round(minHeight / 24))"
+            :rows="Math.max(4, Math.round((minHeight ?? 160) / 24))"
             spellcheck="true"
             @input="onFallbackInput"
         />
