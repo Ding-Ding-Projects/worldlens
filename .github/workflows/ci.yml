@@ -1232,6 +1232,14 @@ jobs:
             if [ "$size" -le 2000000000 ]; then
               continue
             fi
+            case "$asset" in
+              *.nupkg)
+                # The updater downloads this package as one file by the name in RELEASES.
+                # Split into parts it gets a 404 and every installed copy stops updating.
+                echo "::error::$asset is $size bytes, over the 2 GB release-asset cap. The updater cannot fetch a split package; shrink the application instead."
+                exit 1
+                ;;
+            esac
             echo "$asset is $size bytes, over the 2 GB release-asset cap; splitting it."
             node scripts/split-parts.mjs "$asset" --out split-out
             # The oversized original is removed so the publish globs below cannot pick

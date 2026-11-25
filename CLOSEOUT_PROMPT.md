@@ -11,8 +11,10 @@ Read first: design/HANDOFF.md, the two entries dated 2026-11-25.
 
 On main now: guided tours, quick add, update coming soon card, data folders with Git history, phone-size PDF in the release job (proved in release v1.0.2490), one-command setup, TinyMCE for marker notes, type generator and JSON editor, dockview under the Work tabs (public dockview package).
 
+FIRST: updates are broken from v1.0.2493 to v1.0.2497 (the update package passed 2,000,000,000 bytes and was split, so the updater gets a 404). A fix is on main (source maps no longer packaged; the release job now fails rather than split an update package) but no hosted run has proved it. Check the newest release has ONE Worldlens-<version>-full.nupkg under 2,000,000,000 bytes, then run Update.exe --update against it and confirm the new app-<version> folder appears. If the release job fails on size, shrink the package further.
+
 Next steps:
-1. gh run list --branch main --limit 5 and confirm the run for 1c88349a or later is green and published a release.
+1. gh run list --branch main --limit 5 and confirm the newest run is green and published a release.
 2. Install that release and look at, in the running app: a tab split and a saved layout in Work, the marker note editor, the type generator, Settings > Updates, a quick add entry, and a profile-folder move followed by a restart.
 3. Add a captured tour step to the README and site through the screenshot evidence route (scripts/check-screenshot-evidence.mjs).
 4. Change the site's hosting articles to the one-command setup.

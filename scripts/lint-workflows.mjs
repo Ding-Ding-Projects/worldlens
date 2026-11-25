@@ -191,7 +191,7 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
 // expression, draft-first publication, manifest readback, token chain and unsigned warning
 // are unchanged. Recomputed from the committed job block.
 const RELEASE_JOB_FINGERPRINT =
-  "8dbcb1656b3587c8759307f236b041f5b6853146be834ca40137238de886c723";
+  "c68ccb3048b8692a58b7f7bf3fb3f40697c36ad9124b3e240a98857ecc452e07";
 
 // The counts are exact rather than a floor because a new use of an external action is
 // precisely the thing somebody should have to look at: an action that runs in this

@@ -129,7 +129,11 @@ module.exports = {
         {
             from: "../ui/dist",
             to: "ui",
-            filter: ["**/*"],
+            // Source maps are left out. They are about 60 MB of debugging aids nothing at
+            // run time reads, and with them the full update package crossed 2,000,000,000
+            // bytes, the release job split it into parts, and the updater could not fetch
+            // it (a 404 on the package it expects as one file).
+            filter: ["**/*", "!**/*.map"],
         },
         {
             // The map server image for "Host the map": one docker-archive tar per architecture
