@@ -8,6 +8,8 @@
  * the rest of the application.
  */
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 import { mount, type VueWrapper } from "@vue/test-utils";
@@ -19,7 +21,7 @@ import TutorialOverlay from "./TutorialOverlay.vue";
 import { requestTutorialLaunch, resetTutorialLaunchRequests } from "./tutorialLaunch.js";
 import { emitTutorialSignal, resetTutorialSignals } from "./tutorialSignals.js";
 import { tutorialCompleted } from "./tutorialController.js";
-import { TUTORIAL_STEPS } from "./tutorialSteps.js";
+import { TUTORIAL_STEPS, TUTORIAL_TOURS } from "./tutorialSteps.js";
 import { memoryStorage, setSetupStorage } from "../setup/setupPrefs.js";
 
 beforeAll(() => {
@@ -56,15 +58,26 @@ function i18n() {
 
 /** One stand-in element per real anchor selector `TUTORIAL_STEPS` names, plus a focusable
  * control outside the overlay so focus-restoration has somewhere real to return to. */
-function installStandInAnchors(): HTMLButtonElement {
-    for (const step of TUTORIAL_STEPS) {
-        const marker = document.createElement("div");
-        const match = /\[data-tutorial-anchor="([^"]+)"\]/.exec(step.anchor);
-        if (match) marker.setAttribute("data-tutorial-anchor", match[1] as string);
-        marker.style.position = "fixed";
-        marker.tabIndex = -1;
-        document.body.appendChild(marker);
+function anchorName(selector: string): string | null {
+    return /\[data-tutorial-anchor="([^"]+)"\]/.exec(selector)?.[1] ?? null;
+}
+
+function addMarker(name: string): void {
+    const marker = document.createElement("div");
+    marker.setAttribute("data-tutorial-anchor", name);
+    marker.style.position = "fixed";
+    marker.tabIndex = -1;
+    document.body.appendChild(marker);
+}
+
+/** Stand-ins for every anchor any tour names, optionally leaving one out. */
+function installStandInAnchors(omit: string | null = null): HTMLButtonElement {
+    const names = new Set<string>();
+    for (const step of Object.values(TUTORIAL_TOURS).flat()) {
+        const name = anchorName(step.anchor);
+        if (name !== null && name !== omit) names.add(name);
     }
+    for (const name of names) addMarker(name);
     const launcher = document.createElement("button");
     launcher.textContent = "open the tour";
     document.body.appendChild(launcher);
@@ -74,8 +87,8 @@ function installStandInAnchors(): HTMLButtonElement {
 let wrapper: VueWrapper | null = null;
 let revealPage: ReturnType<typeof vi.fn>;
 
-function open(): VueWrapper {
-    revealPage = vi.fn();
+function open(reveal?: (pageId: string) => void): VueWrapper {
+    revealPage = vi.fn(reveal);
     wrapper = mount(TutorialOverlay, {
         props: { revealPage },
         global: { plugins: [vuetify, i18n()] },
@@ -407,6 +420,272 @@ describe("reduced motion", () => {
         } finally {
             Element.prototype.scrollIntoView = original;
         }
+    });
+});
+
+describe("a named destination tour", () => {
+    it("opens the tour that was asked for, naming it, with its own step count", async () => {
+        installStandInAnchors();
+        open();
+
+        requestTutorialLaunch("map");
+        await settle();
+
+        expect(dialog()?.getAttribute("data-tour")).toBe("map");
+        expect(dialog()?.textContent).toContain(`Step 1 of ${TUTORIAL_TOURS.map.length}`);
+        expect(dialog()?.textContent).toContain("Tour: Map");
+        expect(revealPage).toHaveBeenCalledWith("map");
+    });
+
+    it("finishing a destination tour closes it without completing the overall tour", async () => {
+        installStandInAnchors();
+        open();
+        requestTutorialLaunch("pages");
+        await settle();
+
+        for (let i = 0; i < TUTORIAL_TOURS.pages.length - 1; i++) {
+            clickButton("Next");
+            await settle();
+        }
+        clickButton("Finish");
+        await settle();
+
+        expect(dialog()).toBeNull();
+        expect(tutorialCompleted()).toBe(false);
+    });
+
+    it("asking for another tour while one is open swaps to the new one at its first step", async () => {
+        installStandInAnchors();
+        open();
+        requestTutorialLaunch("home");
+        await settle();
+        clickButton("Next");
+        await settle();
+
+        requestTutorialLaunch("settings");
+        await settle();
+
+        expect(dialog()?.getAttribute("data-tour")).toBe("settings");
+        expect(dialog()?.textContent).toContain(`Step 1 of ${TUTORIAL_TOURS.settings.length}`);
+        expect(revealPage).toHaveBeenLastCalledWith("settings");
+    });
+
+    it("resumes where it stopped after the whole overlay is remounted", async () => {
+        installStandInAnchors();
+        open();
+        requestTutorialLaunch("home");
+        await settle();
+        clickButton("Next");
+        await settle();
+        clickButton("Next");
+        await settle();
+        expect(dialog()?.textContent).toContain(`Step 3 of ${TUTORIAL_TOURS.home.length}`);
+
+        // The app restarting: same storage, a brand new overlay.
+        wrapper?.unmount();
+        wrapper = null;
+        document.body.innerHTML = "";
+        installStandInAnchors();
+        open();
+        expect(dialog()).toBeNull();
+
+        requestTutorialLaunch("home");
+        await settle();
+
+        expect(dialog()?.textContent).toContain(`Step 3 of ${TUTORIAL_TOURS.home.length}`);
+    });
+});
+
+describe("keyboard", () => {
+    function press(key: string, init: KeyboardEventInit = {}): void {
+        dialog()?.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, ...init }));
+    }
+
+    it("Right moves to the next step and Left moves back", async () => {
+        installStandInAnchors();
+        open();
+        requestTutorialLaunch();
+        await settle();
+
+        press("ArrowRight");
+        await settle();
+        expect(dialog()?.textContent).toContain("Step 2 of");
+
+        press("ArrowLeft");
+        await settle();
+        expect(dialog()?.textContent).toContain("Step 1 of");
+    });
+
+    it("Left on the first step stays on the first step", async () => {
+        installStandInAnchors();
+        open();
+        requestTutorialLaunch();
+        await settle();
+
+        press("ArrowLeft");
+        await settle();
+
+        expect(dialog()?.textContent).toContain("Step 1 of");
+    });
+
+    it("modified arrows are left to the browser and screen reader", async () => {
+        installStandInAnchors();
+        open();
+        requestTutorialLaunch();
+        await settle();
+
+        press("ArrowRight", { altKey: true });
+        press("ArrowRight", { ctrlKey: true });
+        await settle();
+
+        expect(dialog()?.textContent).toContain("Step 1 of");
+    });
+
+    it("Escape closes the tour even when focus has moved out of the card", async () => {
+        const launcher = installStandInAnchors();
+        open();
+        requestTutorialLaunch();
+        await settle();
+
+        launcher.focus();
+        launcher.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        await settle();
+
+        expect(dialog()).toBeNull();
+    });
+});
+
+describe("announcing the step", () => {
+    it("puts the counter, the tour name and the step title in one polite live region", async () => {
+        installStandInAnchors();
+        open();
+        requestTutorialLaunch("map");
+        await settle();
+
+        const live = dialog()?.querySelector('[aria-live="polite"]');
+        expect(live).not.toBeNull();
+        expect(live?.textContent).toContain("Step 1 of 2");
+        expect(live?.textContent).toContain("Tour: Map");
+        expect(live?.textContent).toContain("The Map button");
+    });
+
+    it("names its title, progress and body for assistive technology", async () => {
+        installStandInAnchors();
+        open();
+        requestTutorialLaunch("home");
+        await settle();
+
+        const card = dialog();
+        expect(card?.getAttribute("aria-labelledby")).toBeTruthy();
+        expect(card?.getAttribute("aria-describedby")?.split(" ")).toHaveLength(2);
+    });
+});
+
+describe("a step whose control is not on screen", () => {
+    /** A page that only shows its control once the shell has been asked to reveal it. */
+    function revealOnRequest(state: { works: boolean }) {
+        return (pageId: string): void => {
+            if (pageId === "toolkit" && state.works) {
+                if (document.querySelector('[data-tutorial-anchor="tools-list"]') === null) {
+                    addMarker("tools-list");
+                }
+            }
+        };
+    }
+
+    async function toMissingStep(state: { works: boolean }): Promise<void> {
+        installStandInAnchors("tools-list");
+        open(revealOnRequest(state));
+        requestTutorialLaunch("toolkit");
+        await settle();
+        clickButton("Next");
+        await settle();
+    }
+
+    it("says so on the card and offers a button that reveals it", async () => {
+        const state = { works: false };
+        await toMissingStep(state);
+
+        expect(dialog()?.textContent).toContain("not showing right now");
+        expect(dialog()?.textContent).toContain("Show it");
+        // The ring points at nothing rather than at a stale rectangle.
+        const ring = document.querySelector<HTMLElement>(".mb-tutorial__highlight");
+        expect(ring?.style.display).toBe("none");
+    });
+
+    it("the reveal button shows the control and the card drops the message", async () => {
+        const state = { works: false };
+        await toMissingStep(state);
+
+        state.works = true;
+        clickButton("Show it");
+        await settle();
+
+        expect(revealPage).toHaveBeenLastCalledWith("toolkit");
+        expect(document.querySelector('[data-tutorial-anchor="tools-list"]')).not.toBeNull();
+        expect(dialog()?.textContent).not.toContain("not showing right now");
+        expect(dialog()?.textContent).not.toContain("Show it");
+        const ring = document.querySelector<HTMLElement>(".mb-tutorial__highlight");
+        expect(ring?.style.display).not.toBe("none");
+    });
+
+    it("says so plainly when revealing did not help", async () => {
+        const state = { works: false };
+        await toMissingStep(state);
+
+        clickButton("Show it");
+        await settle();
+
+        expect(dialog()?.textContent).toContain("Still not showing");
+        expect(dialog()?.textContent).toContain("Show it");
+    });
+
+    it("treats a control hidden with display none as missing", async () => {
+        installStandInAnchors();
+        const hiddenParent = document.createElement("div");
+        hiddenParent.style.display = "none";
+        const list = document.querySelector('[data-tutorial-anchor="tools-list"]');
+        list?.remove();
+        const hiddenList = document.createElement("div");
+        hiddenList.setAttribute("data-tutorial-anchor", "tools-list");
+        hiddenParent.appendChild(hiddenList);
+        document.body.appendChild(hiddenParent);
+        open();
+        requestTutorialLaunch("toolkit");
+        await settle();
+        clickButton("Next");
+        await settle();
+
+        expect(dialog()?.textContent).toContain("not showing right now");
+    });
+
+    it("Back still works from a missing step", async () => {
+        const state = { works: false };
+        await toMissingStep(state);
+
+        clickButton("Back");
+        await settle();
+
+        expect(dialog()?.textContent).toContain("Step 1 of 2");
+        expect(dialog()?.textContent).not.toContain("not showing right now");
+    });
+});
+
+describe("motion and contrast", () => {
+    const source = readFileSync(resolve(__dirname, "TutorialOverlay.vue"), "utf8");
+
+    it("stills the ring animation and the card transition under reduced motion", () => {
+        const block = /@media \(prefers-reduced-motion: reduce\) \{[^}]*\{[^}]*\}[^}]*\}/.exec(source);
+        expect(block?.[0]).toContain("animation: none");
+        expect(block?.[0]).toContain("transition: none");
+    });
+
+    it("keeps the ring and the card edge visible in forced colours", () => {
+        const start = source.indexOf("@media (forced-colors: active)");
+        expect(start).toBeGreaterThan(-1);
+        const block = source.slice(start);
+        expect(block).toContain("outline: 3px solid Highlight");
+        expect(block).toContain("border: 2px solid CanvasText");
     });
 });
 

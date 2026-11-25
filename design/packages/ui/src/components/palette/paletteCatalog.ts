@@ -77,6 +77,8 @@ import {
     type Translate,
 } from "./paletteItems.js";
 import { PALETTE_SIZES, type PaletteSize } from "./palettePrefs.js";
+import { tutorialLaunchTourLabel, tutorialTourName } from "../tutorial/tutorialCopy.js";
+import { TUTORIAL_TOUR_IDS, type TutorialTourId } from "../tutorial/tutorialSteps.js";
 import { viewerSettingItems } from "./viewerSettings.js";
 
 /**
@@ -149,7 +151,7 @@ export interface PaletteShellActions {
     /** Open the changelog viewer, expanded, wherever the shell keeps it. */
     readonly openChangelog?: () => void;
     /** Open the interactive tour: see `components/tutorial/`. */
-    readonly openTutorial?: () => void;
+    readonly openTutorial?: (tour?: TutorialTourId) => void;
     /** Open the docked licence panel: the shell's own `EulaSurface` mount. */
     readonly openEula?: () => void;
     /** Open the docked "what is this?" panel: the shell's own `WelcomeSurface` mount. */
@@ -932,7 +934,7 @@ function chromeItems(input: PaletteCatalogInput, group: string): PaletteItem[] {
             kind: "command",
             id: "chrome.tutorial",
             group,
-            title: t("tutorial.launch.start", "Take the tour"),
+            title: t("tutorial.launch.start", "Take a tour"),
             description: t(
                 "palette.chrome.tutorial",
                 "A short guided walkthrough of finding a world, rendering it, and opening the result, with the real controls highlighted as it goes.",
@@ -948,6 +950,27 @@ function chromeItems(input: PaletteCatalogInput, group: string): PaletteItem[] {
             ],
             run: () => openTutorial(),
         });
+
+        /*
+         * One short tour per destination, each its own row ("Take a tour: Map"), so a person
+         * who is about to use one screen can learn just that screen.
+         */
+        for (const tour of TUTORIAL_TOUR_IDS) {
+            if (tour === "overall") continue;
+            const name = tutorialTourName(tour, t);
+            items.push({
+                kind: "command",
+                id: `chrome.tutorial.${tour}`,
+                group,
+                title: tutorialLaunchTourLabel(name, t),
+                description: t(
+                    "palette.chrome.tutorialTour",
+                    "A short guided walkthrough of this part of the application, with its real controls highlighted as it goes.",
+                ),
+                keywords: ["tour", "tutorial", "walkthrough", "guide", "how to", name],
+                run: () => openTutorial(tour as TutorialTourId),
+            });
+        }
     }
 
     /*

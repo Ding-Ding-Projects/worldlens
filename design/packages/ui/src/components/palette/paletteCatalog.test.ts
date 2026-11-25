@@ -43,6 +43,7 @@ import {
     resetSchoolModeRecordAdapter,
 } from "../setup/schoolMode.js";
 import { memoryStorage, setSetupStorage } from "../setup/setupPrefs.js";
+import { TUTORIAL_TOUR_IDS } from "../tutorial/tutorialSteps.js";
 import { dialogEmojiChoice, reloadDialogEmoji } from "../setup/dialogEmoji.js";
 import { actionSoundPrefs, reloadActionSoundPrefs } from "../../stores/actionSounds.js";
 import {
@@ -919,6 +920,35 @@ describe("the appearance rows", () => {
 
         expect(appearanceState().value.activePreset).toBe("");
         expect(Object.keys(appearanceState().value.elements)).toEqual([]);
+    });
+
+    it('offers "Take a tour" plus one "Take a tour: <name>" row per destination tour, each opening that tour', () => {
+        const opened: (string | undefined)[] = [];
+        const items = buildPaletteCatalog(
+            input({
+                actions: { ...actions(), openTutorial: (tour) => opened.push(tour) },
+            }),
+        );
+
+        const overall = byId(items, "chrome.tutorial");
+        expect(overall.title).toBe("Take a tour");
+        if (overall.kind !== "command") throw new Error("expected a command");
+        overall.run();
+        expect(opened).toEqual([undefined]);
+
+        const map = byId(items, "chrome.tutorial.map");
+        expect(map.title).toBe("Take a tour: Map");
+        if (map.kind !== "command") throw new Error("expected a command");
+        map.run();
+        expect(opened.at(-1)).toBe("map");
+
+        const tourRows = items.filter((item) => item.id.startsWith("chrome.tutorial."));
+        expect(tourRows.map((row) => row.id).sort()).toEqual(
+            [...TUTORIAL_TOUR_IDS]
+                .filter((tour) => tour !== "overall")
+                .map((tour) => `chrome.tutorial.${tour}`)
+                .sort(),
+        );
     });
 
     it("says where the per-element editors are instead of pretending to open one", () => {

@@ -1127,7 +1127,7 @@ async function handlePagesToggle(enabled: boolean): Promise<void> {
         component because the alternative - the editor mounting itself somewhere else in the tree -
         would put the project's dirty state, its save path and its render in two places.
     -->
-    <div class="mb-projects-screen" :class="{ 'mb-projects-screen--editing': editorOpen }">
+    <div class="mb-projects-screen" :class="{ 'mb-projects-screen--editing': editorOpen }" data-tutorial-anchor="projects-page">
         <!--
             The render outlives the editor being closed, so it sits above both rather than
             inside either. It renders nothing at all while no render has been started.

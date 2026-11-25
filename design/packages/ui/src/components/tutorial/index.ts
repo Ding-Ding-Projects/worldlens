@@ -14,6 +14,7 @@
  */
 
 export { default as TutorialOverlay } from "./TutorialOverlay.vue";
+export { default as TourList } from "./TourList.vue";
 
 export {
     createTutorialController,
@@ -26,9 +27,12 @@ export type { TutorialController } from "./tutorialController.js";
 export {
     TUTORIAL_STEPS,
     TUTORIAL_STEP_IDS,
+    TUTORIAL_TOURS,
+    TUTORIAL_TOUR_IDS,
+    isTutorialTourId,
     tutorialStepIndex,
 } from "./tutorialSteps.js";
-export type { TutorialSignal, TutorialStep, TutorialStepId } from "./tutorialSteps.js";
+export type { TutorialSignal, TutorialStep, TutorialStepId, TutorialTourId } from "./tutorialSteps.js";
 
 export {
     emitTutorialSignal,
@@ -44,7 +48,14 @@ export {
     tutorialLaunchCount,
 } from "./tutorialLaunch.js";
 
-export { tutorialProgressText, tutorialStepBody, tutorialStepTitle } from "./tutorialCopy.js";
+export {
+    tutorialLaunchTourLabel,
+    tutorialProgressText,
+    tutorialStepBody,
+    tutorialStepTitle,
+    tutorialTourHeading,
+    tutorialTourName,
+} from "./tutorialCopy.js";
 export type { Translate as TutorialTranslate } from "./tutorialCopy.js";
 
 export {

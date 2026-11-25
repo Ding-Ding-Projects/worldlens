@@ -6,7 +6,7 @@ import {
     tutorialCompleted,
     tutorialOffered,
 } from "./tutorialController.js";
-import { TUTORIAL_STEPS } from "./tutorialSteps.js";
+import { TUTORIAL_STEPS, TUTORIAL_TOURS } from "./tutorialSteps.js";
 
 let storage: SetupStorage;
 
@@ -24,7 +24,7 @@ describe("stepping through the tour", () => {
         expect(tour.open.value).toBe(true);
         expect(tour.stepIndex.value).toBe(0);
         expect(tour.stepNumber.value).toBe(1);
-        expect(tour.stepCount).toBe(TUTORIAL_STEPS.length);
+        expect(tour.stepCount.value).toBe(TUTORIAL_STEPS.length);
         expect(tour.currentStep.value.id).toBe(TUTORIAL_STEPS[0]?.id);
     });
 
@@ -185,6 +185,76 @@ describe("the one-time invitation flag", () => {
         // Completing the tour does not itself set or clear the "offered" flag - the two are
         // deliberately separate settings, per `tutorialController.ts`'s own doc comment.
         expect(tutorialOffered(storage)).toBe(true);
+    });
+});
+
+describe("per-destination tours", () => {
+    it("opens the named tour at its first step with its own step count", () => {
+        const tour = createTutorialController(storage);
+        tour.start("map");
+
+        expect(tour.open.value).toBe(true);
+        expect(tour.tourId.value).toBe("map");
+        expect(tour.stepCount.value).toBe(TUTORIAL_TOURS.map.length);
+        expect(tour.currentStep.value.id).toBe(TUTORIAL_TOURS.map[0]?.id);
+    });
+
+    it("start() with no argument still opens the overall tour", () => {
+        const tour = createTutorialController(storage);
+        tour.start("home");
+        tour.exit();
+        tour.start();
+
+        expect(tour.tourId.value).toBe("overall");
+        expect(tour.stepCount.value).toBe(TUTORIAL_STEPS.length);
+    });
+
+    it("keeps a separate saved position per tour", () => {
+        const first = createTutorialController(storage);
+        first.start("home");
+        first.next();
+        first.exit();
+        first.start("settings");
+        first.next();
+        first.exit();
+
+        const second = createTutorialController(storage);
+        second.start("home");
+        expect(second.stepIndex.value).toBe(1);
+        second.exit();
+        second.start("settings");
+        expect(second.stepIndex.value).toBe(1);
+        second.exit();
+        second.start("map");
+        expect(second.stepIndex.value).toBe(0);
+    });
+
+    it("finishing a short tour never marks the overall tour completed", () => {
+        const tour = createTutorialController(storage);
+        tour.start("pages");
+        for (let i = 0; i < TUTORIAL_TOURS.pages.length; i++) tour.next();
+
+        expect(tour.open.value).toBe(false);
+        expect(tour.tourCompleted("pages")).toBe(true);
+        expect(tour.completed.value).toBe(false);
+        expect(tutorialCompleted(storage)).toBe(false);
+    });
+
+    it("a finished short tour restarts at its first step", () => {
+        const tour = createTutorialController(storage);
+        tour.start("pages");
+        for (let i = 0; i < TUTORIAL_TOURS.pages.length; i++) tour.next();
+
+        tour.start("pages");
+        expect(tour.stepIndex.value).toBe(0);
+    });
+
+    it("an out-of-range saved position for a short tour falls back to its first step", () => {
+        storage.write("worldlens.tutorial.progress.map", "99");
+        const tour = createTutorialController(storage);
+        tour.start("map");
+
+        expect(tour.stepIndex.value).toBe(0);
     });
 });
 

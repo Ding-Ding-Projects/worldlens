@@ -63,7 +63,7 @@ const listLabel = computed(() => t(props.hub.labelKey, props.hub.labelFallback))
         </p>
 
         <div v-else class="wl-hub__body">
-            <nav class="wl-hub__list" :aria-label="listLabel">
+            <nav class="wl-hub__list" :aria-label="listLabel" data-tutorial-anchor="tools-list">
                 <VList nav density="comfortable" bg-color="transparent" class="wl-hub__vlist">
                     <VListItem
                         v-for="tool in tools"

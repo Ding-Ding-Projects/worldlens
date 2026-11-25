@@ -46,7 +46,20 @@ import * as directives from "vuetify/directives";
 import App from "../../App.vue";
 import { findJob, isRailPageId } from "../shell/jobRegistry.js";
 import { profilesStore, removeProfile } from "../../stores/profiles.js";
-import { TUTORIAL_STEPS } from "./tutorialSteps.js";
+import { TUTORIAL_TOURS, type TutorialStep } from "./tutorialSteps.js";
+
+/**
+ * Every distinct (page, anchor) pair across every tour. The overall tour and the destination
+ * tours share several steps, and mounting the whole shell once per duplicate would only repeat
+ * an identical assertion, so each pair is walked once and named after every tour that uses it.
+ */
+const ALL_STEPS: readonly TutorialStep[] = [
+    ...new Map(
+        Object.values(TUTORIAL_TOURS)
+            .flat()
+            .map((step) => [`${step.pageId}|${step.anchor}`, step] as const),
+    ).values(),
+];
 
 beforeAll(() => {
     // The same layout-engine stand-ins `App.test.ts` installs: jsdom draws nothing, and
@@ -231,6 +244,23 @@ async function goToPage(pageId: string): Promise<void> {
         await goToRail(pageId);
         return;
     }
+    // Work is a rail destination too, though not a "rail page id" a job could be filed under.
+    if (pageId === "work") {
+        await goToRail("work");
+        return;
+    }
+    // Settings is the rail's footer control: it opens a panel rather than switching pages.
+    if (pageId === "settings") {
+        if (document.querySelector(".mb-settings") === null) {
+            const button = document.querySelector<HTMLElement>(
+                '[data-tutorial-anchor="rail-settings"]',
+            );
+            expect(button, "the rail has no settings control").not.toBeNull();
+            button?.click();
+            await settle();
+        }
+        return;
+    }
 
     await goToRail("work");
     await openJob(pageId);
@@ -259,9 +289,9 @@ afterEach(() => {
 });
 
 describe("every tour step's anchor resolves to a real element", () => {
-    it.each(TUTORIAL_STEPS.map((step) => [step.id, step] as const))(
+    it.each(ALL_STEPS.map((step) => [step.id, step.pageId, step] as const))(
         '"%s" (page "%s") finds its control after the real navigation',
-        async (_id, step) => {
+        async (_id, _page, step) => {
             shell();
             await settle();
 
@@ -285,14 +315,16 @@ describe("every tour step's anchor resolves to a real element", () => {
         // person could press to get there. A rail destination is there from the first frame; a
         // job has to be opened, which is itself a click through a real control (see `openJob`).
         await goToRail("work");
-        for (const step of TUTORIAL_STEPS) {
-            if (isRailPageId(step.pageId)) continue;
+        for (const step of ALL_STEPS) {
+            if (isRailPageId(step.pageId) || step.pageId === "work" || step.pageId === "settings") continue;
             await openJob(step.pageId);
         }
         await expandGroups();
 
-        for (const step of TUTORIAL_STEPS) {
-            const selector = isRailPageId(step.pageId)
+        for (const step of ALL_STEPS) {
+            const selector = step.pageId === "settings"
+                ? '[data-tutorial-anchor="rail-settings"]'
+                : step.pageId === "work" || isRailPageId(step.pageId)
                 ? `.wl-rail-item[data-destination="${step.pageId}"]`
                 : `[data-tutorial-anchor="tab-${step.pageId}"]`;
             expect(document.querySelector(selector), step.pageId).not.toBeNull();

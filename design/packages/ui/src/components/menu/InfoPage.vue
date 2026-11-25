@@ -9,6 +9,7 @@ import ChangelogViewer from "../changelog/ChangelogViewer.vue";
 import { ReleaseLedgerViewer } from "../releaseLedger/index.js";
 import { onRevealRequested } from "../shell/revealRequests.js";
 import { tutorialCompleted } from "../tutorial/tutorialController.js";
+import TourList from "../tutorial/TourList.vue";
 import { productDisplayName } from "../../stores/productName.js";
 
 /**
@@ -47,7 +48,7 @@ const { t } = useI18n();
 const tourLabel = computed(() =>
     tutorialCompleted()
         ? t("tutorial.launch.replay", "Replay the tour")
-        : t("tutorial.launch.start", "Take the tour"),
+        : t("tutorial.launch.start", "Take a tour"),
 );
 
 /**
@@ -409,6 +410,8 @@ onMounted(() => {
     >
         {{ tourLabel }}
     </v-btn>
+
+    <TourList class="mb-info-page__tours" />
 
     <details
         ref="changelogFold"

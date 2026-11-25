@@ -1619,6 +1619,15 @@ function revealPage(pageId: string): void {
         shell.select("map");
         return;
     }
+    // The tours also point at Work itself and at the settings panel, neither of which is a job.
+    if (pageId === "work") {
+        shell.select("work");
+        return;
+    }
+    if (pageId === "settings") {
+        if (!settingsOpen.value) openSettings();
+        return;
+    }
     ensureJob(pageId);
     revealJob(pageId);
     shell.destination.value = "work";
@@ -2399,6 +2408,22 @@ const dimSumErrorActive = computed(() => problems.value.length > 0);
  */
 onMounted(() => {
     if (tutorialOffered() || tutorialCompleted()) return;
+    // Offered after onboarding, never over it: while first-run setup holds the screen, wait for
+    // it to let go. The offer is only ever an invitation, so a person who never finishes setup
+    // simply never sees it.
+    if (dimSumFirstRunActive.value) {
+        const stop = watch(dimSumFirstRunActive, (active) => {
+            if (active) return;
+            stop();
+            offerTour();
+        });
+        return;
+    }
+    offerTour();
+});
+
+function offerTour(): void {
+    if (tutorialOffered() || tutorialCompleted()) return;
     markTutorialOffered();
     raiseNotice(
         "info",
@@ -2410,16 +2435,16 @@ onMounted(() => {
             actions: [
                 {
                     id: "start-tour",
-                    label: t("tutorial.launch.start", "Take the tour"),
+                    label: t("tutorial.launch.start", "Take a tour"),
                     run: () => requestTutorialLaunch(),
                 },
             ],
         },
     );
-});
+}
 
 /* -------------------------------------------------------------------------- */
-/* Server configuration                                                       */
+/* Server configuration                                                      */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -2760,7 +2785,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     being drawn twice.
                 -->
                 <template #map>
-                    <div class="mb-map-page">
+                    <div class="mb-map-page" data-tutorial-anchor="map-page">
                         <FreeFlightMobileControls v-if="showFreeFlightControls" />
                         <ZoomButtons v-if="showZoomButtons" />
 
@@ -3194,7 +3219,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         :inert="destination !== 'map'"
                         :aria-hidden="destination !== 'map' ? 'true' : undefined"
                     >
-                        <div class="mb-map-page">
+                        <div class="mb-map-page" data-tutorial-anchor="map-page">
                             <FreeFlightMobileControls v-if="showFreeFlightControls" />
                             <ZoomButtons v-if="showZoomButtons" />
 
@@ -3970,7 +3995,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 @open-notice-centre="requestReveal('noticeCentre')"
                 @open-tab-finder="openTabFinder"
                 @open-changelog="openChangelog"
-                @open-tutorial="requestTutorialLaunch()"
+                @open-tutorial="requestTutorialLaunch($event)"
                 @open-eula="eulaOpen = true"
                 @open-welcome="welcomeOpen = true"
             />

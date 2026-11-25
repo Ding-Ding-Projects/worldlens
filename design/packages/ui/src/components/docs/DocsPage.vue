@@ -59,7 +59,7 @@ const { t } = useI18n();
 const tourLabel = computed(() =>
     tutorialCompleted()
         ? t("tutorial.launch.replay", "Replay the tour")
-        : t("tutorial.launch.start", "Take the tour"),
+        : t("tutorial.launch.start", "Take a tour"),
 );
 
 /* -------------------------------------------------------------------------- */
