@@ -53,7 +53,9 @@ export function installVocabularyTranslationBoundary(i18n: I18n<Record<string, u
         if (args.length <= 1) return translate(...args);
         const transformed = args.map((argument, index) =>
             index > 0 && typeof argument === "string"
-                ? applyVocabularyTemplate(argument)
+                ? // A default message is compiled like any other, so inserted wording is
+                  // escaped for the message syntax here as well.
+                  applyVocabularyTemplate(argument, { forMessageFormat: true })
                 : argument,
         );
         return translate(...transformed);

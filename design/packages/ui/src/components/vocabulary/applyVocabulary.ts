@@ -108,6 +108,36 @@ function compile(entries: Readonly<Record<string, string>>): CompiledVocabulary 
     return compiled;
 }
 
+/**
+ * The characters vue-i18n's message format reads as syntax: placeholders, linked messages,
+ * plural branches and modifiers. A vocabulary value is somebody's own wording, so each one is
+ * written as a literal interpolation (`{'@'}`) before it enters a message. Without this a
+ * value containing `@` made the compiler throw "Invalid linked format" for every message it
+ * landed in, and a page whose labels all threw rendered nothing at all.
+ */
+const MESSAGE_SYNTAX = /[{}@$|]/g;
+
+/** A vocabulary value, safe to place inside a vue-i18n message. */
+export function escapeForMessageFormat(value: string): string {
+    return value.replace(MESSAGE_SYNTAX, (character) => `{'${character}'}`);
+}
+
+/** {@link applyVocabulary} for text that is about to be compiled as a vue-i18n message. */
+function applyVocabularyToMessageText(text: string): string {
+    if (schoolModeEnabled()) return text;
+    const entries = vocabularyStore.entries;
+    if (typeof text !== "string" || text.length === 0) return text;
+    if (Object.keys(entries).length === 0) return text;
+
+    const vocabulary = compile(toRaw(entries));
+    // Only the inserted value is escaped: the surrounding text is the shipped message and
+    // its own placeholders and plural branches must keep working.
+    return text.replace(vocabulary.pattern, (match) => {
+        const replacement = vocabulary.entries[match] ?? vocabulary.entries[flipFirst(match)];
+        return replacement === undefined ? match : escapeForMessageFormat(replacement);
+    });
+}
+
 export function applyVocabulary(text: string): string {
     // School mode makes personal-vocabulary capability behave as if it is not installed.
     // The validated cache remains untouched so the user's choices return immediately after
@@ -138,7 +168,11 @@ export function applyVocabulary(text: string): string {
  * Placeholder tokens stay literal, so a user-supplied mapping cannot alter a runtime path,
  * URL, command, identifier, count, or other factual value passed through `{name}`.
  */
-export function applyVocabularyTemplate(template: string): string {
+export function applyVocabularyTemplate(
+    template: string,
+    options: { readonly forMessageFormat?: boolean } = {},
+): string {
+    const apply = options.forMessageFormat === true ? applyVocabularyToMessageText : applyVocabulary;
     const protectedSpan =
         /\{[A-Za-z_][A-Za-z0-9_]*\}|`[^`\r\n]*`|https:\/\/[^\s<>"']+|[A-Za-z]:[\\/][^\s<>"']+|\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]+|--[A-Za-z0-9][A-Za-z0-9-]*|\b(?:Ctrl|Alt|Shift|Meta|Cmd)(?:\+[A-Za-z0-9]+)+\b|\b[A-Z][A-Z0-9_]{1,}\b|\b[\w.-]+\.(?:json|jsonl|ndjson|ya?ml|toml|xml|csv|tsv|md|html?|sql|ts|js|mjs|cjs|py|go|rs|proto|conf|dat|jar|exe|zip|7z|nupkg|png|jpe?g|webp|svg|ico)\b|\b[\w.-]+:[\w./-]+\b|\bv?\d+(?:\.\d+){1,3}\b|\b\d+(?:[.,]\d+)*\b/g;
     let cursor = 0;
@@ -146,12 +180,12 @@ export function applyVocabularyTemplate(template: string): string {
 
     for (const match of template.matchAll(protectedSpan)) {
         const index = match.index ?? cursor;
-        result += applyVocabulary(template.slice(cursor, index));
+        result += apply(template.slice(cursor, index));
         result += match[0];
         cursor = index + match[0].length;
     }
 
-    return result + applyVocabulary(template.slice(cursor));
+    return result + apply(template.slice(cursor));
 }
 
 /**
@@ -163,7 +197,10 @@ export function applyVocabularyTemplate(template: string): string {
  * replacing the upload can always rebuild from the untouched shipped source.
  */
 export function applyVocabularyMessageTree<T>(value: T): T {
-    if (typeof value === "string") return applyVocabularyTemplate(value) as T;
+    // These strings are compiled by vue-i18n, so inserted wording is escaped for its syntax.
+    if (typeof value === "string") {
+        return applyVocabularyTemplate(value, { forMessageFormat: true }) as T;
+    }
     if (Array.isArray(value)) {
         return value.map((entry) => applyVocabularyMessageTree(entry)) as T;
     }
