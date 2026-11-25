@@ -7007,7 +7007,19 @@
           "reason": "An overall seven-step tour exists; per-destination tours, the hidden-control step and the Help and Settings entries are in progress.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/tutorial/TutorialOverlay.vue",
+              "design/packages/ui/src/components/tutorial/tutorialSteps.ts",
+              "design/packages/ui/src/components/tutorial/tutorialController.ts",
+              "design/packages/ui/src/components/tutorial/TourList.vue",
+              "design/design-sources/take-a-tour/README.md"
+            ],
+            "consumer": "The shell mounts the tour overlay; the command palette, Help and Settings start the overall tour or one of eight page tours, and each step anchors to a live control.",
+            "limitation": "Focus moves to the card rather than the highlighted control. The Settings list sits under Diagnostics and is not found by Settings search. Seen once in a packaged build on a throwaway profile (step 1 of the overall tour from the palette); page tours, the hidden-control step, reduced motion and high contrast are covered by tests only. No capture in the README or site yet.",
+            "sourceCommit": "7570eadfa644b9a399660391cb7ed58ef50a4c80"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -7050,7 +7062,19 @@
           "reason": "The desktop app updates itself from published releases.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/app/src/main/update/comingSoon.ts",
+              "design/packages/app/src/main/update/comingSoonIpc.ts",
+              "design/packages/ui/src/components/update/ComingSoonCard.vue",
+              "design/packages/ui/src/components/update/comingSoonModel.ts",
+              "docs/update-coming-soon.md"
+            ],
+            "consumer": "The main process reads the public build status on a bounded schedule and the Updates section shows the card above the status row.",
+            "limitation": "Tested with a fake fetch only. Not watched through a real in-flight build in the packaged app, and not captured.",
+            "sourceCommit": "7570eadfa644b9a399660391cb7ed58ef50a4c80"
+          }
         },
         "hosted-workspace": {
           "applicability": "not-applicable",
@@ -7093,7 +7117,17 @@
           "reason": "Universal interactive-surface requirement; not yet reviewed on this surface.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/settings/quickAdd/SettingsQuickAdd.vue",
+              "design/packages/ui/src/components/settings/quickAdd/quickAddPointers.ts",
+              "docs/settings-quick-add.md"
+            ],
+            "consumer": "Six surfaces that point at the maps folder or the download consent carry the entry in place; it writes the same stored value as the Settings row.",
+            "limitation": "GitHub sign-in pointers and the Java download have no quick entry. No credential entry exists, so masking is untested. Not driven in the packaged app.",
+            "sourceCommit": "7570eadfa644b9a399660391cb7ed58ef50a4c80"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -7136,7 +7170,21 @@
           "reason": "The desktop app owns a profile folder and a default save location.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/app/src/main/dataFolders/service.ts",
+              "design/packages/app/src/main/dataFolders/profileRepo.ts",
+              "design/packages/app/src/main/dataFolders/move.ts",
+              "design/packages/app/src/main/dataFolders/mirror.ts",
+              "design/packages/app/src/main/dataFolders/pointer.ts",
+              "design/packages/ui/src/components/dataFolders/DataFoldersRow.vue",
+              "docs/data-folders.md"
+            ],
+            "consumer": "Start-up reads the pointer file before the profile path is set; the Settings section validates, moves and resets both folders, and the profile folder records versions with Git.",
+            "limitation": "In a packaged build on a throwaway profile the section rendered and two versions were recorded while the app was running. A real move followed by a restart, the native picker, a push to a real remote and narrow layouts were not run. Main-process failure sentences are English only. The save folder keeps no history.",
+            "sourceCommit": "7570eadfa644b9a399660391cb7ed58ef50a4c80"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
