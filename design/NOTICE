@@ -36,3 +36,19 @@ Licensed under the SIL Open Font License, Version 1.1. Bundled locally (via
 the @fontsource/roboto-mono npm packaging) so the application loads no remote
 fonts. It is the first family named by every monospace surface: file paths,
 config previews, engine logs, regex matches and keyboard keys.
+
+TinyMCE - https://www.tiny.cloud/tinymce/
+Copyright (c) Ephox Corporation DBA Tiny Technologies, Inc.
+Version 8.11.0, offered under the GNU General Public License, version 2 or
+later (or Tiny's commercial terms). This application is distributed under the
+MIT licence, which is GPL-compatible, so TinyMCE is used under the GPL route
+(license_key "gpl") and bundled locally from the npm package: there is no
+Tiny Cloud script, API key or request to a Tiny host. It is the editor behind
+every rich text field (see docs/rich-text-editor.md). The full licence text
+ships with the package as license.md and notices.txt.
+
+tinymce-i18n - https://github.com/mklkj/tinymce-i18n
+Version 26.11.2. Community packaging of the TinyMCE language packs; its own
+tooling is MIT and the language files carry TinyMCE's licence. Only the Hong Kong
+Cantonese pack is imported, so the editor can show its interface in Cantonese
+without fetching a file.

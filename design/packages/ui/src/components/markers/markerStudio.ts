@@ -2,6 +2,16 @@
  * material-exempt: marker colours a person picks for their own map. Their markers are content.
  */
 /** Pure, map-scoped model for user-authored BlueMap markers. */
+import { looksLikeHtml, richTextToPlain, sanitizeRichText } from "../richText/sanitizeRichText.js";
+
+/**
+ * A marker note is formatted text written in the rich text editor. It is sanitized here, where
+ * every note is created, edited or imported, so the stored value never depends on the editor
+ * having done its job. A legacy plain note carries no markup and is stored exactly as typed.
+ */
+function cleanNote(note: string): string {
+    return looksLikeHtml(note) ? sanitizeRichText(note) : note;
+}
 export type StudioMarkerKind = "poi" | "line" | "shape" | "extrude";
 export interface MarkerPosition { x: number; y: number; z: number }
 export const DEFAULT_MARKER_COLOUR = "#4f8cff";
@@ -76,14 +86,14 @@ function rounded(position: MarkerPosition): MarkerPosition { return { x: Math.ro
 export function createMarker(mapId: string, draft: MarkerDraft, options: CreateOptions = {}): MarkerResult {
     const problems = markerProblems(draft); if (problems.length) return { ok: false, problems };
     const now = options.now ?? new Date().toISOString();
-    return { ok: true, marker: { id: options.id ?? markerId(), mapId, kind: draft.kind ?? "poi", label: draft.label.trim(), detail: draft.detail.trim(), position: rounded(draft.position), colour: draft.colour.toLowerCase(), visible: true, createdAt: now, updatedAt: now, ...(draft.points ? { points: draft.points.map(rounded) } : {}), ...(draft.extra ? { extra: { ...draft.extra } } : {}) } };
+    return { ok: true, marker: { id: options.id ?? markerId(), mapId, kind: draft.kind ?? "poi", label: draft.label.trim(), detail: cleanNote(draft.detail.trim()), position: rounded(draft.position), colour: draft.colour.toLowerCase(), visible: true, createdAt: now, updatedAt: now, ...(draft.points ? { points: draft.points.map(rounded) } : {}), ...(draft.extra ? { extra: { ...draft.extra } } : {}) } };
 }
 export function editMarker(marker: StudioMarker, draft: MarkerDraft, now = new Date().toISOString()): MarkerResult {
     const problems = markerProblems(draft); if (problems.length) return { ok: false, problems };
-    return { ok: true, marker: { ...marker, kind: draft.kind ?? marker.kind ?? "poi", label: draft.label.trim(), detail: draft.detail.trim(), position: rounded(draft.position), colour: draft.colour.toLowerCase(), updatedAt: now, ...(draft.points ? { points: draft.points.map(rounded) } : {}), ...(draft.extra ? { extra: { ...draft.extra } } : {}) } };
+    return { ok: true, marker: { ...marker, kind: draft.kind ?? marker.kind ?? "poi", label: draft.label.trim(), detail: cleanNote(draft.detail.trim()), position: rounded(draft.position), colour: draft.colour.toLowerCase(), updatedAt: now, ...(draft.points ? { points: draft.points.map(rounded) } : {}), ...(draft.extra ? { extra: { ...draft.extra } } : {}) } };
 }
 export function draftFrom(marker: StudioMarker): MarkerDraft { return { label: marker.label, detail: marker.detail, position: { ...marker.position }, colour: marker.colour, kind: marker.kind ?? "poi", ...(marker.points ? { points: marker.points.map((point) => ({ ...point })) } : {}), ...(marker.extra ? { extra: { ...marker.extra } } : {}) }; }
-export function markerSearchText(marker: StudioMarker): string { return [marker.label, marker.detail, marker.kind ?? "poi", `${marker.position.x} ${marker.position.y} ${marker.position.z}`, ...(marker.points ?? []).map((point) => `${point.x} ${point.y} ${point.z}`)].join(" "); }
+export function markerSearchText(marker: StudioMarker): string { return [marker.label, richTextToPlain(marker.detail),marker.kind ?? "poi", `${marker.position.x} ${marker.position.y} ${marker.position.z}`, ...(marker.points ?? []).map((point) => `${point.x} ${point.y} ${point.z}`)].join(" "); }
 export function filterStudioMarkers(markers: readonly StudioMarker[], query: string): StudioMarker[] { const needle = query.trim().toLocaleLowerCase(); return needle ? markers.filter((marker) => markerSearchText(marker).toLocaleLowerCase().includes(needle)) : [...markers]; }
 export function toViewerMarkerData(marker: StudioMarker): Record<string, unknown> {
     const points = marker.points ?? [];

@@ -395,9 +395,18 @@ importers:
       '@worldlens/viewer':
         specifier: workspace:*
         version: link:../viewer
+      dompurify:
+        specifier: ^3.4.12
+        version: 3.4.12
       sql.js:
         specifier: 1.14.1
         version: 1.14.1
+      tinymce:
+        specifier: 8.11.0
+        version: 8.11.0
+      tinymce-i18n:
+        specifier: 26.11.2
+        version: 26.11.2
       vue:
         specifier: ^3.5.40
         version: 3.5.40(typescript@5.9.3)
@@ -3676,6 +3685,12 @@ packages:
   tinyglobby@0.2.17:
     resolution: {integrity: sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==}
     engines: {node: '>=12.0.0'}
+
+  tinymce-i18n@26.11.2:
+    resolution: {integrity: sha512-2QCB4Z0dlFhyrQHlP5soLaeIHn8KL/C4GZ8FRYMf5ZZGZutsyveWrOZXEEo6daTmcdLI8AVww1SVU7hAeoWXxg==}
+
+  tinymce@8.11.0:
+    resolution: {integrity: sha512-HcLyNdkHf5xkYQ8aXNoazZceX6/QrTu8yBhiVw6T9cDRg6ixXWZzj7+2pbRmCwaMQId71aqzmzNoHYEQipWLFg==}
 
   tinypool@1.1.1:
     resolution: {integrity: sha512-Zba82s87IFq9A9XmjiX5uZA/ARWDrB03OHlq+Vw1fSdt0I+4/Kutwy8BP4Y/y/aORMo61FQ0vIb5j44vSo5Pkg==}
@@ -7538,6 +7553,10 @@ snapshots:
     dependencies:
       fdir: 6.5.0(picomatch@4.0.5)
       picomatch: 4.0.5
+
+  tinymce-i18n@26.11.2: {}
+
+  tinymce@8.11.0: {}
 
   tinypool@1.1.1: {}
 

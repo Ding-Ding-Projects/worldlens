@@ -103,6 +103,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "regex-builder.md",
     "config-history.md",
     "data-folders.md",
+    "rich-text-editor.md",
     "render-mask-drawing.md",
     "eula-and-consent.md",
     "startup-recovery.md",

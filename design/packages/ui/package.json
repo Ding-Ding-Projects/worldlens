@@ -20,7 +20,10 @@
         "@worldlens/design-system": "workspace:*",
         "@worldlens/shared": "workspace:*",
         "@worldlens/viewer": "workspace:*",
+        "dompurify": "^3.4.12",
         "sql.js": "1.14.1",
+        "tinymce": "8.11.0",
+        "tinymce-i18n": "26.11.2",
         "vue": "^3.5.40",
         "vue-i18n": "^9.14.5",
         "vuetify": "^3.13.0"
