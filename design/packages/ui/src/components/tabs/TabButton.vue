@@ -93,6 +93,7 @@ const label = computed(() => {
 <template>
     <div
         :id="domId"
+        :data-tab-id="tab.id"
         class="mb-tabs-strip__tab"
         :class="{
             'mb-tabs-strip__tab--active': active,

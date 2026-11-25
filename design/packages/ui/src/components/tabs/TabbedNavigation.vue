@@ -1,9 +1,37 @@
 <script setup lang="ts">
-import { computed, ref, useId, watch } from "vue";
+import { computed, nextTick, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { VBtn, VIcon } from "vuetify/components";
 import { raiseNotice } from "../../stores/notices.js";
-import TabStrip from "./TabStrip.vue";
+import DockSurface from "./DockSurface.vue";
+import TabsPane from "./TabsPane.vue";
+import type { PaneModel } from "./paneModel.js";
+import {
+    applyNamedLayout,
+    deleteNamedLayout,
+    readDockLayout,
+    readNamedLayouts,
+    renameNamedLayout,
+    saveNamedLayout,
+    writeDockLayout,
+    writeNamedLayouts,
+    type DockLayoutJson,
+    type NamedLayout,
+} from "./dockLayoutStorage.js";
+import {
+    activateIn,
+    adjacentStripId,
+    mergeStripsIntoFirst,
+    moveTabToStrip,
+    nextWorkspaceGroupId,
+    nextWorkspaceTabId,
+    pruneEmptyStrips,
+    splitDirectionOf,
+    splitTabToNewStrip,
+    stripIds,
+    type LayoutCommand,
+    type SplitDirection,
+} from "./workLayout.js";
+import type { SaveLayoutResult, WorkLayoutHost } from "./workLayoutHost.js";
 import { applyClosePlan, type TabClosePlan } from "./closePlans.js";
 import {
     addTab,
@@ -200,6 +228,13 @@ const props = withDefaults(
          * feature that only ever existed on installs that never used it.
          */
         fileNewTabsIntoSeedGroups?: boolean;
+        /**
+         * Lets the workspace be split into several panes that can be arranged, floated and
+         * saved as named layouts (see `DockSurface.vue`). Off, the component draws exactly the
+         * one strip and one panel it always drew, which is what every settings sheet and editor
+         * still gets.
+         */
+        dock?: boolean;
     }>(),
     {
         windowLabel: "",
@@ -216,6 +251,7 @@ const props = withDefaults(
         // `seedablePages()` reads as "seed every declared page, as this component always has".
         defaultPlacement: DEFAULT_TAB_PLACEMENT,
         fileNewTabsIntoSeedGroups: false,
+        dock: false,
     },
 );
 
@@ -315,7 +351,15 @@ watch(
     { deep: true },
 );
 
-const strip = computed<TabStripState>(() => workspace.value.strips[0] ?? seedStrip());
+/** The pane that last had focus; the first one until somebody uses another. */
+const focusedStripId = ref<string | null>(null);
+
+const strip = computed<TabStripState>(
+    () =>
+        workspace.value.strips.find((candidate) => candidate.id === focusedStripId.value) ??
+        workspace.value.strips[0] ??
+        seedStrip(),
+);
 
 // Hosts may remove pages at runtime (School mode is the canonical example). Prune their
 // persisted tabs and select the first remaining page in the same update so the shell never
@@ -324,15 +368,20 @@ watch(
     () => props.pages.map((page) => page.id),
     (pageIds) => {
         const allowed = new Set(pageIds);
-        const unavailable = strip.value.tabs
-            .filter((tab) => !allowed.has(tab.pageId))
-            .map((tab) => tab.id);
-        let next = unavailable.length > 0 ? closeTabs(strip.value, unavailable) : strip.value;
-        if (next.activeTabId === null) {
-            const survivor = next.tabs.find((tab) => allowed.has(tab.pageId));
-            if (survivor !== undefined) next = setActiveTab(next, survivor.id);
-        }
-        if (next !== strip.value) update(next);
+        let changed = false;
+        const strips = workspace.value.strips.map((candidate) => {
+            const unavailable = candidate.tabs
+                .filter((tab) => !allowed.has(tab.pageId))
+                .map((tab) => tab.id);
+            let next = unavailable.length > 0 ? closeTabs(candidate, unavailable) : candidate;
+            if (next.activeTabId === null) {
+                const survivor = next.tabs.find((tab) => allowed.has(tab.pageId));
+                if (survivor !== undefined) next = setActiveTab(next, survivor.id);
+            }
+            if (next !== candidate) changed = true;
+            return next;
+        });
+        if (changed) setWorkspace({ strips });
     },
     { immediate: true, flush: "post" },
 );
@@ -381,12 +430,21 @@ const presentedStrip = computed<TabStripState>(() =>
 );
 
 /** Replaces one strip, leaving every other strip in the workspace untouched. */
+/**
+ * Replaces the workspace. In a dockable workspace a pane whose last tab closed is removed
+ * rather than left drawn as an empty pane; a lone strip always stays, because its own
+ * "every tab is closed" state lives inside it.
+ */
+function setWorkspace(next: TabWorkspaceState): void {
+    workspace.value = props.dock ? pruneEmptyStrips(next) : next;
+}
+
 function update(next: TabStripState): void {
-    workspace.value = {
+    setWorkspace({
         strips: workspace.value.strips.map((candidate) =>
             candidate.id === next.id ? next : candidate,
         ),
-    };
+    });
 }
 
 /**
@@ -417,13 +475,17 @@ function reveal(groupId: string): void {
  * search result into it reveals it again rather than finding it already open
  * for reasons nobody can remember.
  */
-function setCollapsed(groupId: string, collapsed: boolean): void {
+function setCollapsed(groupId: string, collapsed: boolean, stripId?: string): void {
     if (collapsed) {
         const next = new Set(revealed.value);
         next.delete(groupId);
         revealed.value = next;
     }
-    update(setGroupCollapsed(strip.value, groupId, collapsed));
+    const owner =
+        workspace.value.strips.find((candidate) => candidate.groups.some((g) => g.id === groupId)) ??
+        workspace.value.strips.find((candidate) => candidate.id === stripId) ??
+        strip.value;
+    update(setGroupCollapsed(owner, groupId, collapsed));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -483,15 +545,36 @@ function fileIntoSeedGroup(state: TabStripState, pageId: string): TabStripState 
 }
 
 function openPage(pageId: string): void {
+    openPageIn(strip.value.id, pageId);
+}
+
+function openPageIn(stripId: string, pageId: string): void {
     const page = presentedPages.value.find((candidate) => candidate.id === pageId);
     if (page === undefined) return;
+    const target = workspace.value.strips.find((candidate) => candidate.id === stripId) ?? strip.value;
+    focusedStripId.value = target.id;
     update(
         fileIntoSeedGroup(
-            addTab(strip.value, { pageId: page.id, label: page.label, icon: page.icon }),
+            addTab(target, {
+                ...freshTabIdField(),
+                pageId: page.id,
+                label: page.label,
+                icon: page.icon,
+            }),
             pageId,
         ),
     );
 }
+
+function freshTabIdField(): { id?: string } {
+    return workspace.value.strips.length > 1 ? { id: nextWorkspaceTabId(workspace.value) } : {};
+}
+
+/*
+ * With several panes, two panes each handing out `tab-1` would put two rows with the same id
+ * in the master search and the palette, so a pane that is not alone draws its ids from the
+ * whole workspace. A lone pane keeps the ids it always handed out.
+ */
 
 /**
  * Brings a page to the front for a host that has another way in.
@@ -514,14 +597,21 @@ function openPage(pageId: string): void {
  */
 function revealPage(pageId: string): void {
     if (!presentedPages.value.some((page) => page.id === pageId)) return;
-    const existing = strip.value.tabs.find((tab) => tab.pageId === pageId);
-    if (existing === undefined) {
+    const owner =
+        strip.value.tabs.some((tab) => tab.pageId === pageId)
+            ? strip.value
+            : workspace.value.strips.find((candidate) =>
+                  candidate.tabs.some((tab) => tab.pageId === pageId),
+              );
+    const existing = owner?.tabs.find((tab) => tab.pageId === pageId);
+    if (owner === undefined || existing === undefined) {
         openPage(pageId);
         return;
     }
-    const holding = strip.value.groups.find((group) => group.tabIds.includes(existing.id));
+    const holding = owner.groups.find((group) => group.tabIds.includes(existing.id));
     if (holding !== undefined && holding.collapsed) reveal(holding.id);
-    update(setActiveTab(strip.value, existing.id));
+    focusedStripId.value = owner.id;
+    update(setActiveTab(owner, existing.id));
 }
 
 /**
@@ -543,10 +633,16 @@ function revealPage(pageId: string): void {
 function ensurePage(pageId: string): void {
     const page = presentedPages.value.find((candidate) => candidate.id === pageId);
     if (page === undefined) return;
-    if (strip.value.tabs.some((tab) => tab.pageId === pageId)) return;
+    if (workspace.value.strips.some((candidate) => candidate.tabs.some((tab) => tab.pageId === pageId)))
+        return;
 
     const previousActive = strip.value.activeTabId;
-    let next = addTab(strip.value, { pageId: page.id, label: page.label, icon: page.icon });
+    let next = addTab(strip.value, {
+        ...freshTabIdField(),
+        pageId: page.id,
+        label: page.label,
+        icon: page.icon,
+    });
     // `addTab` makes the new tab active; a returning user's place is restored unless the
     // strip had nothing active at all, in which case the new tab is a perfectly reasonable
     // thing to land on.
@@ -570,7 +666,9 @@ function ensurePage(pageId: string): void {
  * reading 4 over a strip showing three names is worse than no badge.
  */
 const openPageIds = computed<readonly string[]>(() => [
-    ...new Set(strip.value.tabs.map((tab) => tab.pageId)),
+    ...new Set(
+        workspace.value.strips.flatMap((candidate) => candidate.tabs.map((tab) => tab.pageId)),
+    ),
 ]);
 
 /**
@@ -579,8 +677,10 @@ const openPageIds = computed<readonly string[]>(() => [
  * `revealPage`, so the projection cannot create a second tab or a second persistence path.
  */
 const discoveryEntries = computed(() => [
-    ...strip.value.tabs.map((tab) => {
-        const group = strip.value.groups.find((candidate) => candidate.tabIds.includes(tab.id));
+    ...workspace.value.strips
+        .flatMap((owner) => owner.tabs.map((tab) => ({ owner, tab })))
+        .map(({ owner, tab }) => {
+        const group = owner.groups.find((candidate) => candidate.tabIds.includes(tab.id));
         return {
             id: `tab.${tab.id}`,
             tabId: tab.id,
@@ -590,14 +690,14 @@ const discoveryEntries = computed(() => [
             groupId: group?.id ?? null,
             groupName: group?.name ?? null,
             location: [group?.name ?? "Tabs", tab.label],
-            pinned: strip.value.pinnedOrder.includes(tab.id),
+            pinned: owner.pinnedOrder.includes(tab.id),
         };
     }),
-    ...strip.value.groups.map((group) => ({
+    ...workspace.value.strips.flatMap((owner) => owner.groups.map((group) => ({ owner, group }))).map(({ owner, group }) => ({
         id: `group.${group.id}`,
         groupId: group.id,
         pageIds: group.tabIds
-            .map((tabId) => strip.value.tabs.find((tab) => tab.id === tabId)?.pageId)
+            .map((tabId) => owner.tabs.find((tab) => tab.id === tabId)?.pageId)
             .filter((pageId): pageId is string => pageId !== undefined),
         title: group.name,
         group: "Tab groups",
@@ -627,9 +727,11 @@ watch(
  * `TabbedNavigation` guessing which labels are supposed to move on their own.
  */
 function renamePage(pageId: string, label: string): void {
-    const affected = strip.value.tabs.filter((tab) => tab.pageId === pageId);
-    if (affected.length === 0) return;
-    update(affected.reduce((state, tab) => renameTab(state, tab.id, label), strip.value));
+    for (const owner of workspace.value.strips) {
+        const affected = owner.tabs.filter((tab) => tab.pageId === pageId);
+        if (affected.length === 0) continue;
+        update(affected.reduce((state, tab) => renameTab(state, tab.id, label), owner));
+    }
 }
 
 /**
@@ -646,11 +748,390 @@ function renamePage(pageId: string, label: string): void {
  * narrower write: it can only add a tab for a page that has none, never move, close or
  * rename one that already exists.
  */
-defineExpose({ activePage, revealPage, renamePage, ensurePage, openPageIds, discoveryEntries });
-
-function newGroup(tabId: string): void {
-    update(createGroup(strip.value, { name: t("tabs.group.newName", "New group") }, [tabId]));
+function newGroup(tabId: string, stripId?: string): void {
+    const owner =
+        workspace.value.strips.find((candidate) => candidate.id === stripId) ??
+        workspace.value.strips.find((candidate) => candidate.tabs.some((tab) => tab.id === tabId)) ??
+        strip.value;
+    update(
+        createGroup(
+            owner,
+            {
+                name: t("tabs.group.newName", "New group"),
+                ...(workspace.value.strips.length > 1
+                    ? { id: nextWorkspaceGroupId(workspace.value) }
+                    : {}),
+            },
+            [tabId],
+        ),
+    );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Panes: arranging, floating and saving layouts                              */
+/* -------------------------------------------------------------------------- */
+
+const dockSurface = ref<InstanceType<typeof DockSurface> | null>(null);
+const announcement = ref("");
+const namedLayouts = ref<NamedLayout[]>(
+    props.dock ? readNamedLayouts(undefined, props.storageKey) : [],
+);
+
+/*
+ * The stored arrangement is only offered to dockview when it accounts for exactly the strips
+ * that were just read. Anything else is dropped here, before dockview sees it, and the surface
+ * lays the strips out as the default arrangement instead.
+ */
+const storedDock = props.dock
+    ? readDockLayout(stripIds(workspace.value), undefined, props.storageKey)
+    : null;
+if (storedDock?.activeStripId) focusedStripId.value = storedDock.activeStripId;
+
+const paneStrips = computed(() =>
+    workspace.value.strips.map((candidate) => ({ id: candidate.id, label: candidate.label })),
+);
+
+/** Said to assistive technology; the same words the person would read in a notification. */
+function announce(message: string): void {
+    // A repeated message would not be re-read, so a trailing no-width mark changes the text.
+    announcement.value = announcement.value === message ? `${message}​` : message;
+}
+
+function onLayoutChange(layout: DockLayoutJson): void {
+    writeDockLayout(layout, focusedStripId.value, undefined, props.storageKey);
+}
+
+function onPaneFocus(stripId: string): void {
+    if (workspace.value.strips.some((candidate) => candidate.id === stripId))
+        focusedStripId.value = stripId;
+}
+
+function nextPaneLabel(): string {
+    return t(
+        "tabs.strip.pane",
+        { n: String(workspace.value.strips.length + 1) },
+        "Pane {n}",
+    );
+}
+
+/** Splits a tab into a new pane placed beside `referenceStripId` (default: its own pane). */
+function splitTab(
+    fromStripId: string,
+    tabId: string,
+    direction: SplitDirection,
+    referenceStripId: string = fromStripId,
+): boolean {
+    const result = splitTabToNewStrip(
+        workspace.value,
+        fromStripId,
+        tabId,
+        nextPaneLabel(),
+        referenceStripId !== fromStripId,
+    );
+    if (result === null) {
+        announce(
+            t(
+                "workLayout.cannotSplit",
+                "That tab cannot be split away: a pane needs at least two tabs to split one out.",
+            ),
+        );
+        return false;
+    }
+    dockSurface.value?.place(result.stripId, referenceStripId, direction);
+    setWorkspace(result.workspace);
+    focusedStripId.value = result.stripId;
+    announce(
+        t(
+            "workLayout.didSplit",
+            { direction: directionLabel(direction) },
+            "Tab moved into a new pane to the {direction}.",
+        ),
+    );
+    return true;
+}
+
+function directionLabel(direction: SplitDirection): string {
+    switch (direction) {
+        case "left":
+            return t("workLayout.dir.left", "left");
+        case "right":
+            return t("workLayout.dir.right", "right");
+        case "above":
+            return t("workLayout.dir.above", "top");
+        default:
+            return t("workLayout.dir.below", "bottom");
+    }
+}
+
+function moveToPane(fromStripId: string, tabId: string, toStripId: string): boolean {
+    const next = moveTabToStrip(workspace.value, fromStripId, tabId, toStripId);
+    if (next === null) return false;
+    setWorkspace(next);
+    focusedStripId.value = toStripId;
+    announce(t("workLayout.didMove", "Tab moved into the other pane."));
+    return true;
+}
+
+function runLayoutCommand(stripId: string, tabId: string | null, command: LayoutCommand): void {
+    if (!props.dock) return;
+    const direction = splitDirectionOf(command);
+    if (direction !== null) {
+        if (tabId !== null) splitTab(stripId, tabId, direction);
+        return;
+    }
+    if (command === "next-pane" || command === "previous-pane") {
+        const target = adjacentStripId(workspace.value, stripId, command === "next-pane" ? 1 : -1);
+        if (target === null || tabId === null) {
+            announce(t("workLayout.reason.needsTwoPanes", "There is only one pane."));
+            return;
+        }
+        moveToPane(stripId, tabId, target);
+        return;
+    }
+    const surface = dockSurface.value;
+    if (surface === null) return;
+    if (command === "float") {
+        announce(
+            surface.float(stripId)
+                ? t("workLayout.didFloat", "The pane is now floating.")
+                : t("workLayout.cannotFloat", "That pane cannot float: there is only one pane."),
+        );
+    } else if (command === "dock") {
+        announce(
+            surface.dock(stripId)
+                ? t("workLayout.didDock", "The pane is docked back into the layout.")
+                : t("workLayout.cannotDock", "Nothing to dock this pane beside."),
+        );
+    } else if (command === "maximize") {
+        const was = surface.maximised === stripId;
+        surface.toggleMaximise(stripId);
+        announce(
+            was
+                ? t("workLayout.didRestore", "The pane is restored.")
+                : t("workLayout.didMaximize", "The pane fills the workspace."),
+        );
+    }
+}
+
+function onDockDrop(
+    fromStripId: string,
+    tabId: string,
+    toStripId: string,
+    zone: "centre" | SplitDirection,
+): void {
+    if (zone === "centre") {
+        moveToPane(fromStripId, tabId, toStripId);
+        return;
+    }
+    splitTab(fromStripId, tabId, zone, toStripId);
+}
+
+function saveLayout(rawName: string): SaveLayoutResult {
+    const result = saveNamedLayout(
+        namedLayouts.value,
+        rawName,
+        workspace.value,
+        dockSurface.value?.toJSON() ?? null,
+    );
+    if (!result.ok) {
+        const reason =
+            result.reason === "empty-name"
+                ? t("workLayout.nameRequired", "Give the layout a name before saving it.")
+                : t("workLayout.full", "No more layouts can be saved. Delete one first.");
+        raiseNotice("warning", reason);
+        return result.reason;
+    }
+    namedLayouts.value = [...result.layouts];
+    writeNamedLayouts(namedLayouts.value, undefined, props.storageKey);
+    raiseNotice(
+        "success",
+        result.replaced
+            ? t("workLayout.replaced", "Replaced the saved layout with that name.")
+            : t("workLayout.saved1", "Layout saved."),
+    );
+    return result.replaced ? "replaced" : "saved";
+}
+
+function applyLayout(id: string): boolean {
+    const layout = namedLayouts.value.find((candidate) => candidate.id === id);
+    if (layout === undefined) return false;
+    const applied = applyNamedLayout(
+        layout,
+        workspace.value,
+        new Set(props.pages.map((page) => page.id)),
+    );
+    if (applied === null) {
+        raiseNotice(
+            "warning",
+            t(
+                "workLayout.cannotApply",
+                "That layout has no tab this build can show, so nothing was changed.",
+            ),
+        );
+        return false;
+    }
+    setWorkspace(applied.workspace);
+    focusedStripId.value = applied.workspace.strips[0]?.id ?? null;
+    void nextTick(() => dockSurface.value?.load(applied.dock));
+    raiseNotice(
+        "success",
+        t("workLayout.applied", { name: layout.name }, "Applied the layout {name}."),
+    );
+    announce(t("workLayout.applied", { name: layout.name }, "Applied the layout {name}."));
+    return true;
+}
+
+function renameLayout(id: string, name: string): boolean {
+    const next = renameNamedLayout(namedLayouts.value, id, name);
+    if (next === null) {
+        raiseNotice(
+            "warning",
+            t("workLayout.cannotRename", "That name is empty or already used by another layout."),
+        );
+        return false;
+    }
+    namedLayouts.value = [...next];
+    writeNamedLayouts(namedLayouts.value, undefined, props.storageKey);
+    return true;
+}
+
+function removeLayout(id: string): void {
+    namedLayouts.value = [...deleteNamedLayout(namedLayouts.value, id)];
+    writeNamedLayouts(namedLayouts.value, undefined, props.storageKey);
+    raiseNotice("success", t("workLayout.deleted", "Layout deleted."));
+}
+
+function resetLayout(): void {
+    setWorkspace(mergeStripsIntoFirst(workspace.value));
+    focusedStripId.value = workspace.value.strips[0]?.id ?? null;
+    void nextTick(() => dockSurface.value?.load(null));
+    announce(t("workLayout.didReset", "Every tab is back in one pane."));
+}
+
+const layoutHost = computed<WorkLayoutHost | undefined>(() =>
+    props.dock
+        ? {
+              paneCount: workspace.value.strips.length,
+              layouts: namedLayouts.value.map(({ id, name, savedAt }) => ({ id, name, savedAt })),
+              isFloating: (id) => dockSurface.value?.floating.has(id) ?? false,
+              isMaximised: (id) => dockSurface.value?.maximised === id,
+              run: runLayoutCommand,
+              save: saveLayout,
+              apply: applyLayout,
+              rename: renameLayout,
+              remove: removeLayout,
+              reset: resetLayout,
+          }
+        : undefined,
+);
+
+/** Pane helpers for the template: each pane draws its own strip, active tab and panel. */
+function paneStrip(stripId: string): TabStripState {
+    return presentStrip(
+        workspace.value.strips.find((candidate) => candidate.id === stripId) ?? strip.value,
+    );
+}
+
+function paneActiveTab(stripId: string) {
+    const pane = paneStrip(stripId);
+    return pane.tabs.find((tab) => tab.id === pane.activeTabId) ?? null;
+}
+
+function panePage(stripId: string) {
+    const tab = paneActiveTab(stripId);
+    return tab === null ? null : (presentedPages.value.find((page) => page.id === tab.pageId) ?? null);
+}
+
+/**
+ * Everything one pane needs: its own strip state, its own panel, and every strip listener,
+ * each bound to the pane it belongs to rather than to whichever pane has focus.
+ */
+function paneProps(stripId: string): PaneModel {
+    const pane = paneStrip(stripId);
+    const suffix = paneSuffix(stripId);
+    const tab = paneActiveTab(stripId);
+    const page = panePage(stripId);
+    return {
+        stripId,
+        placement: pane.placement,
+        panelDomId: `${panelId}${suffix}`,
+        labelledBy: tab === null ? null : `${idPrefix}${suffix}-tab-${tab.id}`,
+        activeTab: tab,
+        page,
+        pages: presentedPages.value,
+        panelPassThrough: props.panelPassThrough,
+        stripBindings: {
+            strip: pane,
+            workspace: presentedWorkspace.value,
+            revealed: revealed.value,
+            panelId: `${panelId}${suffix}`,
+            idPrefix: `${idPrefix}${suffix}`,
+            pages: presentedPages.value,
+            publishesInset: props.publishesInset === true && suffix === "",
+            closeless: props.closeless === true,
+            appearance: props.appearance === "jobs" ? "jobs" : "default",
+            layoutHost: layoutHost.value,
+            onSetPlacement: (placement: TabPlacement) =>
+                updateIn(stripId, (state) => setTabPlacement(state, placement)),
+            onActivate: (tabId: string, owner: string) =>
+                updateIn(owner, (state) => setActiveTab(state, tabId)),
+            onClose: (tabId: string, owner: string) =>
+                updateIn(owner, (state) => closeTabs(state, [tabId])),
+            onPin: (tabId: string, owner: string) =>
+                updateIn(owner, (state) => pinTab(state, tabId)),
+            onUnpin: (tabId: string, owner: string) =>
+                updateIn(owner, (state) => unpinTab(state, tabId)),
+            onMoveTab: (tabId: string, delta: number) =>
+                updateIn(stripId, (state) => moveTab(state, tabId, delta)),
+            onDropTab: (tabId: string, index: number) =>
+                updateIn(stripId, (state) => moveTabToIndex(state, tabId, index)),
+            onNewGroup: (tabId: string) => newGroup(tabId, stripId),
+            onAssign: (tabId: string, groupId: string | null, owner: string) =>
+                updateIn(owner, (state) => assignTabToGroup(state, tabId, groupId)),
+            onRenameGroup: (groupId: string, name: string) =>
+                updateIn(stripId, (state) => renameGroup(state, groupId, name)),
+            onSetGroupColor: (groupId: string, color: string) =>
+                updateIn(stripId, (state) => setGroupColor(state, groupId, color)),
+            onSetGroupCollapsed: (groupId: string, collapsed: boolean) =>
+                setCollapsed(groupId, collapsed, stripId),
+            onMoveGroup: (groupId: string, delta: number) =>
+                updateIn(stripId, (state) => moveGroup(state, groupId, delta)),
+            onRemoveGroup: (groupId: string) =>
+                updateIn(stripId, (state) => removeGroup(state, groupId)),
+            onReveal: reveal,
+            onOpenPage: (pageId: string) => openPageIn(stripId, pageId),
+            onApply: (
+                plan: TabClosePlan,
+                options: { closeUnsaved: boolean; keepEmptyGroups: boolean },
+            ) => applyPlan(plan, options, stripId),
+        },
+    };
+}
+
+/** The first pane keeps the original DOM ids; later panes are suffixed so ids never collide. */
+function paneSuffix(stripId: string): string {
+    return workspace.value.strips[0]?.id === stripId ? "" : `-${stripId}`;
+}
+
+/** Runs a layout command on the focused pane's active tab; what the palette calls. */
+function layoutCommand(command: LayoutCommand): void {
+    runLayoutCommand(strip.value.id, strip.value.activeTabId, command);
+}
+
+defineExpose({
+    activePage,
+    revealPage,
+    renamePage,
+    ensurePage,
+    openPageIds,
+    discoveryEntries,
+    layoutCommand,
+    namedLayouts,
+    saveLayout,
+    applyLayout,
+    resetLayout,
+    paneCount: computed(() => workspace.value.strips.length),
+});
 
 /**
  * Applies a close plan and says honestly what happened.
@@ -664,8 +1145,11 @@ function newGroup(tabId: string): void {
 function applyPlan(
     plan: TabClosePlan,
     options: { closeUnsaved: boolean; keepEmptyGroups: boolean },
+    stripId?: string,
 ): void {
-    const outcome = applyClosePlan(strip.value, plan, options);
+    const owner =
+        workspace.value.strips.find((candidate) => candidate.id === stripId) ?? strip.value;
+    const outcome = applyClosePlan(owner, plan, options);
     update(outcome.strip);
 
     const kept = outcome.kept.map((entry) => entry.hit.label);
@@ -713,130 +1197,47 @@ function applyPlan(
 </script>
 
 <template>
-    <div
-        class="mb-tabs"
-        :class="`mb-tabs--${presentedStrip.placement}`"
-        :data-tab-placement="presentedStrip.placement"
+    <DockSurface
+        v-if="props.dock"
+        ref="dockSurface"
+        :enabled="true"
+        :strips="paneStrips"
+        :initial="storedDock?.layout ?? null"
+        :announcement="announcement"
+        @layout-change="onLayoutChange"
+        @focus="onPaneFocus"
+        @drop-tab="onDockDrop"
     >
-        <TabStrip
-            :strip="presentedStrip"
-            :workspace="presentedWorkspace"
-            :revealed="revealed"
-            :panel-id="panelId"
-            :id-prefix="idPrefix"
-            :pages="presentedPages"
-            :publishes-inset="publishesInset === true"
-            :closeless="closeless === true"
-            :appearance="appearance === 'jobs' ? 'jobs' : 'default'"
-            @set-placement="update(setTabPlacement(strip, $event))"
-            @activate="(tabId, stripId) => updateIn(stripId, (state) => setActiveTab(state, tabId))"
-            @close="(tabId, stripId) => updateIn(stripId, (state) => closeTabs(state, [tabId]))"
-            @pin="(tabId, stripId) => updateIn(stripId, (state) => pinTab(state, tabId))"
-            @unpin="(tabId, stripId) => updateIn(stripId, (state) => unpinTab(state, tabId))"
-            @move-tab="(tabId, delta) => update(moveTab(strip, tabId, delta))"
-            @drop-tab="(tabId, index) => update(moveTabToIndex(strip, tabId, index))"
-            @new-group="newGroup"
-            @assign="
-                (tabId, groupId, stripId) =>
-                    updateIn(stripId, (state) => assignTabToGroup(state, tabId, groupId))
-            "
-            @rename-group="(groupId, name) => update(renameGroup(strip, groupId, name))"
-            @set-group-color="(groupId, color) => update(setGroupColor(strip, groupId, color))"
-            @set-group-collapsed="setCollapsed"
-            @move-group="(groupId, delta) => update(moveGroup(strip, groupId, delta))"
-            @remove-group="update(removeGroup(strip, $event))"
-            @reveal="reveal"
-            @open-page="openPage"
-            @apply="applyPlan"
-        />
-
-        <!--
-            One panel, named by the tab that selected it. Only the active page is
-            rendered: a hidden panel per tab would keep every page alive, and one
-            of them owns a map renderer.
-
-            The arrival is animated through `styles/motion.scss`'s `mb-page` class family -
-            a short fade with a small rise on the decelerate curve, on the incoming panel
-            only. Three things about this are deliberate:
-
-             - `mode="out-in"` keeps the "only the active page is rendered" promise above
-               literally true. The default mode overlaps the two, which would mount two
-               pages - one of them the map - for as long as the leave takes;
-             - there is no leave animation at all (no `.mb-page-leave-*` rule exists), so
-               "as long as the leave takes" is one frame rather than a wait. Nothing is
-               made unclickable and nothing is delayed by an animation;
-             - the key is the *page*, not the tab. Two tabs may name the same page, and
-               switching between them must not tear the page down and build it again -
-               that would be a behaviour change wearing a transition's clothes. Switching
-               to a different page already replaces the slot's whole subtree, so keying on
-               it costs nothing.
-        -->
-        <Transition name="mb-page" mode="out-in">
-            <div
-                v-if="activeTab !== null && activePage !== null"
-                :key="activePage.id"
-                :id="panelId"
-                class="mb-tabs__panel"
-                :class="{ 'mb-tabs__panel--pointer-passthrough': panelPassThrough }"
-                :style="{ pointerEvents: panelPassThrough ? 'none' : 'auto' }"
-                role="tabpanel"
-                :aria-labelledby="`${idPrefix}-tab-${activeTab.id}`"
-                tabindex="0"
+        <template #default="{ stripId }">
+            <TabsPane
+                :pane="paneProps(stripId)"
+                :dock-id="stripId"
+                @open-page="(pageId: string) => openPageIn(stripId, pageId)"
+                @focus="onPaneFocus(stripId)"
             >
-                <slot :name="activePage.id" :tab="activeTab" :page="activePage">
-                    <!--
-                        A page with no slot says so rather than showing an empty
-                        rectangle that reads as a rendering fault.
-                    -->
-                    <p class="mb-tabs__missing">
-                        {{
-                            t(
-                                "tabs.panel.missing",
-                                { page: activePage.label },
-                                "This build has no content for the page {page}.",
-                            )
-                        }}
-                    </p>
-                </slot>
-            </div>
-
-            <!--
-                Every tab closed. An honest empty state with the one action that
-                leaves it, rather than a blank area or a tab conjured up to keep the
-                strip looking populated.
-            -->
-            <div
-                v-else
-                key="mb-tabs-empty"
-                class="mb-tabs__empty"
-                :class="{ 'mb-tabs__empty--pointer-interactive': panelPassThrough }"
-                :style="{ pointerEvents: 'auto' }"
-                role="status"
-            >
-                <p class="mb-tabs__empty-line">
-                    {{ t("tabs.panel.empty", "Every tab is closed.") }}
-                </p>
-                <div class="mb-tabs__empty-actions">
-                    <v-btn
-                        v-for="page in presentedPages"
-                        :key="page.id"
-                        variant="tonal"
-                        size="small"
-                        @click="openPage(page.id)"
-                    >
-                        <v-icon
-                            v-if="page.icon"
-                            :icon="page.icon"
-                            size="18"
-                            start
-                            aria-hidden="true"
-                        />
-                        {{ page.label }}
-                    </v-btn>
-                </div>
-            </div>
-        </Transition>
-    </div>
+                <template #page="scope">
+                    <slot :name="scope.page.id" :tab="scope.tab" :page="scope.page">
+                        <p class="mb-tabs__missing">
+                            {{ t("tabs.panel.missing", { page: scope.page.label }, "This build has no content for the page {page}.") }}
+                        </p>
+                    </slot>
+                </template>
+            </TabsPane>
+        </template>
+    </DockSurface>
+    <TabsPane
+        v-else
+        :pane="paneProps(strip.id)"
+        @open-page="(pageId: string) => openPageIn(strip.id, pageId)"
+    >
+        <template #page="scope">
+            <slot :name="scope.page.id" :tab="scope.tab" :page="scope.page">
+                        <p class="mb-tabs__missing">
+                            {{ t("tabs.panel.missing", { page: scope.page.label }, "This build has no content for the page {page}.") }}
+                        </p>
+                    </slot>
+        </template>
+    </TabsPane>
 </template>
 
 <style>
@@ -902,6 +1303,15 @@ html[dir="rtl"] .mb-tabs--right > * {
 
 .mb-tabs__panel--pointer-passthrough {
     pointer-events: none;
+}
+
+.mb-tabs__live {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
 }
 
 .mb-tabs__empty--pointer-interactive {

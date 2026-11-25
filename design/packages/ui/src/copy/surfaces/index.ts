@@ -96,6 +96,7 @@ import {
 } from "./tabGroupPicker.js";
 import { TABS_FACTS, TABS_FIXED, TABS_VOICED } from "./tabs.js";
 import { TUTORIAL_FACTS, TUTORIAL_FIXED, TUTORIAL_VOICED } from "./tutorial.js";
+import { WORKLAYOUT_FIXED } from "./workLayout.js";
 import { WORLD_FACTS, WORLD_FIXED, WORLD_VOICED } from "./world.js";
 import { WORLDREPO_FACTS, WORLDREPO_FIXED, WORLDREPO_VOICED } from "./worldrepo.js";
 import { VOCABULARY_FACTS, VOCABULARY_FIXED, VOCABULARY_VOICED } from "./vocabulary.js";
@@ -253,6 +254,7 @@ export const SURFACE_FIXED = {
     ...TABGROUPPICKER_FIXED,
     ...TABS_FIXED,
     ...TUTORIAL_FIXED,
+    ...WORKLAYOUT_FIXED,
     ...WORLD_FIXED,
     ...WORLDREPO_FIXED,
     ...VOCABULARY_FIXED,

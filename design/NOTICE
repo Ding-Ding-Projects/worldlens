@@ -61,3 +61,8 @@ graphql - https://github.com/graphql/graphql-js
 Copyright GraphQL Contributors
 Licensed under the MIT License. Used by the type generator to turn GraphQL SDL
 into the introspection form quicktype reads.
+dockview - https://github.com/dockview/dockview
+Copyright (c) 2021 mathuo
+Licensed under the MIT License. Used from its published npm package (dockview and
+dockview-core) and bundled locally to lay out the Work workspace into panes; it
+loads no remote assets.

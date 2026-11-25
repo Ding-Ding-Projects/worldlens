@@ -65,6 +65,7 @@ import {
 } from "./components/shell/index.js";
 import { AppTitleBar } from "./components/shell/index.js";
 import { readTabWorkspace, writeTabWorkspace } from "./components/tabs/tabStorage.js";
+import type { LayoutCommand } from "./components/tabs/workLayout.js";
 import { StartupRecoveryBanner } from "./components/startup/index.js";
 import { requestReveal } from "./components/shell/revealRequests.js";
 import { onDocsArticleRequested, requestDocsArticle } from "./components/docs/docsLink.js";
@@ -2592,6 +2593,18 @@ function openTabFinder(): void {
 }
 
 /**
+ * A pane-arrangement command from the palette, run on Work's focused pane.
+ *
+ * Work is brought forward first, because the commands act on a workspace that is hidden while
+ * another destination is showing; the next tick lets it become the visible layer before the
+ * pane changes.
+ */
+function runLayoutCommand(command: LayoutCommand): void {
+    shell.destination.value = "work";
+    void nextTick(() => tabs.value?.layoutCommand(command));
+}
+
+/**
  * A save happened, so the editor steps out of the way and says where it wrote.
  *
  * `saved(folder)` exists so a shell can offer to start a render, and this one deliberately
@@ -4014,6 +4027,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 @open-page="revealPage($event)"
                 @open-notice-centre="requestReveal('noticeCentre')"
                 @open-tab-finder="openTabFinder"
+                @run-layout-command="runLayoutCommand"
                 @open-changelog="openChangelog"
                 @open-tutorial="requestTutorialLaunch($event)"
                 @open-eula="eulaOpen = true"

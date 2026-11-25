@@ -11,6 +11,7 @@ import {
 import { capabilityAvailable } from "./capabilities.js";
 import { provideJobOpener } from "./jobOpener.js";
 import { JOB_DEFINITIONS, JOB_SEED_GROUPS, FRESH_WORKSPACE_JOB_IDS } from "./jobRegistry.js";
+import type { LayoutCommand } from "../tabs/workLayout.js";
 import { WORK_DEFAULT_PLACEMENT } from "./tabWorkspaceMigration.js";
 import ToolHub from "./ToolHub.vue";
 import {
@@ -188,6 +189,8 @@ defineExpose({
     /** The tool each hub currently shows. */
     hubSelection,
     renamePage: (pageId: string, label: string) => tabs.value?.renamePage(pageId, label),
+    /** Runs a pane-arrangement command on the focused pane; the palette calls this. */
+    layoutCommand: (command: LayoutCommand) => tabs.value?.layoutCommand(command),
     activePage: computed(() => tabs.value?.activePage ?? null),
     openPageIds: computed<readonly string[]>(() => tabs.value?.openPageIds ?? []),
     discoveryEntries: computed(() => tabs.value?.discoveryEntries ?? []),
@@ -206,6 +209,7 @@ defineExpose({
             :seed-page-ids="seedPageIds"
             :default-placement="WORK_DEFAULT_PLACEMENT"
             file-new-tabs-into-seed-groups
+            dock
             publishes-inset
             appearance="jobs"
             @workspace-change="(ids: readonly string[]) => emit('workspaceChange', ids)"

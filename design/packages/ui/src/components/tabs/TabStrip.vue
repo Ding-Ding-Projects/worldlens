@@ -6,6 +6,7 @@ import LockWizard from "../locks/LockWizard.vue";
 import UnlockPrompt from "../locks/UnlockPrompt.vue";
 import { useLockStore } from "../locks/useLocks.js";
 import {
+    mdiArrowExpandAll,
     mdiArrowLeftBold,
     mdiArrowRightBold,
     mdiChevronDown,
@@ -15,8 +16,12 @@ import {
     mdiDockLeft,
     mdiDockRight,
     mdiDockTop,
+    mdiDockWindow,
     mdiDotsHorizontal,
     mdiMagnify,
+    mdiOpenInNew,
+    mdiSwapHorizontal,
+    mdiWindowRestore,
     mdiLockOpenVariantOutline,
     mdiLockOutline,
     mdiPalette,
@@ -55,6 +60,9 @@ import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { onRevealRequested } from "../shell/revealRequests.js";
 import TabButton from "./TabButton.vue";
+import WorkLayoutMenu from "./WorkLayoutMenu.vue";
+import type { LayoutCommand } from "./workLayout.js";
+import type { WorkLayoutHost } from "./workLayoutHost.js";
 import TabFinder from "./TabFinder.vue";
 import TabGroupMenu from "./TabGroupMenu.vue";
 import TabGroupPicker from "./TabGroupPicker.vue";
@@ -195,6 +203,13 @@ const props = defineProps<{
      * which is what the settings sheet and the editors use.
      */
     appearance?: "default" | "jobs";
+    /**
+     * The docking layer, present only where the strip lives in a dockable workspace.
+     *
+     * When it is left out the strip draws no layout button and its tab menu has no
+     * arrangement rows, which is every strip except the Work workspace.
+     */
+    layoutHost?: WorkLayoutHost | undefined;
 }>();
 
 const jobs = computed(() => props.appearance === "jobs");
@@ -203,11 +218,14 @@ const jobs = computed(() => props.appearance === "jobs");
  * The strip's controls, in reading order. The job strip puts "new tab" straight after the
  * tabs and the overflow, finder and edge controls at the far end, as the approved design does.
  */
-const controlOrder = computed<readonly ("placement" | "new" | "overflow" | "finder")[]>(() =>
-    jobs.value
-        ? ["new", "overflow", "finder", "placement"]
-        : ["placement", "new", "overflow", "finder"],
-);
+const controlOrder = computed<
+    readonly ("placement" | "new" | "overflow" | "finder" | "layouts")[]
+>(() => {
+    const base = jobs.value
+        ? (["new", "overflow", "finder", "placement"] as const)
+        : (["placement", "new", "overflow", "finder"] as const);
+    return props.layoutHost === undefined ? base : [...base, "layouts"];
+});
 
 /** The edge glyph for the placement control, so the button shows where the strip is docked. */
 const placementIcon = computed(() => {
@@ -906,6 +924,62 @@ const tabMenuItems = computed<readonly TabMenuItem[]>(() => {
     ];
 
     /*
+     * The keyboard and menu equivalents of the pane drags. Only rows that can act are listed:
+     * a menu row that refuses its click is worse than no row, so a lone tab offers no split
+     * and a single pane offers no move to another pane.
+     */
+    const layoutHost = props.layoutHost;
+    if (layoutHost !== undefined) {
+        const lone = props.strip.tabs.length < 2;
+        const layoutRows: [LayoutCommand, string, string][] = [];
+        if (!lone) {
+            layoutRows.push(
+                ["split-right", t("workLayout.splitRight", "Split this tab to the right"), mdiDockRight],
+                ["split-left", t("workLayout.splitLeft", "Split this tab to the left"), mdiDockLeft],
+                ["split-above", t("workLayout.splitAbove", "Split this tab above"), mdiDockTop],
+                ["split-below", t("workLayout.splitBelow", "Split this tab below"), mdiDockBottom],
+            );
+        }
+        if (layoutHost.paneCount > 1) {
+            layoutRows.push(
+                [
+                    "next-pane",
+                    t("workLayout.nextPane", "Move this tab to the next pane"),
+                    mdiSwapHorizontal,
+                ],
+                [
+                    "previous-pane",
+                    t("workLayout.previousPane", "Move this tab to the previous pane"),
+                    mdiSwapHorizontal,
+                ],
+            );
+            layoutRows.push(
+                layoutHost.isFloating(props.strip.id)
+                    ? [
+                          "dock",
+                          t("workLayout.dock", "Dock this floating pane back"),
+                          mdiDockWindow,
+                      ]
+                    : ["float", t("workLayout.float", "Float this pane"), mdiOpenInNew],
+            );
+        }
+        layoutRows.push(
+            layoutHost.isMaximised(props.strip.id)
+                ? ["maximize", t("workLayout.restore", "Restore this pane"), mdiWindowRestore]
+                : ["maximize", t("workLayout.maximize", "Maximise this pane"), mdiArrowExpandAll],
+        );
+        for (const [command, label, icon] of layoutRows) {
+            items.push({
+                id: `layout:${command}`,
+                label,
+                icon,
+                shortcut: null,
+                danger: false,
+            });
+        }
+    }
+
+    /*
      * Offered only where locks can be kept, matching `AppearanceTarget`: a menu item that opens a
      * wizard which then says this build cannot keep locks costs two clicks to learn nothing.
      */
@@ -1014,6 +1088,10 @@ function onTabMenuChoose(id: string): void {
     }
 
     closeTabMenu();
+    if (id.startsWith("layout:")) {
+        props.layoutHost?.run(props.strip.id, tab.id, id.slice("layout:".length) as LayoutCommand);
+        return;
+    }
     if (id === "close") emit("close", tab.id, props.strip.id);
     else if (id === "left") emit("move-tab", tab.id, -1);
     else if (id === "right") emit("move-tab", tab.id, 1);
@@ -1886,6 +1964,15 @@ const tabCountLabel = computed(() =>
                             </v-menu>
                         </v-btn>
                     </v-badge>
+                </template>
+                <template v-if="control === 'layouts' && props.layoutHost !== undefined">
+                    <WorkLayoutMenu
+                        :host="props.layoutHost"
+                        :strip-id="strip.id"
+                        :tab-id="strip.activeTabId"
+                        :tab-count="strip.tabs.length"
+                        :jobs="jobs"
+                    />
                 </template>
                 <template v-if="control === 'finder'">
                     <!--

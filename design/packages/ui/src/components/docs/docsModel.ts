@@ -131,6 +131,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "control-guides.md",
     "coreprotect-inspector.md",
     "pdf-edition.md",
+    "workspace-layouts.md",
     "nbt-editor.md",
     "nbt-research.md",
     "data-pack-creator.md",
