@@ -437,6 +437,7 @@ export const CHROME_FIXED = {
     "tabs.page.screenshots": { en: "Screenshots", yue: "截圖" },
     "tabs.page.virtualDisks": { en: "Virtual disks", yue: "虛擬磁碟" },
     "tabs.page.base64": { en: "Base64", yue: "Base64 編碼" },
+    "tabs.page.typeGenerator": { en: "Type generator", yue: "類型產生器" },
     "tabs.page.drawing": { en: "Drawing board", yue: "畫板" },
     "tabs.page.coreprotect": { en: "CoreProtect inspector", yue: "CoreProtect 檢查器" },
     "tabs.page.worldDownloader": { en: "Get a world off a server", yue: "由伺服器攞返個世界" },

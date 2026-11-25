@@ -120,6 +120,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "panel-geometry.md",
     "server-hosted-material-ui.md",
     "base64.md",
+    "type-generator.md",
     "virtual-disks.md",
     "drawing.md",
     "live-charts.md",

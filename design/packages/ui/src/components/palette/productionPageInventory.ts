@@ -26,6 +26,7 @@ export const PRODUCTION_APP_PAGE_IDS = [
     "screenshots",
     "virtualDisks",
     "base64",
+    "typeGenerator",
     "drawing",
     "coreprotect",
 ] as const;

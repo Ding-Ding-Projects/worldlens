@@ -100,6 +100,7 @@ import { WORLDREPO_FACTS, WORLDREPO_FIXED, WORLDREPO_VOICED } from "./worldrepo.
 import { VOCABULARY_FACTS, VOCABULARY_FIXED, VOCABULARY_VOICED } from "./vocabulary.js";
 import { VIRTUALDISKS_FIXED } from "./virtualDisks.js";
 import { BASE64_FIXED } from "./base64.js";
+import { TYPEGEN_FIXED } from "./typegen.js";
 import { DRAWING_FIXED } from "./drawing.js";
 import { CHARTS_FIXED } from "./charts.js";
 import { PROVIDERTEXT_FIXED } from "./providerText.js";
@@ -182,6 +183,7 @@ export const SURFACE_VOICED = {
 export const SURFACE_FIXED = {
     ...VIRTUALDISKS_FIXED,
     ...BASE64_FIXED,
+    ...TYPEGEN_FIXED,
     ...DRAWING_FIXED,
     ...CHARTS_FIXED,
     ...PROVIDERTEXT_FIXED,
