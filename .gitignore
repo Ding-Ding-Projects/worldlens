@@ -54,3 +54,6 @@ wl-lanes/
 # Stray dependency/cache roots. A tool run from the repo root instead of design/
 # creates these, and they are never part of the project.
 node_modules/
+
+# Phone PDF edition output
+design/packages/site/pdf-out/

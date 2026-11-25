@@ -52,6 +52,12 @@ const WATCHED_SCRIPT_STEPS = Object.freeze({
     "Resolve release tag": Object.freeze({
       GH_TOKEN: contract(secretChain, [], true),
     }),
+    "Build and verify the phone PDF documentation edition": Object.freeze({
+      PDF_EDITION_VERSION: contract("steps.tag.outputs.tag", [
+        'node scripts/build-pdf-edition.mjs --out "$GITHUB_WORKSPACE/pdf-out" --version "$PDF_EDITION_VERSION"',
+        'node scripts/verify-pdf-edition.mjs --dir "$GITHUB_WORKSPACE/pdf-out" --version "$PDF_EDITION_VERSION"',
+      ]),
+    }),
     "Verify nominated release already exists": Object.freeze({
       GH_TOKEN: contract(secretChain, [], true),
       RELEASE_TAG: contract("steps.tag.outputs.tag", [
@@ -124,6 +130,13 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
       env: "73dc8da2d166a44852cc6016f1152bfbb40706a31aeade8422c602454a532e00",
       run: "0e0d39f9bd7f2f011463f418f3f7c45dc3ce5aadf71cc60740a7f52fc1a3501c",
     }),
+    // Added 2026-11-25: the phone PDF documentation edition is built and verified before
+    // the release payload is prepared. It reads only the release tag, through one data-only
+    // environment binding, and a failure fails the job.
+    "Build and verify the phone PDF documentation edition": Object.freeze({
+      env: "a34fa58f95d15e6ee1f3486ac70febefc090f019c341b2b9e7729515e3abbc51",
+      run: "7559ff195dde7ccf318d4abf995cf3c5f3e2a04f28b017aa756e1e8817c2f318",
+    }),
     "Verify nominated release already exists": Object.freeze({
       env: "bde2f7ec293d68cdde52cc85c8a1369117aa6f23bde05ef2c0c5aec0068bac25",
       run: "a41230946577f47939bf5408f9e70eaa6ad390d4e8a661b743bdf9005e9d949c",
@@ -134,7 +147,7 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
     }),
     "Prepare release payload and hash manifest": Object.freeze({
       env: "86be77600a8afab48d850356b53c73175c6770b4659857690388ea1d3025cdb9",
-      run: "23bf88a53aaf6237b92f1229cdbdc79dab1c79a790badc810dcb5bf54c6884d5",
+      run: "e7afc3f7b6ec78bdf1e0cc7a526b96a96b1a6a093737863b79317a0dfe5fe09d",
     }),
     // Reviewed after the release boundary returned to fail-closed publication. The obsolete
     // GATE_* bindings and failed-gate warning path were removed because the release job can
@@ -147,7 +160,7 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
     // "No lint and no timeout" changes; only the stale hash is being corrected here.
     "Compose release notes": Object.freeze({
       env: "a1f777cd9abbb46ff7d95de9cd5bb08620fdf211dd996266464d80e17a41f9ba",
-      run: "757ee548e2393f37d989ebc1e902cbf92e5fa84a9a8cc1b76db3bad8c9a938fb",
+      run: "bbe908ef0f5aa2f756b0e65cf1f9bf6009564eae379ffe2ab7a849aee07f8ebc",
     }),
     // Reviewed after the completion-stamp check moved from same-UTC-second equality to a
     // bounded ten-second drift window. The equality could only pass when the publish PATCH,
@@ -178,7 +191,7 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
 // expression, draft-first publication, manifest readback, token chain and unsigned warning
 // are unchanged. Recomputed from the committed job block.
 const RELEASE_JOB_FINGERPRINT =
-  "ffb308083a5ff0501ad35803c837bb6e684304971b4cbbe91e09155bb8dacb83";
+  "8dbcb1656b3587c8759307f236b041f5b6853146be834ca40137238de886c723";
 
 // The counts are exact rather than a floor because a new use of an external action is
 // precisely the thing somebody should have to look at: an action that runs in this
@@ -643,6 +656,10 @@ const EXPECTED_CI_CONDITIONS = Object.freeze([
   Object.freeze({
     scope: "jobs.release",
     expression: REVIEWED_RELEASE_CONDITION.join(" "),
+  }),
+  Object.freeze({
+    scope: "jobs.release.steps.Build and verify the phone PDF documentation edition",
+    expression: "steps.tag.outputs.publish == 'true'",
   }),
   Object.freeze({
     scope: "jobs.release.steps.Verify nominated release already exists",
