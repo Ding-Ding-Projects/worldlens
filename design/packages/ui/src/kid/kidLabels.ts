@@ -201,6 +201,7 @@ export const KID_SETTINGS_LABELS: Readonly<Record<string, FixedString>> = {
     "java-runtime": { en: "The engine's Java", yue: "引擎嘅 Java" },
     "map-storage-directory": { en: "Where maps live", yue: "地圖住喺邊" },
     "world-folder": { en: "Where worlds live", yue: "世界住喺邊" },
+    "data-folders": { en: "Where my things are kept", yue: "我嘅嘢放喺邊" },
     "github-account": { en: "Who we sign in as", yue: "用邊個帳戶" },
     "language-and-tone": { en: "How it talks", yue: "佢點講嘢" },
     display: { en: "Bigger and easier", yue: "大啲易啲" },
