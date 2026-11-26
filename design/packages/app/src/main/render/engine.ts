@@ -15,13 +15,14 @@
  * over only through a later, separately verified switch decision. The resolver is a
  * function for exactly that reason: swapping which engine renders is a different
  * `resolveEngine`, not a change to the orchestrator - see `engine.test.ts` for the pin.
+ * The TypeScript engine's own resolver lives beside this one, in `typescriptEngine.ts`.
  */
 
 import { ensureJava, execFileRunner, NoUsableJavaError, resolveCliJar } from "../java/index.js";
 import type { FetchBinary } from "../java/index.js";
 import type { JarLookupOptions } from "../java/index.js";
-import { readFile, stat } from "node:fs/promises";
-import { isAbsolute, join, resolve, basename } from "node:path";
+import { readFile } from "node:fs/promises";
+import { join, basename } from "node:path";
 import { EngineUnavailableError } from "./orchestrator.js";
 import type { ResolvedEngine } from "./orchestrator.js";
 import type { RenderEngineId } from "./provenance.js";
@@ -47,13 +48,6 @@ export interface UpstreamEngineOptions {
         javaExecutable: string,
         jarPath: string,
     ) => Promise<{ readonly ok: boolean; readonly detail?: string }>;
-}
-
-export interface TypeScriptEngineOptions {
-    /** `process.resourcesPath` in a packaged app; omit in development. */
-    readonly resourcesPath?: string | null;
-    /** Repository root in development; the resolver searches it when provided. */
-    readonly repositoryRoot?: string | null;
 }
 
 /**
@@ -243,76 +237,6 @@ async function probeManagedJar(
     };
 }
 
-/** Resolves the packaged or checkout copy of the standalone TypeScript render driver. */
-export function typescriptEngine(
-    options: TypeScriptEngineOptions = {},
-): (engine?: RenderEngineId) => Promise<ResolvedEngine> {
-    return async (engine: RenderEngineId = "typescript"): Promise<ResolvedEngine> => {
-        if (engine !== "typescript") {
-            throw new EngineUnavailableError(
-                "engine",
-                `The project selected '${engine}', but the TypeScript resolver was asked to resolve another engine.`,
-            );
-        }
-        const roots = [
-            options.resourcesPath === undefined || options.resourcesPath === null
-                ? null
-                : join(options.resourcesPath, "render-engines"),
-            options.repositoryRoot === undefined || options.repositoryRoot === null
-                ? null
-                : join(
-                      options.repositoryRoot,
-                      "design",
-                      "packages",
-                      "app",
-                      "dist",
-                      "render-engines",
-                  ),
-        ].filter((root): root is string => root !== null);
-        for (const root of roots) {
-            const enginePath = join(root, "typescript", "dist", "index.js");
-            const driverPath = join(root, "typescript", "render-ts.mjs");
-            if ((await exists(enginePath)) && (await exists(driverPath))) {
-                const version = await stagedTypeScriptVersion(root);
-                if (version === null) continue;
-                return {
-                    engine: "typescript",
-                    engineVersion: version,
-                    launch: "typescript",
-                    driverPath,
-                    enginePath,
-                    javaExecutable: null,
-                    javaVersion: null,
-                };
-            }
-        }
-        const developmentBases =
-            options.repositoryRoot === undefined || options.repositoryRoot === null
-                ? []
-                : [options.repositoryRoot, resolve(options.repositoryRoot, "..", "..", "..")];
-        for (const base of developmentBases) {
-            const driverPath = join(base, "tools", "oracle", "render-ts.mjs");
-            const enginePath = join(base, "design", "packages", "engine", "dist", "index.js");
-            if ((await exists(enginePath)) && (await exists(driverPath))) {
-                return {
-                    engine: "typescript",
-                    engineVersion: await developmentTypeScriptVersion(base),
-                    launch: "typescript",
-                    driverPath,
-                    enginePath,
-                    javaExecutable: null,
-                    javaVersion: null,
-                };
-            }
-        }
-        throw new EngineUnavailableError(
-            "engine",
-            "The TypeScript engine is not staged in this build. Build the engine bundle before rendering; " +
-                "nothing was started and Java was not selected as a fallback.",
-        );
-    };
-}
-
 interface StagedJavaArtifact {
     readonly fileName: string;
     readonly size: number;
@@ -369,145 +293,6 @@ async function describeStagedJavaArtifact(
         );
     }
     return null;
-}
-
-async function developmentTypeScriptVersion(base: string): Promise<string> {
-    try {
-        const packageJson = JSON.parse(
-            await readFile(join(base, "design", "packages", "engine", "package.json"), "utf8"),
-        );
-        return typeof packageJson.version === "string" && packageJson.version.length > 0
-            ? packageJson.version
-            : "unknown";
-    } catch {
-        return "unknown";
-    }
-}
-
-async function stagedTypeScriptVersion(root: string): Promise<string | null> {
-    try {
-        const manifest = JSON.parse(await readFile(join(root, "manifest.json"), "utf8")) as {
-            manifestVersion?: unknown;
-            engines?: {
-                typescript?: {
-                    available?: unknown;
-                    version?: unknown;
-                    packageResolution?: {
-                        root?: unknown;
-                        packages?: unknown;
-                    };
-                };
-            };
-        };
-        if (manifest.manifestVersion !== 1 || manifest.engines?.typescript?.available !== true)
-            return null;
-        if (
-            !(await hasStagedTypeScriptPackageBoundary(
-                root,
-                manifest.engines.typescript.packageResolution,
-            ))
-        ) {
-            return null;
-        }
-        return typeof manifest.engines?.typescript?.version === "string"
-            ? manifest.engines.typescript.version
-            : "unknown";
-    } catch {
-        return null;
-    }
-}
-
-const STAGED_TYPESCRIPT_PACKAGES = [
-    "@worldlens/config",
-    "@worldlens/nbt",
-    "@worldlens/shared",
-] as const;
-const STAGED_TYPESCRIPT_PACKAGE_ROOT = "typescript/node_modules/@worldlens";
-
-interface StagedTypeScriptPackageRecord {
-    readonly name?: unknown;
-    readonly root?: unknown;
-    readonly main?: unknown;
-}
-
-interface StagedTypeScriptPackageResolution {
-    readonly root?: unknown;
-    readonly packages?: unknown;
-}
-
-/**
- * Verify the package boundary that Node will use for bare workspace imports before
- * returning a packaged engine. The installed app cannot see pnpm's workspace links;
- * a manifest that merely says the engine is available is not enough evidence that its
- * import graph can load.
- */
-async function hasStagedTypeScriptPackageBoundary(
-    root: string,
-    resolution: StagedTypeScriptPackageResolution | undefined,
-): Promise<boolean> {
-    if (resolution?.root !== STAGED_TYPESCRIPT_PACKAGE_ROOT || !Array.isArray(resolution.packages))
-        return false;
-    const records = resolution.packages as StagedTypeScriptPackageRecord[];
-    if (records.length < STAGED_TYPESCRIPT_PACKAGES.length) return false;
-
-    for (const packageName of STAGED_TYPESCRIPT_PACKAGES) {
-        if (!records.some((candidate) => candidate?.name === packageName)) return false;
-    }
-
-    const names = new Set<string>();
-    for (const record of records) {
-        if (
-            typeof record.name !== "string" ||
-            names.has(record.name) ||
-            !isSafeStagedPackageName(record.name) ||
-            record.root !== `typescript/node_modules/${record.name}` ||
-            typeof record.main !== "string" ||
-            !isSafeStagedRelativePath(record.main)
-        ) {
-            return false;
-        }
-        names.add(record.name);
-        const packageRoot = join(root, record.root);
-        const packageManifestPath = join(packageRoot, "package.json");
-        try {
-            const packageManifest = JSON.parse(await readFile(packageManifestPath, "utf8")) as {
-                name?: unknown;
-                main?: unknown;
-            };
-            if (
-                packageManifest.name !== record.name ||
-                typeof packageManifest.main !== "string" ||
-                !isSafeStagedRelativePath(packageManifest.main) ||
-                normalizeStagedPackagePath(packageManifest.main) !== record.main
-            ) {
-                return false;
-            }
-        } catch {
-            return false;
-        }
-        if (!(await exists(join(packageRoot, record.main)))) return false;
-    }
-    return true;
-}
-
-function isSafeStagedRelativePath(value: string): boolean {
-    return value.length > 0 && !isAbsolute(value) && !value.split(/[\\/]+/u).includes("..");
-}
-
-function isSafeStagedPackageName(value: string): boolean {
-    return /^(?:@[^/]+\/[^/]+|[^/]+)$/u.test(value);
-}
-
-function normalizeStagedPackagePath(value: string): string {
-    return value.replace(/^\.\//u, "").replaceAll("\\", "/");
-}
-
-async function exists(path: string): Promise<boolean> {
-    try {
-        return (await stat(path)).isFile();
-    } catch {
-        return false;
-    }
 }
 
 function lookupFrom(options: UpstreamEngineOptions): JarLookupOptions {

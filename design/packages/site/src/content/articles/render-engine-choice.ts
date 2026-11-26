@@ -70,6 +70,8 @@ export const renderEngineChoice: Article = {
                         "Unsupported setting: the panel lists the exact conditional or unsupported capability before a render starts; it does not pretend the two engines are identical.",
                         "Invalid import: the file is rejected as a whole, with no partial selection applied.",
                         "Unavailable runtime evidence: a project editor says Automatic will resolve at render time instead of inventing a Java version.",
+                        "Incomplete Worldlens app engine: the picker offers the engine only when its entry, driver, assets and every package it imports are on disk. If an installed copy is missing part of it, the next render verifies the engine archive packaged with the app, unpacks it into the app's data folder with visible progress, and then carries on; nothing is downloaded.",
+                        "Engine that cannot be reinstalled: the failure names each missing piece and the reason the reinstall failed, nothing is started, Java is not chosen instead, and the picker disables the engine with the same reason.",
                     ],
                 },
             ],
@@ -97,8 +99,14 @@ export const renderEngineChoice: Article = {
                         "Issue #78 still requires routing local, Docker, CLI and restart-with-speed requests through the selected capability, plus one genuine packaged render with each engine and a documented comparison. The current UI is honest about that boundary.",
                 },
                 {
+                    kind: "paragraph",
+                    content:
+                        "Releases 1.0.2490 to 1.0.2502 shipped the Worldlens app engine without the packages it imports, so it refused every render. Checked on 2026-11-25: a real packaging run with the corrected file set contains those packages and passes a build check that loads the packaged engine in a separate process; the same run with the old file sets fails the build and names every missing package. A release built by the hosted workflow with this change, and a full render with the app engine in an installed build, have not been checked yet.",
+                },
+                {
                     kind: "list",
                     items: [
+                        [{ link: "Issue #192", href: issue(192), external: true }, " records the missing-packages defect, its cause and the fix."],
                         [{ link: "Issue #78", href: issue(78), external: true }, " tracks the remaining runtime and packaged-artifact proof."],
                         [{ link: "Roadmap engine decision", href: ROADMAP_URL, external: true }, " records the standing Java decision and the later switch boundary."],
                     ],

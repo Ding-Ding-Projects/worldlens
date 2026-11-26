@@ -111,12 +111,17 @@ export {
     type ResolvedEngine,
 } from "./orchestrator.js";
 
+export { upstreamJavaEngine, type UpstreamEngineOptions } from "./engine.js";
+
 export {
+    describeTypeScriptEngine,
+    ensureManagedTypeScriptEngine,
+    managedTypeScriptEngineRoot,
     typescriptEngine,
-    upstreamJavaEngine,
     type TypeScriptEngineOptions,
-    type UpstreamEngineOptions,
-} from "./engine.js";
+    type TypeScriptEngineRuntimeSummary,
+    type TypeScriptEngineSource,
+} from "./typescriptEngine.js";
 
 export {
     RENDER_ENGINE_CAPABILITIES,

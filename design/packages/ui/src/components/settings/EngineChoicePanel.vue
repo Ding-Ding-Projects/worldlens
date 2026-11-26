@@ -34,6 +34,9 @@ const props = withDefaults(
         renderEngineSource?: string | null;
         renderEngineReason?: string | null;
         renderEnginePath?: string | null;
+        /** Whether the Worldlens app engine's files are really present. Null until measured. */
+        typescriptEngineAvailable?: boolean | null;
+        typescriptEngineReason?: string | null;
     }>(),
     {
         projectKey: null,
@@ -46,6 +49,8 @@ const props = withDefaults(
         renderEngineSource: null,
         renderEngineReason: null,
         renderEnginePath: null,
+        typescriptEngineAvailable: null,
+        typescriptEngineReason: null,
     },
 );
 
@@ -274,7 +279,7 @@ function descriptorText(descriptor: (typeof RENDER_ENGINE_DESCRIPTORS)[number]):
                     :disabled="props.projectKey !== null && props.javaAvailable === false"
                     >{{ t("settings.engineChoice.bluemap", "BlueMap original") }}</VBtn
                 >
-                <VBtn value="typescript">{{
+                <VBtn value="typescript" :disabled="props.typescriptEngineAvailable === false">{{
                     t("settings.engineChoice.worldlens", "Worldlens app engine")
                 }}</VBtn>
             </VBtnToggle>
@@ -282,6 +287,23 @@ function descriptorText(descriptor: (typeof RENDER_ENGINE_DESCRIPTORS)[number]):
                 {{ t("settings.engineChoice.resetProject", "Use global default") }}
             </VBtn>
         </div>
+
+        <VAlert
+            v-if="props.typescriptEngineAvailable === false || props.typescriptEngineReason !== null"
+            :type="props.typescriptEngineAvailable === false ? 'warning' : 'info'"
+            variant="tonal"
+            density="comfortable"
+            :role="props.typescriptEngineAvailable === false ? 'alert' : 'status'"
+            data-testid="engine-choice-worldlens-state"
+        >
+            {{
+                props.typescriptEngineReason ??
+                t(
+                    "settings.engineChoice.worldlensUnavailable",
+                    "The Worldlens app engine cannot start in this installation, so it cannot be selected. Update or reinstall Worldlens to restore it.",
+                )
+            }}
+        </VAlert>
 
         <VAlert
             v-if="

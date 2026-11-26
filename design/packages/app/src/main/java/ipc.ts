@@ -79,6 +79,16 @@ export interface JavaRuntimeSummary {
     readonly rejected: readonly JavaRejectionSummary[];
     readonly required: number;
     readonly renderEngine?: RenderEngineRuntimeSummary;
+    /** The no-JVM engine, reported beside the Java one so the picker never offers what cannot start. */
+    readonly typescriptEngine?: TypeScriptEngineRuntimeSummary;
+}
+
+/** Mirrors `TypeScriptEngineRuntimeSummary` in `render/typescriptEngine.ts`. */
+export interface TypeScriptEngineRuntimeSummary {
+    readonly available: boolean;
+    readonly version: string | null;
+    readonly source: "bundled" | "managed" | "repairable" | "development" | null;
+    readonly reason: string | null;
 }
 
 export interface RenderEngineRuntimeSummary {
@@ -246,6 +256,7 @@ export interface JavaIpcOptions {
     /** Where `java:provision` progress goes. Supplied by the caller; defaults to nowhere. */
     readonly broadcast?: (event: ProvisionEvent) => void;
     readonly renderEngine?: () => Promise<RenderEngineRuntimeSummary>;
+    readonly typescriptEngine?: () => Promise<TypeScriptEngineRuntimeSummary>;
 }
 
 export interface JavaIpc {
@@ -282,9 +293,15 @@ export function registerJavaHandlers(ipcMain: IpcMain, options: JavaIpcOptions):
                         : { resourcesPath: options.resourcesPath }),
                 }),
             );
-            return options.renderEngine === undefined
-                ? runtime
-                : { ...runtime, renderEngine: await options.renderEngine() };
+            return {
+                ...runtime,
+                ...(options.renderEngine === undefined
+                    ? {}
+                    : { renderEngine: await options.renderEngine() }),
+                ...(options.typescriptEngine === undefined
+                    ? {}
+                    : { typescriptEngine: await options.typescriptEngine() }),
+            };
         } catch (error) {
             // Rethrown rather than swallowed - the row has a `failed` state and showing
             // it is more use than an empty one - but the message is put through the same

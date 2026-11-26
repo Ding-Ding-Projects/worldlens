@@ -1297,6 +1297,7 @@ export const SETTINGS_FIXED = {
     "settings.engineChoice.unsupported": { en: "Unsupported or conditional", yue: "唔支援或者有條件" },
     "settings.engineChoice.version": { en: "Version", yue: "版本" },
     "settings.engineChoice.worldlens": { en: "Worldlens app engine", yue: "Worldlens 自己嘅引擎" },
+    "settings.engineChoice.worldlensUnavailable": { en: "The Worldlens app engine cannot start in this installation, so it cannot be selected. Update or reinstall Worldlens to restore it.", yue: "呢個安裝入面嘅 Worldlens 引擎開唔到，所以揀唔到。更新或者重新安裝 Worldlens 就返嚟。" },
     "settings.runtime.title": { en: "Runtime settings and accommodations", yue: "執行時設定同輔助選項" },
     "settings.addons.description": { en: "Import local JavaScript or ESM add-on manifests, review their requested capabilities, and enable or disable them without granting app or credential access.", yue: "匯入本機嘅 JavaScript 或者 ESM add-on manifest，睇清楚佢想要咩權限，再決定開定閂，唔會順手畀埋程式或者憑證嘅存取權。" },
     "settings.externalEditor.title": { en: "External editor", yue: "外部編輯器" },

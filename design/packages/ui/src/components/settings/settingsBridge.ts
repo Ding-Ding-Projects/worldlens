@@ -93,6 +93,13 @@ export interface JavaRuntimeReadout {
         readonly reason: string | null;
         readonly path: string | null;
     };
+    /** The no-JVM engine: whether its files are really on disk, and why not when they are not. */
+    readonly typescriptEngine?: {
+        readonly available: boolean;
+        readonly version: string | null;
+        readonly source: "bundled" | "managed" | "repairable" | "development" | null;
+        readonly reason: string | null;
+    };
 }
 
 /**

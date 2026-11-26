@@ -1,20 +1,25 @@
 import { spawnSync } from "node:child_process";
 import { stageLocalJavaEngine } from "./stage-local-java-engine.mjs";
 import { BLUEMAP_SOURCE_PATH, validateStagedJavaEngine } from "./staged-java-engine.mjs";
-import { cp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+    TYPESCRIPT_ENGINE_PACKAGE_ROOT,
+    inspectTypeScriptEngineTree,
+    probeTypeScriptEngineTree,
+} from "./typescript-engine-tree.mjs";
+import { writeDeterministicZip } from "./zip-writer.mjs";
+import { build } from "esbuild";
+import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, "..");
 const designRoot = resolve(appRoot, "../..");
 const repositoryRoot = resolve(designRoot, "..");
+const workspacePackagesRoot = join(designRoot, "packages");
 const engineRoot = join(designRoot, "packages", "engine");
 const sharedRoot = join(designRoot, "packages", "shared");
-const nbtRoot = join(designRoot, "packages", "nbt");
-const configRoot = join(designRoot, "packages", "config");
 const driverSource = join(repositoryRoot, "tools", "oracle", "render-ts.mjs");
 const typescriptAssets = join(engineRoot, "assets");
 const jarDirectory = join(repositoryRoot, "tools", "oracle", "out", "jars");
@@ -27,173 +32,270 @@ const gradleJarDirectory = join(
     "build",
     "libs",
 );
-const require = createRequire(import.meta.url);
 
-const runtimeWorkspacePackages = [
-    { name: "@worldlens/config", root: configRoot },
-    { name: "@worldlens/nbt", root: nbtRoot },
-    { name: "@worldlens/shared", root: sharedRoot },
-];
+/** The archive the installed app reinstalls the engine from when its loose files are damaged. */
+export const TYPESCRIPT_ENGINE_REPAIR_ARCHIVE = "typescript-engine.zip";
 
 /**
- * Keep the TypeScript engine's bare workspace imports inside its staged package
- * boundary. `tsc` deliberately leaves `@worldlens/*` specifiers intact, so the
- * packaged driver must see an ordinary Node package layout next to the engine;
- * the checkout's pnpm links cannot cross an installed app's resource boundary.
+ * Files nothing reads at run time. Source maps and declarations roughly double the engine
+ * tree, and the update package this lands in has to stay under the size the updater can
+ * fetch as one file.
  */
-async function stageRuntimePackage(packageDefinition, packageRoot) {
-    const sourceManifestPath = join(packageDefinition.root, "package.json");
-    const sourceManifest = JSON.parse(await readFile(sourceManifestPath, "utf8"));
-    if (sourceManifest.name !== packageDefinition.name) {
-        throw new Error(
-            `workspace package manifest name mismatch: expected ${packageDefinition.name}, got ${String(sourceManifest.name)}`,
-        );
-    }
-    if (
-        typeof sourceManifest.main !== "string" ||
-        isAbsolute(sourceManifest.main) ||
-        !isSafeRelativePackagePath(sourceManifest.main)
-    ) {
-        throw new Error(`runtime package ${packageDefinition.name} has no relative main entry`);
-    }
-    const sourceMain = join(packageDefinition.root, sourceManifest.main);
-    const sourceMainInfo = await stat(sourceMain);
-    if (!sourceMainInfo.isFile()) {
-        throw new Error(`runtime package ${packageDefinition.name} is not built: ${sourceMain}`);
-    }
-
-    const targetRoot = join(packageRoot, ...packageDefinition.name.split("/"));
-    await mkdir(targetRoot, { recursive: true });
-    if (packageDefinition.workspace) {
-        const sourceDist = join(packageDefinition.root, "dist");
-        const sourceDistInfo = await stat(sourceDist);
-        if (!sourceDistInfo.isDirectory()) {
-            throw new Error(
-                `workspace package ${packageDefinition.name} has no built dist directory: ${sourceDist}`,
-            );
-        }
-        await cp(sourceDist, join(targetRoot, "dist"), { recursive: true, force: true });
-        await cp(sourceManifestPath, join(targetRoot, "package.json"), { force: true });
-    } else {
-        await cp(packageDefinition.root, targetRoot, {
-            recursive: true,
-            force: true,
-            filter: (source) => {
-                const relativeSource = relative(packageDefinition.root, source);
-                return !relativeSource.split(/[\\/]+/u).includes("node_modules");
-            },
-        });
-    }
-    return {
-        name: packageDefinition.name,
-        root: `typescript/node_modules/${packageDefinition.name}`,
-        main: sourceManifest.main.replace(/^\.\//u, "").replaceAll("\\", "/"),
-    };
+function isRuntimeFile(path) {
+    return !/(?:\.map|\.d\.ts|\.d\.mts|\.d\.cts|\.tsbuildinfo|\.test\.js)$/u.test(path);
 }
 
-function isSafeRelativePackagePath(value) {
-    return value.length > 0 && !value.split(/[\\/]+/u).includes("..");
+function copyRuntimeTree(source, target, extraFilter = () => true) {
+    return cp(source, target, {
+        recursive: true,
+        force: true,
+        filter: (path) => extraFilter(path) && isRuntimeFile(path),
+    });
 }
 
-function resolveInstalledPackage(packageName, fromRoot) {
-    let entry;
-    try {
-        entry = require.resolve(packageName, { paths: [fromRoot] });
-    } catch (error) {
-        throw new Error(
-            `runtime dependency ${packageName} required by ${fromRoot} is not installed: ${String(error)}`,
-        );
-    }
-    // Package exports may intentionally omit ./package.json. Walk from the
-    // resolved entry to the nearest manifest, which works for both regular
-    // node_modules packages and pnpm workspace symlinks.
-    let directory = dirname(entry);
+const packageOwners = new Map();
+
+/** The nearest named package.json above a file: the package that file belongs to. */
+function owningPackage(file) {
+    let directory = dirname(file);
+    const visited = [];
     while (directory !== dirname(directory)) {
+        const cached = packageOwners.get(directory);
+        if (cached !== undefined) {
+            for (const seen of visited) packageOwners.set(seen, cached);
+            return cached;
+        }
+        visited.push(directory);
         const manifestPath = join(directory, "package.json");
         if (existsSync(manifestPath)) {
             try {
                 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-                if (manifest.name === packageName) return directory;
+                // A nested `{ "type": "module" }` marker has no name and is not a package root.
+                if (typeof manifest.name === "string" && manifest.name.length > 0) {
+                    const owner = { name: manifest.name, root: directory, manifest };
+                    for (const seen of visited) packageOwners.set(seen, owner);
+                    return owner;
+                }
             } catch {
-                // Keep walking if an unrelated or malformed manifest is found.
+                // Keep walking past a malformed manifest.
             }
         }
         directory = dirname(directory);
     }
-    throw new Error(
-        `resolved runtime dependency ${packageName} has no matching package.json: ${entry}`,
-    );
+    return null;
 }
 
-async function stageRuntimePackageClosure(outputDirectory) {
-    const packageRoot = join(outputDirectory, "typescript", "node_modules");
-    const workspaceDefinitions = new Map(
-        runtimeWorkspacePackages.map((definition) => [definition.name, definition]),
+/**
+ * Find every package the engine really imports, by following its import graph.
+ *
+ * The earlier version of this walked `dependencies` and `peerDependencies` in each
+ * package.json instead. That staged 91 MB, 60 MB of it a UI framework that a peer
+ * dependency of the design tokens names and no render path ever loads, and it would have
+ * pushed the update package past the size the updater can fetch. The import graph is what
+ * Node will actually ask for; a package.json is what somebody declared.
+ */
+async function traceRuntimePackages() {
+    let result;
+    try {
+        result = await build({
+            entryPoints: [join(engineRoot, "dist", "index.js"), join(sharedRoot, "dist", "index.js")],
+            absWorkingDir: designRoot,
+            bundle: true,
+            write: false,
+            metafile: true,
+            platform: "node",
+            format: "esm",
+            outdir: join(appRoot, "dist", ".render-engine-trace"),
+            logLevel: "silent",
+            loader: { ".wasm": "empty", ".node": "empty" },
+        });
+    } catch (error) {
+        throw new Error(
+            "The TypeScript engine's imports could not be resolved, so it cannot be staged. " +
+                "Build the workspace packages first (pnpm build in design/). " +
+                String(error instanceof Error ? error.message : error),
+        );
+    }
+    const packages = new Map();
+    for (const input of Object.keys(result.metafile.inputs)) {
+        const file = resolve(designRoot, input);
+        if (!existsSync(file)) continue;
+        const owner = owningPackage(file);
+        if (owner === null || owner.name === "@worldlens/engine") continue;
+        const known = packages.get(owner.name);
+        if (known !== undefined && known.root !== owner.root) {
+            throw new Error(
+                `The TypeScript engine imports two copies of ${owner.name} (${known.root} and ${owner.root}); ` +
+                    "one flat package folder cannot carry both.",
+            );
+        }
+        packages.set(owner.name, owner);
+    }
+    return [...packages.values()].sort((a, b) => (a.name < b.name ? -1 : 1));
+}
+
+/**
+ * Copy one package into the engine's own `node_modules`. `tsc` deliberately leaves bare
+ * specifiers intact, so the packaged driver must see an ordinary Node package layout next
+ * to the engine; the checkout's pnpm links cannot cross an installed app's resource boundary.
+ */
+async function stageRuntimePackage(owner, packageRoot) {
+    const main = owner.manifest.main;
+    if (typeof main !== "string" || isAbsolute(main) || main.split(/[\\/]+/u).includes("..")) {
+        throw new Error(`runtime package ${owner.name} has no relative main entry`);
+    }
+    if (!(await stat(join(owner.root, main)).then((info) => info.isFile(), () => false))) {
+        throw new Error(`runtime package ${owner.name} is not built: ${join(owner.root, main)}`);
+    }
+    const targetRoot = join(packageRoot, ...owner.name.split("/"));
+    await mkdir(targetRoot, { recursive: true });
+    const isWorkspacePackage = owner.root.startsWith(workspacePackagesRoot + sep);
+    if (isWorkspacePackage) {
+        // Only the build output: a workspace package's sources, tests and tool caches are
+        // not part of what it publishes.
+        await copyRuntimeTree(join(owner.root, "dist"), join(targetRoot, "dist"));
+        await cp(join(owner.root, "package.json"), join(targetRoot, "package.json"), { force: true });
+    } else {
+        await copyRuntimeTree(
+            owner.root,
+            targetRoot,
+            (source) => !relative(owner.root, source).split(/[\\/]+/u).includes("node_modules"),
+        );
+    }
+    return {
+        name: owner.name,
+        root: `${TYPESCRIPT_ENGINE_PACKAGE_ROOT}/${owner.name}`,
+        main: main.replace(/^\.\//u, "").replaceAll("\\", "/"),
+    };
+}
+
+async function listFiles(root, prefix = "") {
+    const files = [];
+    for (const entry of await readdir(join(root, prefix), { withFileTypes: true })) {
+        const name = prefix.length === 0 ? entry.name : `${prefix}/${entry.name}`;
+        if (entry.isDirectory()) files.push(...(await listFiles(root, name)));
+        else if (entry.isFile()) files.push(name);
+    }
+    return files;
+}
+
+function typescriptManifestEntry(version, packages, repairArchive) {
+    return {
+        id: "typescript",
+        label: "Worldlens engine (TypeScript)",
+        version,
+        available: true,
+        requiresJvm: false,
+        capabilities: { local: true, docker: false, cli: false, restart: true },
+        unsupportedSettings: ["BlueMap JVM flags", "BlueMap CLI-only diagnostics"],
+        assetDirectory: "typescript/assets",
+        engineEntry: "typescript/dist/index.js",
+        driver: "typescript/render-ts.mjs",
+        packageResolution: {
+            root: `${TYPESCRIPT_ENGINE_PACKAGE_ROOT}/@worldlens`,
+            packages,
+        },
+        ...(repairArchive === null ? {} : { repairArchive }),
+    };
+}
+
+/**
+ * Stage the TypeScript engine into `outputDirectory` and prove it before describing it.
+ *
+ * The tree is inspected and then loaded in a separate process from a copy outside the
+ * workspace. Only after that is the reinstall archive written and `available: true`
+ * recorded, so the manifest cannot claim an engine that will not start.
+ *
+ * @returns the manifest entry for the engine, naming its reinstall archive
+ */
+export async function stageTypeScriptEngine(outputDirectory, options = {}) {
+    await mkdir(outputDirectory, { recursive: true });
+    await cp(typescriptAssets, join(outputDirectory, "typescript", "assets"), {
+        recursive: true,
+        force: true,
+    });
+    await copyRuntimeTree(join(engineRoot, "dist"), join(outputDirectory, "typescript", "dist"));
+    await cp(driverSource, join(outputDirectory, "typescript", "render-ts.mjs"));
+
+    const packageRoot = join(outputDirectory, ...TYPESCRIPT_ENGINE_PACKAGE_ROOT.split("/"));
+    const stagedPackages = [];
+    for (const owner of await traceRuntimePackages()) {
+        stagedPackages.push(await stageRuntimePackage(owner, packageRoot));
+    }
+
+    // The driver opens `shared/dist/index.js` by path; the engine imports `@worldlens/shared`
+    // by name. In a checkout both are the same file. A second copy here would be a second
+    // module instance - two `Key` classes, and an `instanceof` in the engine that is false
+    // for a key the driver made - and it could not resolve its own imports from this folder
+    // either. So this path re-exports the one staged package.
+    const shared = stagedPackages.find((record) => record.name === "@worldlens/shared");
+    if (shared === undefined) {
+        throw new Error("The TypeScript engine no longer imports @worldlens/shared; the driver still does.");
+    }
+    await mkdir(join(outputDirectory, "shared", "dist"), { recursive: true });
+    await writeFile(
+        join(outputDirectory, "shared", "dist", "index.js"),
+        `export * from "../../${shared.root}/${shared.main}";\n`,
+        "utf8",
     );
-    const queue = [
-        ...runtimeWorkspacePackages.map((definition) => ({ ...definition, workspace: true })),
-        { name: "@worldlens/engine", root: engineRoot, workspace: true, stage: false },
-    ];
-    const staged = [];
-    const visited = new Set();
-    while (queue.length > 0) {
-        const definition = queue.shift();
-        if (visited.has(definition.name)) continue;
-        visited.add(definition.name);
-        const sourceManifest = JSON.parse(
-            await readFile(join(definition.root, "package.json"), "utf8"),
-        );
-        if (sourceManifest.name !== definition.name) {
-            throw new Error(`runtime package manifest name mismatch for ${definition.name}`);
+
+    let version = "unknown";
+    try {
+        const packageJson = JSON.parse(await readFile(join(engineRoot, "package.json"), "utf8"));
+        if (typeof packageJson.version === "string" && packageJson.version.length > 0) {
+            version = packageJson.version;
         }
-        if (definition.stage !== false) {
-            staged.push(await stageRuntimePackage(definition, packageRoot));
-        }
-        const optional = new Set(
-            sourceManifest.optionalDependencies &&
-                typeof sourceManifest.optionalDependencies === "object"
-                ? Object.keys(sourceManifest.optionalDependencies)
-                : [],
+    } catch {
+        // A malformed package manifest is reported as unknown metadata, not guessed.
+    }
+
+    // The copy inside the reinstall archive describes itself without naming the archive it
+    // travels in, so the archive's digest does not depend on its own digest.
+    await writeEngineManifest(outputDirectory, {
+        typescript: typescriptManifestEntry(version, stagedPackages, null),
+    });
+
+    const inspection = await inspectTypeScriptEngineTree(outputDirectory);
+    if (!inspection.ok) {
+        throw new Error(
+            `The staged TypeScript engine is incomplete; missing ${inspection.missing.join("; ")}.`,
         );
-        const dependencies = new Set(
-            sourceManifest.dependencies && typeof sourceManifest.dependencies === "object"
-                ? Object.keys(sourceManifest.dependencies)
-                : [],
-        );
-        const optionalPeers = new Set(
-            sourceManifest.peerDependenciesMeta &&
-                typeof sourceManifest.peerDependenciesMeta === "object"
-                ? Object.entries(sourceManifest.peerDependenciesMeta)
-                      .filter(([, metadata]) => metadata?.optional === true)
-                      .map(([name]) => name)
-                : [],
-        );
-        if (
-            sourceManifest.peerDependencies &&
-            typeof sourceManifest.peerDependencies === "object"
-        ) {
-            for (const dependencyName of Object.keys(sourceManifest.peerDependencies))
-                dependencies.add(dependencyName);
-        }
-        for (const dependencyName of dependencies) {
-            if (optional.has(dependencyName) || optionalPeers.has(dependencyName)) continue;
-            // Vue publishes csstype as a package dependency for its type
-            // declarations, but it is not a runtime asset and pnpm does not
-            // expose it through the real package path used during staging.
-            if (dependencyName === "csstype") continue;
-            const workspaceDefinition = workspaceDefinitions.get(dependencyName);
-            if (workspaceDefinition !== undefined) {
-                queue.push({ ...workspaceDefinition, workspace: true });
-                continue;
-            }
-            queue.push({
-                name: dependencyName,
-                root: resolveInstalledPackage(dependencyName, definition.root),
-                workspace: false,
-            });
+    }
+    if (options.probe !== false) {
+        const probe = await probeTypeScriptEngineTree(outputDirectory);
+        if (!probe.ok) {
+            throw new Error(
+                "The staged TypeScript engine does not load outside the workspace, so an installed " +
+                    `app could not run it: ${String(probe.detail)}`,
+            );
         }
     }
-    return staged;
+
+    const archiveFiles = (await listFiles(outputDirectory))
+        .filter((name) => name !== TYPESCRIPT_ENGINE_REPAIR_ARCHIVE)
+        .map((name) => ({ name, path: join(outputDirectory, ...name.split("/")) }));
+    const archive = await writeDeterministicZip(
+        join(outputDirectory, TYPESCRIPT_ENGINE_REPAIR_ARCHIVE),
+        archiveFiles,
+    );
+    const entry = typescriptManifestEntry(version, stagedPackages, {
+        fileName: TYPESCRIPT_ENGINE_REPAIR_ARCHIVE,
+        size: archive.size,
+        sha256: archive.sha256,
+        files: archive.entries,
+    });
+    await writeEngineManifest(outputDirectory, { typescript: entry });
+    return entry;
+}
+
+async function writeEngineManifest(outputDirectory, engines) {
+    const manifest = { manifestVersion: 1, engines };
+    await writeFile(
+        join(outputDirectory, "manifest.json"),
+        `${JSON.stringify(manifest, null, 4)}\n`,
+        "utf8",
+    );
+    return manifest;
 }
 
 /**
@@ -209,72 +311,21 @@ export async function stageRenderEngines(
     options = {},
 ) {
     await rm(outputDirectory, { recursive: true, force: true });
-    await mkdir(outputDirectory, { recursive: true });
-
-    const typescriptOutput = join(outputDirectory, "typescript", "assets");
-    await cp(typescriptAssets, typescriptOutput, { recursive: true, force: true });
-    await cp(join(engineRoot, "dist"), join(outputDirectory, "typescript", "dist"), {
-        recursive: true,
-        force: true,
-    });
-    await cp(join(sharedRoot, "dist"), join(outputDirectory, "shared", "dist"), {
-        recursive: true,
-        force: true,
-    });
-    await cp(driverSource, join(outputDirectory, "typescript", "render-ts.mjs"));
-    const stagedWorkspacePackages = await stageRuntimePackageClosure(outputDirectory);
-
+    const typescript = await stageTypeScriptEngine(outputDirectory, options);
     const java = await resolveJavaArtifact(options.requireJava === true);
-    const javaVersion = java.version;
-    const javaArtifact = java.artifact;
-
-    let typescriptVersion = "unknown";
-    try {
-        const packageJson = JSON.parse(await readFile(join(engineRoot, "package.json"), "utf8"));
-        if (typeof packageJson.version === "string" && packageJson.version.length > 0) {
-            typescriptVersion = packageJson.version;
-        }
-    } catch {
-        // A malformed package manifest is reported as unknown metadata, not guessed.
-    }
-
-    const manifest = {
-        manifestVersion: 1,
-        engines: {
-            "upstream-java": {
-                id: "upstream-java",
-                label: "BlueMap engine (Java)",
-                version: javaVersion,
-                available: javaArtifact !== null,
-                requiresJvm: true,
-                capabilities: { local: true, docker: true, cli: true, restart: true },
-                unsupportedSettings: [],
-                jar: javaArtifact,
-            },
-            typescript: {
-                id: "typescript",
-                label: "Worldlens engine (TypeScript)",
-                version: typescriptVersion,
-                available: true,
-                requiresJvm: false,
-                capabilities: { local: true, docker: false, cli: false, restart: true },
-                unsupportedSettings: ["BlueMap JVM flags", "BlueMap CLI-only diagnostics"],
-                assetDirectory: "typescript/assets",
-                engineEntry: "typescript/dist/index.js",
-                driver: "typescript/render-ts.mjs",
-                packageResolution: {
-                    root: "typescript/node_modules/@worldlens",
-                    packages: stagedWorkspacePackages,
-                },
-            },
+    return writeEngineManifest(outputDirectory, {
+        "upstream-java": {
+            id: "upstream-java",
+            label: "BlueMap engine (Java)",
+            version: java.version,
+            available: java.artifact !== null,
+            requiresJvm: true,
+            capabilities: { local: true, docker: true, cli: true, restart: true },
+            unsupportedSettings: [],
+            jar: java.artifact,
         },
-    };
-    await writeFile(
-        join(outputDirectory, "manifest.json"),
-        `${JSON.stringify(manifest, null, 4)}\n`,
-        "utf8",
-    );
-    return manifest;
+        typescript,
+    });
 }
 
 async function resolveJavaArtifact(requireJava) {

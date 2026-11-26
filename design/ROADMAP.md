@@ -217,6 +217,18 @@ issue #86 is not closed.
 Source implementation and focused verification are complete. The remaining acceptance record is a
 same-project packaged Java/TypeScript output and provenance comparison.
 
+Issue #192 (2026-11-25): installed builds 1.0.2490 to 1.0.2502 shipped the Worldlens app engine
+without the packages it imports.
+
+- [x] Package the engine's packages (one file set, so the packaging tool keeps `node_modules`).
+- [x] Fail the build when the packaged engine is incomplete or does not load (`afterPack`).
+- [x] Stage only the packages the engine imports (5.24 MB, was 96 MB).
+- [x] Reinstall an incomplete engine automatically, with progress, when a render starts.
+- [x] Offer the engine in the picker only when it can start; name the missing piece when it cannot.
+- [ ] Confirm in a hosted release: packages present in the installer, update package under
+      2,000,000,000 bytes. Not yet built.
+- [ ] Render a world with the Worldlens app engine in an installed build. Not yet done.
+
 ## Issue #57 — cloud-first project configuration (implementation in progress)
 
 The cloud-render setup now has a guided path for a world without a project file. It generates the

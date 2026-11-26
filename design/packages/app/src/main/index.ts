@@ -32,7 +32,8 @@ import {
     type RemoteProfile,
 } from "@worldlens/server";
 import { LocalMapHandler, defaultStorageDirectory } from "./render/index.js";
-import { typescriptEngine, upstreamJavaEngine } from "./render/engine.js";
+import { upstreamJavaEngine } from "./render/engine.js";
+import { describeTypeScriptEngine, typescriptEngine } from "./render/typescriptEngine.js";
 import {
     packagedUpstreamJavaIsUsable,
     verifyManagedUpstreamJava,
@@ -1055,7 +1056,9 @@ function startRendering(): RenderIpc {
     });
     const typescriptResolver = typescriptEngine({
         resourcesPath: app.isPackaged ? process.resourcesPath : null,
-        repositoryRoot: process.cwd(),
+        repositoryRoot: app.isPackaged ? null : process.cwd(),
+        // Where an installed copy missing part of its engine reinstalls it before rendering.
+        dataDir: userData,
     });
     const resolveEngine = (
         choice: "upstream-java" | "typescript",
@@ -1069,7 +1072,7 @@ function startRendering(): RenderIpc {
         wsl?: import("./runtime/wsl.js").WslEngineContext,
     ) =>
         choice === "typescript"
-            ? typescriptResolver(choice)
+            ? typescriptResolver(choice, signal, onProgress)
             : javaResolver(choice, signal, onProgress, wsl);
 
     const render = installRenderIpc({
@@ -1306,6 +1309,12 @@ function startJavaDiscovery(): JavaIpc {
                 };
             }
         },
+        typescriptEngine: () =>
+            describeTypeScriptEngine({
+                resourcesPath: app.isPackaged ? process.resourcesPath : null,
+                repositoryRoot: app.isPackaged ? null : process.cwd(),
+                dataDir: app.getPath("userData"),
+            }),
         broadcast: (event) => {
             for (const window of BrowserWindow.getAllWindows()) {
                 if (!window.isDestroyed())

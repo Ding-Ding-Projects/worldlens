@@ -149,6 +149,10 @@ const javaAvailable = computed<boolean | null>(() => {
 });
 const renderEngineAvailable = computed<boolean | null>(() => java.renderEngineAvailable.value);
 const renderEngineReason = computed<string | null>(() => java.renderEngineReason.value);
+const typescriptEngineAvailable = computed<boolean | null>(
+    () => java.typescriptEngineAvailable.value,
+);
+const typescriptEngineReason = computed<string | null>(() => java.typescriptEngineReason.value);
 const renderEnginePath = computed<string | null>(() => java.renderEnginePath.value);
 
 const host = props.host === undefined ? resolveProjectHost() : props.host;
@@ -1175,6 +1179,8 @@ async function handlePagesToggle(enabled: boolean): Promise<void> {
             :java-version="java.report.value?.installation?.version.version ?? null"
             :render-engine-available="renderEngineAvailable"
             :render-engine-reason="renderEngineReason"
+            :typescript-engine-available="typescriptEngineAvailable"
+            :typescript-engine-reason="typescriptEngineReason"
             :render-engine-path="renderEnginePath"
             :separator="separator"
             :default-root="defaultRoot"

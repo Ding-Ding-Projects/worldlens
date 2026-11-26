@@ -1277,6 +1277,8 @@ function onDrawer(value: boolean): void {
                             :render-engine-source="java.report.value?.renderEngine?.source ?? null"
                             :render-engine-reason="java.report.value?.renderEngine?.reason ?? null"
                             :render-engine-path="java.report.value?.renderEngine?.path ?? null"
+                            :typescript-engine-available="java.typescriptEngineAvailable.value"
+                            :typescript-engine-reason="java.typescriptEngineReason.value"
                         />
                     </SettingsSection>
                 </template>

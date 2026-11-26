@@ -32,7 +32,7 @@ export type EngineRelease = Readonly<{
 }>;
 
 export type EngineProvisionStage =
-    "checking" | "downloading" | "verifying" | "installed" | "reused";
+    "checking" | "downloading" | "verifying" | "installing" | "installed" | "reused";
 
 export interface EngineProvisionProgress {
     readonly stage: EngineProvisionStage;

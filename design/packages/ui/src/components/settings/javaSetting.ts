@@ -75,6 +75,9 @@ export interface JavaSetting {
     readonly renderEngineSource: ComputedRef<string | null>;
     readonly renderEngineReason: ComputedRef<string | null>;
     readonly renderEnginePath: ComputedRef<string | null>;
+    /** Whether the Worldlens app engine can start. Null until the runtime report arrives. */
+    readonly typescriptEngineAvailable: ComputedRef<boolean | null>;
+    readonly typescriptEngineReason: ComputedRef<string | null>;
 
     load(): Promise<void>;
 
@@ -191,6 +194,13 @@ export function createJavaSetting(options: JavaSettingOptions = {}): JavaSetting
     );
     const renderEnginePath = computed<string | null>(
         () => report.value?.renderEngine?.path ?? null,
+    );
+
+    const typescriptEngineAvailable = computed<boolean | null>(
+        () => report.value?.typescriptEngine?.available ?? null,
+    );
+    const typescriptEngineReason = computed<string | null>(
+        () => report.value?.typescriptEngine?.reason ?? null,
     );
 
     async function loadRenders(): Promise<void> {
@@ -324,6 +334,8 @@ export function createJavaSetting(options: JavaSettingOptions = {}): JavaSetting
         renderEngineSource,
         renderEngineReason,
         renderEnginePath,
+        typescriptEngineAvailable,
+        typescriptEngineReason,
         load,
         canProvision,
         consent,

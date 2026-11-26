@@ -1,5 +1,24 @@
 # Handoff
 
+## 2026-11-25 (after v1.0.2502) The Worldlens app engine refused every render in installed builds; fixed, not yet in a release
+
+Issue #192. Read the "Not checked" list before relying on this.
+
+- Cause, confirmed in the packaging tool's source and by a real packaging run: electron-builder's copy filter drops a directory named `node_modules` at the root of a copied file set, and no `filter` pattern brings it back. `dist/render-engines/typescript` was its own file set, so `typescript/node_modules` was exactly that directory. Releases 1.0.2490 to 1.0.2502 shipped the engine's own files and a manifest reading `"available": true`, with none of the packages the engine imports.
+- A second defect behind the first, found by the new load probe: the staged `shared/dist` was a second copy of the shared package that could not resolve its own imports from that folder, so the driver would have failed even with the packages present. It is now a one-line re-export of the staged package, which also gives the driver and the engine one module instance, as in a checkout.
+- Fix: the render engines are one file set rooted at `dist/render-engines` (`electron-builder.config.cjs`). `afterPack` runs `scripts/assert-packaged-render-engines.mjs` against the packaged directory: every listed file and package present, the reinstall archive matching the manifest's size and SHA-256, and the engine loaded in a separate process from a copy outside the checkout.
+- Staging (`scripts/stage-render-engines.mjs`) now finds the engine's packages by tracing its import graph with esbuild instead of walking `dependencies` and `peerDependencies`. The old walk staged 96 MB, 60 MB of it Vuetify. The staged tree is now 5.24 MB in 828 files. Measured against the installed 1.0.2502 folder, the change adds 583,712 compressed bytes; v1.0.2502's update package was 1,989,942,049 bytes, so about 9.4 MB of headroom should remain under the 2,000,000,000-byte limit.
+- An installed copy with an incomplete engine reinstalls it from `resources/render-engines/typescript-engine.zip` into `<userData>/render-engines/typescript/<digest>` when a render starts, with progress events, then carries on (`src/main/render/typescriptEngine.ts`). Nothing is downloaded. When it cannot, the failure names each missing piece and the reason.
+- The engine picker now takes the Worldlens app engine's state from disk (`java:runtime` carries a `typescriptEngine` summary) and disables it with the reason when it cannot start.
+- A packaged app no longer falls back to an engine build found under its working directory. That fallback is how a packaged build run from a checkout could appear to work while the installer was broken.
+- `java/staging.test.ts` was already red on `main` before this (it asserted three strings the staging script no longer contained); it now asserts what the scripts do.
+
+Checked locally: a real electron-builder 26.15.3 `--dir` run with the new file set (packages present, check green) and with the 1.0.2500 file sets (no `node_modules`, build failed naming ten packages); `render-ts.mjs` from a copy outside the checkout (old shape: `Cannot find package '@worldlens/shared'`; new shape: engine loads); app and UI typecheck; ESLint on the changed files; 114 test files, 1,432 tests across `app/src/main/render`, `app/src/main/java`, `ui/components/settings`, `ui/components/project` and `ui/components/world`.
+
+Not checked: a hosted release built with this change (so the real update-package size is still an estimate); the reinstall path and the picker in an installed build; a full render with the Worldlens app engine in an installed build (no Minecraft client jar was available locally, and the driver stops at "no resources to render with" once the engine has loaded). The full test suite and `pnpm build` were not run.
+
+Local environment note: this machine's `design/node_modules` had files overwritten with null bytes (`.modules.yaml` and `minecraft-data/index.d.ts`), which broke `pnpm install` and the `liveviewer` build until both were reinstalled. Other files may be affected.
+
 ## 2026-11-25 (last) Updates were broken from v1.0.2493 to v1.0.2497; fixed in v1.0.2500
 
 Proved after this entry was first written: run 45713421770 is green, release v1.0.2500 carries one `Worldlens-1.0.2500-full.nupkg` of 1,989,935,163 bytes, and `Update.exe --update` against it on this PC exited 0 and created `app-1.0.2500` with no source maps inside. Launched on a throwaway profile, Work opened and a split kept the pinned tab pinned. The margin under the cap is about 10 MB, so the warning below still stands.

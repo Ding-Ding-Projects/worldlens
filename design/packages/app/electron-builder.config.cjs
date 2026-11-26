@@ -62,6 +62,13 @@ async function verifyBundlesAndBrandExecutable(context) {
     const { assertPackagedBundles } = await import("./scripts/assert-packaged-bundles.mjs");
     await assertPackagedBundles(`${context.appOutDir}/resources`);
 
+    // The same rule for the TypeScript render engine: three releases listed it in this file
+    // and shipped it without the packages it imports. Checked in the packaged directory, and
+    // loaded in a separate process, so a build that cannot render fails here.
+    const { assertPackagedRenderEngines } =
+        await import("./scripts/assert-packaged-render-engines.mjs");
+    await assertPackagedRenderEngines(`${context.appOutDir}/resources`);
+
     const executableName = `${context.packager.appInfo.productFilename}.exe`;
     // Node and rcedit accept forward slashes on Windows, so these stay ordinary strings
     // and the CommonJS configuration needs no lint-forbidden `require()` helper.
@@ -167,26 +174,19 @@ module.exports = {
             filter: ["**/*"],
         },
         {
-            from: "dist/render-engines/manifest.json",
-            to: "render-engines/manifest.json",
-            filter: ["**/*"],
-        },
-        {
-            // The no-JVM adapter is the same standalone driver used by the oracle. Keep
-            // its engine ESM, shared ESM and driver together so the packaged app can launch
-            // it without reaching back into a checkout or a developer's node_modules.
-            from: "dist/render-engines/typescript",
-            to: "render-engines/typescript",
-            filter: ["**/*"],
-        },
-        {
-            from: "dist/render-engines/shared",
-            to: "render-engines/shared",
-            filter: ["**/*"],
-        },
-        {
-            from: "dist/render-engines/node_modules",
-            to: "render-engines/node_modules",
+            // The no-JVM adapter is the same standalone driver used by the oracle. Its
+            // manifest, engine ESM, driver, packages and reinstall archive travel together so
+            // the packaged app can launch it without reaching back into a checkout.
+            //
+            // This must stay ONE file set rooted at `dist/render-engines`. electron-builder's
+            // copy filter drops a directory named `node_modules` at the root of a file set and
+            // no `filter` pattern can bring it back (app-builder-lib util/filter.js). When
+            // `dist/render-engines/typescript` was its own file set, `typescript/node_modules`
+            // was exactly that directory, and releases 1.0.2490 to 1.0.2502 shipped the engine
+            // without one package it imports. Rooted here it is a nested folder and is copied.
+            // `afterPack` proves the result rather than trusting this comment.
+            from: "dist/render-engines",
+            to: "render-engines",
             filter: ["**/*"],
         },
         // The complete managed workflow set a CI-render bootstrap commits to a repository -
