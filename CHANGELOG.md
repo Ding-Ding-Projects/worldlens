@@ -22,7 +22,996 @@ full message for the in-app changelog viewer.
 
 ### Desktop shell
 
+- Ship the packages the TypeScript engine imports, and reinstall them when they are missing - [`7271e57d9d`](https://github.com/Ding-Ding-Projects/worldlens/commit/7271e57d9df196dc6ae98c5fc3f894f269386f2a)
+
+## 1.0.2502 - 2026-11-25
+
+Tagged at [`1b7ee27617`](https://github.com/Ding-Ding-Projects/worldlens/commit/1b7ee27617934c6c4809d38b570cc49e186005a7).
+
+### Documentation
+
+- Record that the update-size fix is proved in v1.0.2500 - [`1b7ee27617`](https://github.com/Ding-Ding-Projects/worldlens/commit/1b7ee27617934c6c4809d38b570cc49e186005a7)
+
+## 1.0.2500 - 2026-11-25
+
+Tagged at [`3e609ea6f6`](https://github.com/Ding-Ding-Projects/worldlens/commit/3e609ea6f620fd230ff3e808c2b8d8a63da26999).
+
+### Build, release and tooling
+
+- Keep the update package under the size the updater can fetch - [`3e609ea6f6`](https://github.com/Ding-Ding-Projects/worldlens/commit/3e609ea6f620fd230ff3e808c2b8d8a63da26999)
+
+## 1.0.2497 - 2026-11-25
+
+Tagged at [`c1a7066f10`](https://github.com/Ding-Ding-Projects/worldlens/commit/c1a7066f10921c88a28a4924901d37e0418e5eb2).
+
+### Documentation
+
+- Bring the handoff and inventory up to date with the merged work - [`c1a7066f10`](https://github.com/Ding-Ding-Projects/worldlens/commit/c1a7066f10921c88a28a4924901d37e0418e5eb2)
+
+## 1.0.2496 - 2026-11-25
+
+Tagged at [`1c88349adc`](https://github.com/Ding-Ding-Projects/worldlens/commit/1c88349adcb48e068ce351a2d41190c5553124ae).
+
+### Interface
+
+- Draw dock panes on first render and keep pins when a tab changes pane - [`1c88349adc`](https://github.com/Ding-Ding-Projects/worldlens/commit/1c88349adcb48e068ce351a2d41190c5553124ae)
+- Merge dockview under the Work tabs: split, float, dock and saved layouts - [`4890be22d4`](https://github.com/Ding-Ding-Projects/worldlens/commit/4890be22d401a15f3813dce9a3ceef538d2a2856) _(summary of 4 commits, also listed here)_
+- Split the Work page into dockable panes with saved layouts - [`c7c288f4bb`](https://github.com/Ding-Ding-Projects/worldlens/commit/c7c288f4bb666306c601a79fec8d33f7ad5c15c1)
+- Work in progress: dockview workspace, unfinished - [`3268d1f274`](https://github.com/Ding-Ding-Projects/worldlens/commit/3268d1f274e215ce5fe089d92d9ae7d149271fae)
+
+### Build, release and tooling
+
+- Merge remote-tracking branch 'origin/main' into worktree-agent-aef69f60bcb907b17 - [`375731d0a9`](https://github.com/Ding-Ding-Projects/worldlens/commit/375731d0a94941f79cc4e94b68d7a1475c2dd1cf) _(summary of 7 commits, also listed here)_
+
+## 1.0.2493 - 2026-11-25
+
+Tagged at [`d01e72214c`](https://github.com/Ding-Ding-Projects/worldlens/commit/d01e72214ce7c015d1ace9fad6d96d11bf7f4017).
+
+### Interface
+
+- Merge the type generator and structured JSON editor - [`d01e72214c`](https://github.com/Ding-Ding-Projects/worldlens/commit/d01e72214ce7c015d1ace9fad6d96d11bf7f4017) _(summary of 4 commits, also listed here)_
+- Finish the type generator and JSON editor: copy, tests, docs, Kid Mode label - [`1792a31eb5`](https://github.com/Ding-Ding-Projects/worldlens/commit/1792a31eb5227a14a2be2ef7383bcd19a3bf5be5)
+- Work in progress: type generator and JSON editor, unfinished - [`3ad9184b82`](https://github.com/Ding-Ding-Projects/worldlens/commit/3ad9184b82da7fd00fef973a16d869b73ddaaf8f)
+
+### Build, release and tooling
+
+- Merge remote-tracking branch 'origin/main' into worktree-agent-ace4f85f0c1abd73a - [`a6cf84a8cb`](https://github.com/Ding-Ding-Projects/worldlens/commit/a6cf84a8cb0176f291c20428b8c2d415f366d898) _(summary of 8 commits, also listed here)_
+
+## 1.0.2492 - 2026-11-25
+
+Tagged at [`2d2e230884`](https://github.com/Ding-Ding-Projects/worldlens/commit/2d2e2308846f0da3c43024a7cffd3be286bd46d5).
+
+### Interface
+
+- Merge the bundled TinyMCE editor for marker notes - [`2d2e230884`](https://github.com/Ding-Ding-Projects/worldlens/commit/2d2e2308846f0da3c43024a7cffd3be286bd46d5) _(summary of 4 commits, also listed here)_
+- Use a bundled TinyMCE for the marker note, with guards and docs - [`98b408c356`](https://github.com/Ding-Ding-Projects/worldlens/commit/98b408c356c6835f6b83ce11c7a3ce168ab3155b)
+- Work in progress: TinyMCE rich text field, unfinished - [`0ce8085e9c`](https://github.com/Ding-Ding-Projects/worldlens/commit/0ce8085e9c42083fc7f3392fda055c75331d6f41)
+
+### Build, release and tooling
+
+- Merge remote-tracking branch 'origin/main' into worktree-agent-a365c658d35f370aa - [`9219282af5`](https://github.com/Ding-Ding-Projects/worldlens/commit/9219282af52ee2a2d5a590a3c0085ff2ae380e00) _(summary of 8 commits, also listed here)_
+
+## 1.0.2490 - 2026-11-25
+
+Tagged at [`987da24e17`](https://github.com/Ding-Ding-Projects/worldlens/commit/987da24e176e1c723ab55043b6ed33408e0ec13a).
+
+### Landing page and documentation site
+
+- Match the PDF outline's part headings without regard to whitespace - [`987da24e17`](https://github.com/Ding-Ding-Projects/worldlens/commit/987da24e176e1c723ab55043b6ed33408e0ec13a)
+
+### Build, release and tooling
+
+- Merge one-command setup for the hosted application - [`a572e49f43`](https://github.com/Ding-Ding-Projects/worldlens/commit/a572e49f432237ef5f771667c7f8c8d60a38ba33) _(summary of 2 commits, also listed here)_
+- Add a one-command setup for the hosted application - [`3b7de81ee6`](https://github.com/Ding-Ding-Projects/worldlens/commit/3b7de81ee6ace1aad6abead900fc8e847f01e72c)
+- Merge the phone-size PDF edition of the documentation, built and verified in the release job - [`fecebcb882`](https://github.com/Ding-Ding-Projects/worldlens/commit/fecebcb882b43f9078adfb41e1fb8c7992f53fb0) _(summary of 2 commits, also listed here)_
+- Attach a phone-size PDF edition of the documentation to every release - [`cc2fa8ca04`](https://github.com/Ding-Ding-Projects/worldlens/commit/cc2fa8ca0495edae0860059ce7bfb6a3163e5fa0)
+
+### Documentation
+
+- Record where the session stopped and what is unfinished - [`566719b23d`](https://github.com/Ding-Ding-Projects/worldlens/commit/566719b23d86f17c469508a09904575518ccdbfc)
+
+## 1.0.2481 - 2026-11-25
+
+Tagged at [`330e322f63`](https://github.com/Ding-Ding-Projects/worldlens/commit/330e322f63964115dc8531eaf4d0718045f46dfd).
+
+### Documentation
+
+- Map the four newly built features in the delivery inventory - [`330e322f63`](https://github.com/Ding-Ding-Projects/worldlens/commit/330e322f63964115dc8531eaf4d0718045f46dfd)
+
+## 1.0.2480 - 2026-11-25
+
+Tagged at [`7570eadfa6`](https://github.com/Ding-Ding-Projects/worldlens/commit/7570eadfa644b9a399660391cb7ed58ef50a4c80).
+
+### Interface
+
+- Merge the Kid Mode label for the Data folders section - [`59bfb3e870`](https://github.com/Ding-Ding-Projects/worldlens/commit/59bfb3e8702866a7df1147752a5e04457adfe673) _(summary of 2 commits, also listed here)_
+- Give the Data folders section its Kid Mode label - [`79c81cf5a0`](https://github.com/Ding-Ding-Projects/worldlens/commit/79c81cf5a062239c0032e8e5cda8bdf641e9c1d2)
+
+### Desktop shell
+
+- Save profile history even while the app holds some files open - [`7570eadfa6`](https://github.com/Ding-Ding-Projects/worldlens/commit/7570eadfa644b9a399660391cb7ed58ef50a4c80)
+- Merge choosing the profile and save folders, with Git history for the profile folder - [`a9256834da`](https://github.com/Ding-Ding-Projects/worldlens/commit/a9256834dae7ce3c5b38baab62fb80c764acf3cd) _(summary of 2 commits, also listed here)_
+- Let people choose the profile and save folders, and keep the profile as a Git history - [`3a91bec24b`](https://github.com/Ding-Ding-Projects/worldlens/commit/3a91bec24bfbc0463f5efcc6b6591a78ae28fd11)
+
+## 1.0.2476 - 2026-11-25
+
+Tagged at [`14b30d124c`](https://github.com/Ding-Ding-Projects/worldlens/commit/14b30d124c76a7e2dfd1ac8ae4014ea36dba1ae8).
+
+### Interface
+
+- Merge the Update coming soon card, fed by the public build status - [`14b30d124c`](https://github.com/Ding-Ding-Projects/worldlens/commit/14b30d124c76a7e2dfd1ac8ae4014ea36dba1ae8) _(summary of 2 commits, also listed here)_
+- Add "Update coming soon" card for builds that are made but not yet published - [`da181f1e9c`](https://github.com/Ding-Ding-Projects/worldlens/commit/da181f1e9c75bf5fa437406613f303a3f89aa6b2)
+
+## 1.0.2475 - 2026-11-25
+
+Tagged at [`59a223fcbf`](https://github.com/Ding-Ding-Projects/worldlens/commit/59a223fcbf0ae5e4a9676c277f63693e3e50e1eb).
+
+### Interface
+
+- Merge quick add beside Settings pointers for the maps folder and download consent - [`59a223fcbf`](https://github.com/Ding-Ding-Projects/worldlens/commit/59a223fcbf0ae5e4a9676c277f63693e3e50e1eb) _(summary of 2 commits, also listed here)_
+- Add a quick-add control beside every Settings pointer - [`4aeb8e05dd`](https://github.com/Ding-Ding-Projects/worldlens/commit/4aeb8e05dd77dbe4fc5555b871e978952c314b41)
+
+## 1.0.2472 - 2026-11-25
+
+Tagged at [`e76cdcc0c4`](https://github.com/Ding-Ding-Projects/worldlens/commit/e76cdcc0c4227a8bc90be7b391c4f0efdd462571).
+
+### Interface
+
+- Merge the guided tour work: a tour per page, a hidden-control step and Help and Settings entries - [`e76cdcc0c4`](https://github.com/Ding-Ding-Projects/worldlens/commit/e76cdcc0c4227a8bc90be7b391c4f0efdd462571) _(summary of 2 commits, also listed here)_
+- Bring the guided tour up to a full coach-card contract with per-destination tours - [`f5f77537fa`](https://github.com/Ding-Ding-Projects/worldlens/commit/f5f77537fa8edc1f48b8eff819d97135da92913e)
+
+## 1.0.2471 - 2026-11-25
+
+Tagged at [`a481a72d7e`](https://github.com/Ding-Ding-Projects/worldlens/commit/a481a72d7e23c8abfcee8213db87dba2afd07e52).
+
+### Documentation
+
+- Track ten more required features in the delivery inventory - [`a481a72d7e`](https://github.com/Ding-Ding-Projects/worldlens/commit/a481a72d7e23c8abfcee8213db87dba2afd07e52)
+
+## 1.0.2470 - 2026-11-25
+
+Tagged at [`3a20b9f4df`](https://github.com/Ding-Ding-Projects/worldlens/commit/3a20b9f4dff47f9a9926a84d99f710561e627101).
+
+### Elsewhere in the repository
+
+- Add the Take a tour design boards - [`3a20b9f4df`](https://github.com/Ding-Ding-Projects/worldlens/commit/3a20b9f4dff47f9a9926a84d99f710561e627101)
+
+## 1.0.2467 - 2026-11-25
+
+Tagged at [`0aee8b86b7`](https://github.com/Ding-Ding-Projects/worldlens/commit/0aee8b86b784ad4ee0823da4ca08d472f371345a).
+
+### Interface
+
+- Escape personal vocabulary values before they enter translated messages - [`0aee8b86b7`](https://github.com/Ding-Ding-Projects/worldlens/commit/0aee8b86b784ad4ee0823da4ca08d472f371345a)
+
+## 1.0.2465 - 2026-11-25
+
+Tagged at [`0f542563c3`](https://github.com/Ding-Ding-Projects/worldlens/commit/0f542563c338c64723b0798be5db0a73ae6ba207).
+
+### Desktop shell
+
+- Keep the interface on the same port so its storage survives a restart - [`0f542563c3`](https://github.com/Ding-Ding-Projects/worldlens/commit/0f542563c338c64723b0798be5db0a73ae6ba207)
+
+## 1.0.2463 - 2026-11-24
+
+Tagged at [`fbc8506cad`](https://github.com/Ding-Ding-Projects/worldlens/commit/fbc8506cad25a3938fa4f2f026afd3ebe312f53a).
+
+### Interface
+
+- Keep Work's tabs when the shell migrates a saved workspace - [`934926d574`](https://github.com/Ding-Ding-Projects/worldlens/commit/934926d574dd6992600f69b010aff6ef3f31f2bf)
+- Work in progress: keep Work's tabs across the shell migration - [`43a621f092`](https://github.com/Ding-Ding-Projects/worldlens/commit/43a621f0929a0446f90eedc9129dc78e8d9e07a5)
+
+### Desktop shell
+
+- Accept the app's own renderer in the generation and bot IPC checks - [`fbc8506cad`](https://github.com/Ding-Ding-Projects/worldlens/commit/fbc8506cad25a3938fa4f2f026afd3ebe312f53a)
+
+## 1.0.2455 - 2026-11-24
+
+Tagged at [`8ea1589214`](https://github.com/Ding-Ding-Projects/worldlens/commit/8ea15892143631b313bce3acefab96334bf3c94a).
+
+### Elsewhere in the repository
+
+- Note the built and pinned management site on the Admin board - [`8ea1589214`](https://github.com/Ding-Ding-Projects/worldlens/commit/8ea15892143631b313bce3acefab96334bf3c94a)
+
+## 1.0.2454 - 2026-11-24
+
+Tagged at [`6b42f64164`](https://github.com/Ding-Ding-Projects/worldlens/commit/6b42f6416429c20f28066d3ddcca2254a8329851).
+
+### Interface
+
+- Let an enchantment action happen only in a biome - [`6b42f64164`](https://github.com/Ding-Ding-Projects/worldlens/commit/6b42f6416429c20f28066d3ddcca2254a8329851)
+
+## 1.0.2453 - 2026-11-24
+
+Tagged at [`03ccb76ea4`](https://github.com/Ding-Ding-Projects/worldlens/commit/03ccb76ea45d5009ed79100fdf63f2e7cd583b06).
+
+### Interface
+
+- Place a block and choose when an enchantment action happens - [`03ccb76ea4`](https://github.com/Ding-Ding-Projects/worldlens/commit/03ccb76ea45d5009ed79100fdf63f2e7cd583b06)
+
+## 1.0.2452 - 2026-11-24
+
+Tagged at [`a3d3cd0c45`](https://github.com/Ding-Ding-Projects/worldlens/commit/a3d3cd0c456caff45e4cd1799ead358f16a40426).
+
+### Interface
+
+- Show particles and wear the item from enchantment actions - [`a3d3cd0c45`](https://github.com/Ding-Ding-Projects/worldlens/commit/a3d3cd0c456caff45e4cd1799ead358f16a40426)
+
+## 1.0.2451 - 2026-11-24
+
+Tagged at [`3aacce0e7b`](https://github.com/Ding-Ding-Projects/worldlens/commit/3aacce0e7b7b37b5ad893de92eb22044296a09f8).
+
+### Interface
+
+- Edit enchantments' attribute modifiers in the data pack studio - [`3aacce0e7b`](https://github.com/Ding-Ding-Projects/worldlens/commit/3aacce0e7b7b37b5ad893de92eb22044296a09f8)
+
+## 1.0.2442 - 2026-11-24
+
+Tagged at [`48acfb3c01`](https://github.com/Ding-Ding-Projects/worldlens/commit/48acfb3c01a6bb519518676887a4c71d779f5c34).
+
+### Interface
+
+- Let enchantment actions run a function or play a sound - [`48acfb3c01`](https://github.com/Ding-Ding-Projects/worldlens/commit/48acfb3c01a6bb519518676887a4c71d779f5c34)
+
+## 1.0.2441 - 2026-11-24
+
+Tagged at [`204ac71599`](https://github.com/Ding-Ding-Projects/worldlens/commit/204ac71599d1fca918836b94a3b60b0edfd7fce1).
+
+### Interface
+
+- Add summon, explode, chance and position fades to the data pack studio - [`204ac71599`](https://github.com/Ding-Ding-Projects/worldlens/commit/204ac71599d1fca918836b94a3b60b0edfd7fce1)
+
+## 1.0.2440 - 2026-11-24
+
+Tagged at [`293892274c`](https://github.com/Ding-Ding-Projects/worldlens/commit/293892274c486039617dfab914404bb1d62bfa14).
+
+### Documentation
+
+- Offer the 1.0.2439 server-site and hosted images by default - [`293892274c`](https://github.com/Ding-Ding-Projects/worldlens/commit/293892274c486039617dfab914404bb1d62bfa14)
+
+## 1.0.2439 - 2026-11-24
+
+Tagged at [`784d2e2315`](https://github.com/Ding-Ding-Projects/worldlens/commit/784d2e2315bb4723e6dfb3a1380371035a8e4b1f).
+
+### Desktop shell
+
+- Keep a Docker server's log in order so the live console sees new lines - [`784d2e2315`](https://github.com/Ding-Ding-Projects/worldlens/commit/784d2e2315bb4723e6dfb3a1380371035a8e4b1f)
+
+## 1.0.2437 - 2026-11-24
+
+Tagged at [`70ca7006cd`](https://github.com/Ding-Ding-Projects/worldlens/commit/70ca7006cdd1a1264e0a855c90cc9293e228e57b).
+
+### Documentation
+
+- Offer the 1.0.2435 server-site and hosted images by default - [`70ca7006cd`](https://github.com/Ding-Ding-Projects/worldlens/commit/70ca7006cdd1a1264e0a855c90cc9293e228e57b)
+
+## 1.0.2435 - 2026-11-24
+
+Tagged at [`b5313d85d6`](https://github.com/Ding-Ding-Projects/worldlens/commit/b5313d85d6a91931cbe9c536e21117aaa4bee0bd).
+
+### Desktop shell
+
+- Make the appliance site's console and commands work end to end - [`b5313d85d6`](https://github.com/Ding-Ding-Projects/worldlens/commit/b5313d85d6a91931cbe9c536e21117aaa4bee0bd)
+
+## 1.0.2433 - 2026-11-24
+
+Tagged at [`6e8ca31f39`](https://github.com/Ding-Ding-Projects/worldlens/commit/6e8ca31f3994a4430f920bd2ea624af4b1ad7f61).
+
+### Documentation
+
+- Name the pinned v1.0.2420 bases in the Cantonese appliance notes - [`6e8ca31f39`](https://github.com/Ding-Ding-Projects/worldlens/commit/6e8ca31f3994a4430f920bd2ea624af4b1ad7f61)
+
+## 1.0.2432 - 2026-11-24
+
+Tagged at [`052626765f`](https://github.com/Ding-Ding-Projects/worldlens/commit/052626765f408f2e04dd99713a92f29dde79ee00).
+
+### Documentation
+
+- Pin the v1.0.2420 appliance bases that start the server with its console pipe - [`052626765f`](https://github.com/Ding-Ding-Projects/worldlens/commit/052626765f408f2e04dd99713a92f29dde79ee00)
+
+## 1.0.2429 - 2026-11-24
+
+Tagged at [`95a85e39d0`](https://github.com/Ding-Ding-Projects/worldlens/commit/95a85e39d06202c04ecfcaa48d95bf7c365badcb).
+
+### Desktop shell
+
+- Point the appliance site at the server's real folder and console pipe - [`95a85e39d0`](https://github.com/Ding-Ding-Projects/worldlens/commit/95a85e39d06202c04ecfcaa48d95bf7c365badcb)
+
+## 1.0.2427 - 2026-11-24
+
+Tagged at [`af33ce23eb`](https://github.com/Ding-Ding-Projects/worldlens/commit/af33ce23ebc52eb3be17870777d56d5366ec7acd).
+
+### Interface
+
+- Edit after-attack enchantment actions and tag swap rules in the studio - [`af33ce23eb`](https://github.com/Ding-Ding-Projects/worldlens/commit/af33ce23ebc52eb3be17870777d56d5366ec7acd)
+
+## 1.0.2426 - 2026-11-24
+
+Tagged at [`6f5a57f74a`](https://github.com/Ding-Ding-Projects/worldlens/commit/6f5a57f74af6ac2bf0c2b94b46dda9f12128064a).
+
+### Documentation
+
+- Offer the 1.0.2414 hosted and server-site images by default - [`6f5a57f74a`](https://github.com/Ding-Ding-Projects/worldlens/commit/6f5a57f74af6ac2bf0c2b94b46dda9f12128064a)
+
+## 1.0.2421 - 2026-11-24
+
+Tagged at [`cf5da96eb7`](https://github.com/Ding-Ding-Projects/worldlens/commit/cf5da96eb73cd3e35498e6d615165cdcc06616d6).
+
+### Interface
+
+- Edit enchantment effects by level and rule processor swaps in the studio - [`cf5da96eb7`](https://github.com/Ding-Ding-Projects/worldlens/commit/cf5da96eb73cd3e35498e6d615165cdcc06616d6)
+
+## 1.0.2420 - 2026-11-24
+
+Tagged at [`34c8296815`](https://github.com/Ding-Ding-Projects/worldlens/commit/34c8296815827b310b4b310415ddac68fd3c4fa5).
+
+### Interface
+
+- Edit jigsaw pools and processor lists as steps in the data pack studio - [`34c8296815`](https://github.com/Ding-Ding-Projects/worldlens/commit/34c8296815827b310b4b310415ddac68fd3c4fa5)
+
+## 1.0.2418 - 2026-11-24
+
+Tagged at [`34e1a11e91`](https://github.com/Ding-Ding-Projects/worldlens/commit/34e1a11e918e5ae3f5e17e2aba2094c40a5d3bab).
+
+### Landing page and documentation site
+
+- Stop the School mode panel test racing its own digest - [`34e1a11e91`](https://github.com/Ding-Ding-Projects/worldlens/commit/34e1a11e918e5ae3f5e17e2aba2094c40a5d3bab)
+
+## 1.0.2416 - 2026-11-24
+
+Tagged at [`24da1a7593`](https://github.com/Ding-Ding-Projects/worldlens/commit/24da1a7593e4346c8dd2930d724e04c7393662fa).
+
+### Interface
+
+- Give every other registry part a form of its fields in the data pack studio - [`24da1a7593`](https://github.com/Ding-Ding-Projects/worldlens/commit/24da1a7593e4346c8dd2930d724e04c7393662fa)
+
+## 1.0.2414 - 2026-11-24
+
+Tagged at [`e1bb8a4c81`](https://github.com/Ding-Ding-Projects/worldlens/commit/e1bb8a4c814ffb8a6ab801fe3d2982a1e2e1cf6e).
+
+### Desktop shell
+
+- Add players, a command box and the sign-in policy to the management page - [`e1bb8a4c81`](https://github.com/Ding-Ding-Projects/worldlens/commit/e1bb8a4c814ffb8a6ab801fe3d2982a1e2e1cf6e)
+
+## 1.0.2413 - 2026-11-24
+
+Tagged at [`9f86c04583`](https://github.com/Ding-Ding-Projects/worldlens/commit/9f86c045832c4268ecdc86311f51e72554e2a3ed).
+
+### Desktop shell
+
+- Give the server management site a page after sign-in, and keep viewers read-only - [`9f86c04583`](https://github.com/Ding-Ding-Projects/worldlens/commit/9f86c045832c4268ecdc86311f51e72554e2a3ed)
+
+## 1.0.2412 - 2026-11-24
+
+Tagged at [`2452ffbcf2`](https://github.com/Ding-Ding-Projects/worldlens/commit/2452ffbcf2f2abc4650abe5fbee527c083398036).
+
+### Desktop shell
+
+- Save a data pack onto a managed server, and accept one on the web console - [`2452ffbcf2`](https://github.com/Ding-Ding-Projects/worldlens/commit/2452ffbcf2f2abc4650abe5fbee527c083398036)
+
+## 1.0.2411 - 2026-11-24
+
+Tagged at [`ca655f299a`](https://github.com/Ding-Ding-Projects/worldlens/commit/ca655f299a95a3d34f403b0df8823426d1ec1d0c).
+
+### Interface
+
+- Add typed editors for world generation parts in the data pack studio - [`ca655f299a`](https://github.com/Ding-Ding-Projects/worldlens/commit/ca655f299a95a3d34f403b0df8823426d1ec1d0c)
+
+## 1.0.2409 - 2026-11-24
+
+Tagged at [`64c2c8d684`](https://github.com/Ding-Ding-Projects/worldlens/commit/64c2c8d684badf6393636066c035f4f79b0a9100).
+
+### Interface
+
+- Give item modifiers a step editor in the data pack studio - [`64c2c8d684`](https://github.com/Ding-Ding-Projects/worldlens/commit/64c2c8d684badf6393636066c035f4f79b0a9100)
+
+## 1.0.2407 - 2026-11-24
+
+Tagged at [`5bb0dcda0f`](https://github.com/Ding-Ding-Projects/worldlens/commit/5bb0dcda0f7c0d9a6c8b6a9846d3dbf9ce3c1549).
+
+### Documentation
+
+- Record today's palette, contract-check and data pack studio work in the handoff - [`5bb0dcda0f`](https://github.com/Ding-Ding-Projects/worldlens/commit/5bb0dcda0f7c0d9a6c8b6a9846d3dbf9ce3c1549)
+
+## 1.0.2405 - 2026-11-24
+
+Tagged at [`3def1759aa`](https://github.com/Ding-Ding-Projects/worldlens/commit/3def1759aad0e39d3b3670a3b41ef12b3e2c6fd0).
+
+### Interface
+
+- Drag advancements to parent them, save a pack into a world, classify hosted channels - [`3def1759aa`](https://github.com/Ding-Ding-Projects/worldlens/commit/3def1759aad0e39d3b3670a3b41ef12b3e2c6fd0)
+
+## 1.0.2404 - 2026-11-24
+
+Tagged at [`9209093ef2`](https://github.com/Ding-Ding-Projects/worldlens/commit/9209093ef29d42db27cf18688cbf609559a77965).
+
+### Interface
+
+- Add every other registry, version overlays and search to the data pack studio - [`9209093ef2`](https://github.com/Ding-Ding-Projects/worldlens/commit/9209093ef29d42db27cf18688cbf609559a77965)
+
+## 1.0.2403 - 2026-11-24
+
+Tagged at [`8e0e02a39a`](https://github.com/Ding-Ding-Projects/worldlens/commit/8e0e02a39a00a073e391fca56d397d1bf75ea587).
+
+### Interface
+
+- Clear the fourteen failing UI contract checks - [`8e0e02a39a`](https://github.com/Ding-Ding-Projects/worldlens/commit/8e0e02a39a00a073e391fca56d397d1bf75ea587)
+
+## 1.0.2401 - 2026-11-24
+
+Tagged at [`8901be5ebd`](https://github.com/Ding-Ding-Projects/worldlens/commit/8901be5ebde6ceb6ee9f8e700a06fb269ed3ecb2).
+
+### Interface
+
+- Stop the palette freezing on typing, open the tools tab, match vocab case - [`8901be5ebd`](https://github.com/Ding-Ding-Projects/worldlens/commit/8901be5ebde6ceb6ee9f8e700a06fb269ed3ecb2)
+
+## 1.0.2391 - 2026-11-23
+
+Tagged at [`ac660de99e`](https://github.com/Ding-Ding-Projects/worldlens/commit/ac660de99e4c5c32dc3fd4cca62546eb1a037509).
+
+### Interface
+
+- Add biomes with a climate graph to the data pack studio - [`ac660de99e`](https://github.com/Ding-Ding-Projects/worldlens/commit/ac660de99e4c5c32dc3fd4cca62546eb1a037509)
+
+## 1.0.2390 - 2026-11-23
+
+Tagged at [`1422a2edb8`](https://github.com/Ding-Ding-Projects/worldlens/commit/1422a2edb87e5ca799e1b774cc19a02f99011af1).
+
+### Interface
+
+- Add a highlighting, autocompleting function editor to the studio - [`1422a2edb8`](https://github.com/Ding-Ding-Projects/worldlens/commit/1422a2edb87e5ca799e1b774cc19a02f99011af1)
+
+## 1.0.2388 - 2026-11-23
+
+Tagged at [`2722b49890`](https://github.com/Ding-Ding-Projects/worldlens/commit/2722b49890da6f03fdc2d6efcfffec03094dbf91).
+
+### Interface
+
+- Encode opened binary files in chunks - [`2722b49890`](https://github.com/Ding-Ding-Projects/worldlens/commit/2722b49890da6f03fdc2d6efcfffec03094dbf91)
+
+## 1.0.2387 - 2026-11-23
+
+Tagged at [`dc8d5a8969`](https://github.com/Ding-Ding-Projects/worldlens/commit/dc8d5a8969547f9ec02ae804e5268a9d60517163).
+
+### Interface
+
+- Keep pack.png and other binary files when opening a pack - [`dc8d5a8969`](https://github.com/Ding-Ding-Projects/worldlens/commit/dc8d5a8969547f9ec02ae804e5268a9d60517163)
+
+## 1.0.2386 - 2026-11-23
+
+Tagged at [`fb5453e2de`](https://github.com/Ding-Ding-Projects/worldlens/commit/fb5453e2de68d7fd3eb119737c53e2e4a913a867).
+
+### Interface
+
+- Open an existing data pack .zip in the studio - [`fb5453e2de`](https://github.com/Ding-Ding-Projects/worldlens/commit/fb5453e2de68d7fd3eb119737c53e2e4a913a867)
+
+## 1.0.2385 - 2026-11-23
+
+Tagged at [`3ddf6df58f`](https://github.com/Ding-Ding-Projects/worldlens/commit/3ddf6df58f5f4578302b6e3d3cd7daf06baa1317).
+
+### Interface
+
+- Add the predicate block editor to the data pack studio - [`3ddf6df58f`](https://github.com/Ding-Ding-Projects/worldlens/commit/3ddf6df58f5f4578302b6e3d3cd7daf06baa1317)
+
+## 1.0.2383 - 2026-11-23
+
+Tagged at [`12749fddde`](https://github.com/Ding-Ding-Projects/worldlens/commit/12749fdddedcbaceee97622e0d64338b0c2f9ea2).
+
+### Interface
+
+- Add predicate blocks to the data pack model - [`12749fddde`](https://github.com/Ding-Ding-Projects/worldlens/commit/12749fdddedcbaceee97622e0d64338b0c2f9ea2)
+
+## 1.0.2382 - 2026-11-23
+
+Tagged at [`54d3962f26`](https://github.com/Ding-Ding-Projects/worldlens/commit/54d3962f269b1cddd52ac15be96ab10428c4db35).
+
+### Interface
+
+- Start the data pack studio: advancement tree, drop chances, file tree - [`54d3962f26`](https://github.com/Ding-Ding-Projects/worldlens/commit/54d3962f269b1cddd52ac15be96ab10428c4db35)
+
+## 1.0.2381 - 2026-11-23
+
+Tagged at [`0ec1a38317`](https://github.com/Ding-Ding-Projects/worldlens/commit/0ec1a383170b805141cad04400611ae3761219e9).
+
+### Desktop shell
+
+- Pin the v1.0.2376 appliance bases with the storage and boot fixes - [`0ec1a38317`](https://github.com/Ding-Ding-Projects/worldlens/commit/0ec1a383170b805141cad04400611ae3761219e9)
+
+## 1.0.2380 - 2026-11-23
+
+Tagged at [`9cada2a6b0`](https://github.com/Ding-Ding-Projects/worldlens/commit/9cada2a6b0204cc4193ec3dc38faf2190a5e645f).
+
+### Documentation
+
+- Record the Minecraft appliance booting under QEMU - [`9cada2a6b0`](https://github.com/Ding-Ding-Projects/worldlens/commit/9cada2a6b0204cc4193ec3dc38faf2190a5e645f)
+
+## 1.0.2378 - 2026-11-23
+
+Tagged at [`f15232f43f`](https://github.com/Ding-Ding-Projects/worldlens/commit/f15232f43fdcc14f8e60596d1b79c74d9eb74447).
+
+### Elsewhere in the repository
+
+- Move Docker onto appliance storage even when its folder is a mount - [`f15232f43f`](https://github.com/Ding-Ding-Projects/worldlens/commit/f15232f43fdcc14f8e60596d1b79c74d9eb74447)
+
+## 1.0.2376 - 2026-11-23
+
+Tagged at [`39b9197947`](https://github.com/Ding-Ding-Projects/worldlens/commit/39b91979476ba58c9c7b8a082f33158a58b553bc).
+
+### Elsewhere in the repository
+
+- Restart Docker without stopping the boot service that needs it - [`39b9197947`](https://github.com/Ding-Ding-Projects/worldlens/commit/39b91979476ba58c9c7b8a082f33158a58b553bc)
+
+## 1.0.2375 - 2026-11-23
+
+Tagged at [`a623f0a9a5`](https://github.com/Ding-Ding-Projects/worldlens/commit/a623f0a9a54d0d9211ef730ba90b5767ebd2366b).
+
+### Elsewhere in the repository
+
+- Bound and report each step of moving Docker onto appliance storage - [`a623f0a9a5`](https://github.com/Ding-Ding-Projects/worldlens/commit/a623f0a9a54d0d9211ef730ba90b5767ebd2366b)
+
+## 1.0.2371 - 2026-11-23
+
+Tagged at [`f6bda0c930`](https://github.com/Ding-Ding-Projects/worldlens/commit/f6bda0c93085e2ad4ba0ee63f96ff85e41edbc64).
+
+### Elsewhere in the repository
+
+- Format the appliance storage partition without zeroing or discarding - [`f6bda0c930`](https://github.com/Ding-Ding-Projects/worldlens/commit/f6bda0c93085e2ad4ba0ee63f96ff85e41edbc64)
+
+## 1.0.2370 - 2026-11-23
+
+Tagged at [`e569c7e289`](https://github.com/Ding-Ding-Projects/worldlens/commit/e569c7e28916308040a01f4d6b524cc4c6b24e5a).
+
+### Elsewhere in the repository
+
+- Design the data pack studio redesign - [`e569c7e289`](https://github.com/Ding-Ding-Projects/worldlens/commit/e569c7e28916308040a01f4d6b524cc4c6b24e5a)
+
+## 1.0.2369 - 2026-11-23
+
+Tagged at [`c1c0615d64`](https://github.com/Ding-Ding-Projects/worldlens/commit/c1c0615d6409b90d0f622d9e42cb2da5c6a86643).
+
+### Documentation
+
+- Record the QEMU results and the data pack redesign request - [`c1c0615d64`](https://github.com/Ding-Ding-Projects/worldlens/commit/c1c0615d6409b90d0f622d9e42cb2da5c6a86643)
+
+### Elsewhere in the repository
+
+- Find the empty storage partition reliably at boot - [`1072fe5006`](https://github.com/Ding-Ding-Projects/worldlens/commit/1072fe500693e928ddfa3f80e25a46e880641004)
+
+## 1.0.2366 - 2026-11-23
+
+Tagged at [`9965ef6a5a`](https://github.com/Ding-Ding-Projects/worldlens/commit/9965ef6a5a000f7258a861d0eec53b5daf4dabc4).
+
+### Desktop shell
+
+- Give app and server appliances their own storage partition - [`9965ef6a5a`](https://github.com/Ding-Ding-Projects/worldlens/commit/9965ef6a5a000f7258a861d0eec53b5daf4dabc4)
+
+## 1.0.2363 - 2026-11-23
+
+Tagged at [`8cf2e65a9a`](https://github.com/Ding-Ding-Projects/worldlens/commit/8cf2e65a9afb20b1ed922ae3e333d44e443e383b).
+
+### Interface
+
+- Fill in the server site and a Minecraft server image by default - [`8cf2e65a9a`](https://github.com/Ding-Ding-Projects/worldlens/commit/8cf2e65a9afb20b1ed922ae3e333d44e443e383b)
+
+## 1.0.2361 - 2026-11-23
+
+Tagged at [`ebd1496af1`](https://github.com/Ding-Ding-Projects/worldlens/commit/ebd1496af12792ee9dfd06c71cdf0fdc59221845).
+
+### Documentation
+
+- Boot an app appliance for real and fix what it showed - [`ebd1496af1`](https://github.com/Ding-Ding-Projects/worldlens/commit/ebd1496af12792ee9dfd06c71cdf0fdc59221845)
+
+## 1.0.2342 - 2026-11-23
+
+Tagged at [`6aade1a079`](https://github.com/Ding-Ding-Projects/worldlens/commit/6aade1a07940bb11262c54abf6eaa9095ed3309b).
+
+### Interface
+
+- Offer the published hosted image by default - [`6aade1a079`](https://github.com/Ding-Ding-Projects/worldlens/commit/6aade1a07940bb11262c54abf6eaa9095ed3309b)
+
+## 1.0.2341 - 2026-11-23
+
+Tagged at [`d6f3957f8f`](https://github.com/Ding-Ding-Projects/worldlens/commit/d6f3957f8fd976747ff19b7a0ab5a5c8485f664b).
+
+### Desktop shell
+
+- Pin the v1.0.2311 appliance bases with the Minecraft server workload - [`d6f3957f8f`](https://github.com/Ding-Ding-Projects/worldlens/commit/d6f3957f8fd976747ff19b7a0ab5a5c8485f664b)
+
+## 1.0.2337 - 2026-11-23
+
+Tagged at [`bbfccd9dbb`](https://github.com/Ding-Ding-Projects/worldlens/commit/bbfccd9dbb204622cebc5fb50b9be8af5cd777b6).
+
+### Documentation
+
+- Note the server appliance workload in the handoff - [`bbfccd9dbb`](https://github.com/Ding-Ding-Projects/worldlens/commit/bbfccd9dbb204622cebc5fb50b9be8af5cd777b6)
+
+## 1.0.2336 - 2026-11-23
+
+Tagged at [`c2a9c7d007`](https://github.com/Ding-Ding-Projects/worldlens/commit/c2a9c7d00746f347be1c6b2a18280dc016e7a799).
+
+### Desktop shell
+
+- Package the server site and add the Minecraft server appliance workload - [`c2a9c7d007`](https://github.com/Ding-Ding-Projects/worldlens/commit/c2a9c7d00746f347be1c6b2a18280dc016e7a799)
+
+## 1.0.2335 - 2026-11-23
+
+Tagged at [`86cf9f17df`](https://github.com/Ding-Ding-Projects/worldlens/commit/86cf9f17dfa73dfe9bfcd1fc5a7277c58f0bbbab).
+
+### Documentation
+
+- Note the server site program in the handoff - [`86cf9f17df`](https://github.com/Ding-Ding-Projects/worldlens/commit/86cf9f17dfa73dfe9bfcd1fc5a7277c58f0bbbab)
+
+## 1.0.2334 - 2026-11-23
+
+Tagged at [`023131304b`](https://github.com/Ding-Ding-Projects/worldlens/commit/023131304bf1d1ebf49b5778e67acd6d22d53edc).
+
+### Desktop shell
+
+- Add the server appliance's management site as its own program - [`023131304b`](https://github.com/Ding-Ding-Projects/worldlens/commit/023131304bf1d1ebf49b5778e67acd6d22d53edc)
+
+## 1.0.2332 - 2026-11-23
+
+Tagged at [`0a5b380a59`](https://github.com/Ding-Ding-Projects/worldlens/commit/0a5b380a59b06b3715572be3a702584976cb1034).
+
+### Documentation
+
+- Note Bedrock saving in the handoff - [`0a5b380a59`](https://github.com/Ding-Ding-Projects/worldlens/commit/0a5b380a59b06b3715572be3a702584976cb1034)
+
+## 1.0.2331 - 2026-11-23
+
+Tagged at [`e3e15bd7cd`](https://github.com/Ding-Ding-Projects/worldlens/commit/e3e15bd7cd876245ca61325e3594a17478ca2b98).
+
+### Rendering and world data
+
+- Save Bedrock records back to the world's LevelDB - [`e3e15bd7cd`](https://github.com/Ding-Ding-Projects/worldlens/commit/e3e15bd7cd876245ca61325e3594a17478ca2b98)
+
+## 1.0.2330 - 2026-11-23
+
+Tagged at [`f7932433bd`](https://github.com/Ding-Ding-Projects/worldlens/commit/f7932433bd54be2c86719501a7f3d7f0bc629b2d).
+
+### Documentation
+
+- Bring the handoff up to date after Bedrock and the base pin - [`f7932433bd`](https://github.com/Ding-Ding-Projects/worldlens/commit/f7932433bd54be2c86719501a7f3d7f0bc629b2d)
+
+## 1.0.2329 - 2026-11-23
+
+Tagged at [`d3256f1be8`](https://github.com/Ding-Ding-Projects/worldlens/commit/d3256f1be815324523bbc5347074c385fdf82dc5).
+
+### Desktop shell
+
+- Pin the v1.0.2300 appliance bases that can run the whole app - [`d3256f1be8`](https://github.com/Ding-Ding-Projects/worldlens/commit/d3256f1be815324523bbc5347074c385fdf82dc5)
+
+## 1.0.2328 - 2026-11-23
+
+Tagged at [`e29253c10c`](https://github.com/Ding-Ding-Projects/worldlens/commit/e29253c10ce1f6cd5c88ec8b6d78645391a33a0c).
+
+### Desktop shell
+
+- Open Bedrock worlds in the NBT editor through their LevelDB - [`e29253c10c`](https://github.com/Ding-Ding-Projects/worldlens/commit/e29253c10ce1f6cd5c88ec8b6d78645391a33a0c)
+
+## 1.0.2326 - 2026-11-23
+
+Tagged at [`9585c12461`](https://github.com/Ding-Ding-Projects/worldlens/commit/9585c1246196ddd9a388bc5d19644c6e489ede00).
+
+### Documentation
+
+- Record the relay planner and the appliance base run in the handoff - [`9585c12461`](https://github.com/Ding-Ding-Projects/worldlens/commit/9585c1246196ddd9a388bc5d19644c6e489ede00)
+
+## 1.0.2325 - 2026-11-23
+
+Tagged at [`cd3febf7af`](https://github.com/Ding-Ding-Projects/worldlens/commit/cd3febf7afdf1225b4d68e8c3102caca44b1d76c).
+
+### Interface
+
+- Add the player relay planner for reaching servers from anywhere - [`cd3febf7af`](https://github.com/Ding-Ding-Projects/worldlens/commit/cd3febf7afdf1225b4d68e8c3102caca44b1d76c)
+
+## 1.0.2324 - 2026-11-23
+
+Tagged at [`8a12032d26`](https://github.com/Ding-Ding-Projects/worldlens/commit/8a12032d26ba0f9981e8f323042fb0d9a8a0be1f).
+
+### Documentation
+
+- Note the wired account sign-in in the handoff - [`8a12032d26`](https://github.com/Ding-Ding-Projects/worldlens/commit/8a12032d26ba0f9981e8f323042fb0d9a8a0be1f)
+
+## 1.0.2323 - 2026-11-23
+
+Tagged at [`55665981bd`](https://github.com/Ding-Ding-Projects/worldlens/commit/55665981bd34b996c3bb1bd022ed7532bb50c44b).
+
+### Desktop shell
+
+- Wire named accounts into the server web console - [`55665981bd`](https://github.com/Ding-Ding-Projects/worldlens/commit/55665981bd34b996c3bb1bd022ed7532bb50c44b)
+
+## 1.0.2322 - 2026-11-23
+
+Tagged at [`03a411aee2`](https://github.com/Ding-Ding-Projects/worldlens/commit/03a411aee2f025a84b295472719fedd457f6451e).
+
+### Documentation
+
+- Update the handoff after the appliance and sign-in work - [`03a411aee2`](https://github.com/Ding-Ding-Projects/worldlens/commit/03a411aee2f025a84b295472719fedd457f6451e)
+
+## 1.0.2321 - 2026-11-23
+
+Tagged at [`5a2f517517`](https://github.com/Ding-Ding-Projects/worldlens/commit/5a2f517517a1b4f6097a1c9d4fd3a783e1199f56).
+
+### Desktop shell
+
+- Add owner-first accounts, passkeys and authenticator codes for the server site - [`5a2f517517`](https://github.com/Ding-Ding-Projects/worldlens/commit/5a2f517517a1b4f6097a1c9d4fd3a783e1199f56)
+
+## 1.0.2320 - 2026-11-23
+
+Tagged at [`b1886a2b44`](https://github.com/Ding-Ding-Projects/worldlens/commit/b1886a2b44607f8e6c23cae54373f05633920035).
+
+### Interface
+
+- List WorldLens containers on Hosted instances - [`b1886a2b44`](https://github.com/Ding-Ding-Projects/worldlens/commit/b1886a2b44607f8e6c23cae54373f05633920035)
+
+## 1.0.2317 - 2026-11-23
+
+Tagged at [`ea0e455e4f`](https://github.com/Ding-Ding-Projects/worldlens/commit/ea0e455e4f3354e12788499dd514d2ef017a403d).
+
+### Desktop shell
+
+- Let an appliance run the whole WorldLens app, not only the map - [`ea0e455e4f`](https://github.com/Ding-Ding-Projects/worldlens/commit/ea0e455e4f3354e12788499dd514d2ef017a403d)
+
+## 1.0.2315 - 2026-11-23
+
+Tagged at [`bde9835b6e`](https://github.com/Ding-Ding-Projects/worldlens/commit/bde9835b6e6705cb2e882a432938793f80368312).
+
+### Documentation
+
+- Bring the handoff and closeout prompt up to date - [`bde9835b6e`](https://github.com/Ding-Ding-Projects/worldlens/commit/bde9835b6e6705cb2e882a432938793f80368312)
+
+## 1.0.2314 - 2026-11-23
+
+Tagged at [`62a63262f9`](https://github.com/Ding-Ding-Projects/worldlens/commit/62a63262f9b2b9db16cdec804bc3c420bae684d7).
+
+### Interface
+
+- Deploy WorldLens as a container in one click - [`62a63262f9`](https://github.com/Ding-Ding-Projects/worldlens/commit/62a63262f9b2b9db16cdec804bc3c420bae684d7)
+
+## 1.0.2311 - 2026-11-23
+
+Tagged at [`39c1dfbf52`](https://github.com/Ding-Ding-Projects/worldlens/commit/39c1dfbf52e6f48d7df361b8387ea6839afdff89).
+
+### Build, release and tooling
+
+- Publish the hosted application image from CI - [`39c1dfbf52`](https://github.com/Ding-Ding-Projects/worldlens/commit/39c1dfbf52e6f48d7df361b8387ea6839afdff89)
+
+## 1.0.2310 - 2026-11-23
+
+Tagged at [`92e41bbf1d`](https://github.com/Ding-Ding-Projects/worldlens/commit/92e41bbf1d6799f8d407588bb5e66620a85f4804).
+
+### Interface
+
+- Add a data pack creator to the Worlds group - [`92e41bbf1d`](https://github.com/Ding-Ding-Projects/worldlens/commit/92e41bbf1d6799f8d407588bb5e66620a85f4804)
+
+## 1.0.2304 - 2026-11-23
+
+Tagged at [`65dbdc907a`](https://github.com/Ding-Ding-Projects/worldlens/commit/65dbdc907a6389856edc431149180c54bd8df7c4).
+
+### Interface
+
+- Add a "render only these chunks" picker to the render mask card - [`65dbdc907a`](https://github.com/Ding-Ding-Projects/worldlens/commit/65dbdc907a6389856edc431149180c54bd8df7c4)
+
+## 1.0.2300 - 2026-11-23
+
+Tagged at [`bfc87f0efd`](https://github.com/Ding-Ding-Projects/worldlens/commit/bfc87f0efde1bdf38030a6ca4b9710eb84aa2cd2).
+
+### Documentation
+
+- Update the closeout prompt - [`bfc87f0efd`](https://github.com/Ding-Ding-Projects/worldlens/commit/bfc87f0efde1bdf38030a6ca4b9710eb84aa2cd2)
+
+## 1.0.2299 - 2026-11-23
+
+Tagged at [`3b23096b77`](https://github.com/Ding-Ding-Projects/worldlens/commit/3b23096b779706dd778d11917fad369715500805).
+
+### Elsewhere in the repository
+
+- Add designs for the player relay, data pack creator and chunk picker - [`3b23096b77`](https://github.com/Ding-Ding-Projects/worldlens/commit/3b23096b779706dd778d11917fad369715500805)
+
+## 1.0.2298 - 2026-11-23
+
+Tagged at [`aab3cf367c`](https://github.com/Ding-Ding-Projects/worldlens/commit/aab3cf367cecfbb2928f2ebb3e6c1899de43cd6e).
+
+### Interface
+
+- Add a chunk view with height, biome, block and light layers - [`aab3cf367c`](https://github.com/Ding-Ding-Projects/worldlens/commit/aab3cf367cecfbb2928f2ebb3e6c1899de43cd6e)
+
+## 1.0.2297 - 2026-11-23
+
+Tagged at [`d762d4bd11`](https://github.com/Ding-Ding-Projects/worldlens/commit/d762d4bd113fbdac9c997ceaf27c47a0712f43a6).
+
+### Interface
+
+- Add a structure editor to the NBT editor - [`d762d4bd11`](https://github.com/Ding-Ding-Projects/worldlens/commit/d762d4bd113fbdac9c997ceaf27c47a0712f43a6)
+
+## 1.0.2295 - 2026-11-23
+
+Tagged at [`9918f5da9b`](https://github.com/Ding-Ding-Projects/worldlens/commit/9918f5da9bb8e826a27957305508edd4710b6565).
+
+### Interface
+
+- Add an inventory and item editor to the NBT editor - [`9918f5da9b`](https://github.com/Ding-Ding-Projects/worldlens/commit/9918f5da9bb8e826a27957305508edd4710b6565)
+
+## 1.0.2294 - 2026-11-23
+
+Tagged at [`a369dee5f4`](https://github.com/Ding-Ding-Projects/worldlens/commit/a369dee5f4cf0d9934eeaf54eb97659fbf994b59).
+
+### Interface
+
+- Add a map art canvas to the NBT editor - [`a369dee5f4`](https://github.com/Ding-Ding-Projects/worldlens/commit/a369dee5f4cf0d9934eeaf54eb97659fbf994b59)
+
+## 1.0.2293 - 2026-11-23
+
+Tagged at [`a83c7a4e77`](https://github.com/Ding-Ding-Projects/worldlens/commit/a83c7a4e7758e8a62653f1cb732741cf5bca7231).
+
+### Rendering and world data
+
+- Open and save LZ4 and external .mcc region chunks - [`a83c7a4e77`](https://github.com/Ding-Ding-Projects/worldlens/commit/a83c7a4e7758e8a62653f1cb732741cf5bca7231)
+
+## 1.0.2292 - 2026-11-23
+
+Tagged at [`b878b2f2a1`](https://github.com/Ding-Ding-Projects/worldlens/commit/b878b2f2a1320af8eb8f6fdcbf5f4ab8da07cb2e).
+
+### Interface
+
+- Add a region canvas to the NBT editor - [`b878b2f2a1`](https://github.com/Ding-Ding-Projects/worldlens/commit/b878b2f2a1320af8eb8f6fdcbf5f4ab8da07cb2e)
+
+## 1.0.2291 - 2026-11-23
+
+Tagged at [`885f981ffa`](https://github.com/Ding-Ding-Projects/worldlens/commit/885f981ffa657b760d3f13d9ff80c9204919988a).
+
+### Interface
+
+- Add a settings form view to the NBT editor - [`885f981ffa`](https://github.com/Ding-Ding-Projects/worldlens/commit/885f981ffa657b760d3f13d9ff80c9204919988a)
+
+## 1.0.2290 - 2026-11-23
+
+Tagged at [`0c18797f16`](https://github.com/Ding-Ding-Projects/worldlens/commit/0c18797f163ba4b35e2f385221d1792d733917f0).
+
+### Documentation
+
+- Refresh the closeout prompt: readable NBT editor and the build queue - [`0c18797f16`](https://github.com/Ding-Ding-Projects/worldlens/commit/0c18797f163ba4b35e2f385221d1792d733917f0)
+
+## 1.0.2289 - 2026-11-23
+
+Tagged at [`6513ecdc02`](https://github.com/Ding-Ding-Projects/worldlens/commit/6513ecdc02b9fdaa0808ff0f9bee75f503d848a8).
+
+### Interface
+
+- Make the NBT editor readable, with a control that fits each value - [`6513ecdc02`](https://github.com/Ding-Ding-Projects/worldlens/commit/6513ecdc02b9fdaa0808ff0f9bee75f503d848a8)
+
+## 1.0.2288 - 2026-11-23
+
+Tagged at [`f92e43af3b`](https://github.com/Ding-Ding-Projects/worldlens/commit/f92e43af3b4f63839bb21ea190eb99f1bca53b91).
+
+### Interface
+
+- Add an NBT field catalogue: readable names and tailored controls - [`f92e43af3b`](https://github.com/Ding-Ding-Projects/worldlens/commit/f92e43af3b4f63839bb21ea190eb99f1bca53b91)
+
+## 1.0.2287 - 2026-11-23
+
+Tagged at [`6c5dadef75`](https://github.com/Ding-Ding-Projects/worldlens/commit/6c5dadef7503afd0ab8b2d0dc469ce947c4b88d4).
+
+### Elsewhere in the repository
+
+- Design readable NBT controls and a Minecraft server appliance - [`6c5dadef75`](https://github.com/Ding-Ding-Projects/worldlens/commit/6c5dadef7503afd0ab8b2d0dc469ce947c4b88d4)
+
+## 1.0.2286 - 2026-11-23
+
+Tagged at [`3e40e09c85`](https://github.com/Ding-Ding-Projects/worldlens/commit/3e40e09c85739333812b1a5a534f30b0f1d29353).
+
+### Documentation
+
+- Add research notes on Minecraft NBT for the readable editor - [`3e40e09c85`](https://github.com/Ding-Ding-Projects/worldlens/commit/3e40e09c85739333812b1a5a534f30b0f1d29353)
+
+## 1.0.2280 - 2026-11-23
+
+Tagged at [`9d832d7cde`](https://github.com/Ding-Ding-Projects/worldlens/commit/9d832d7cdec00eada5e60c1c1dce0a547c83e364).
+
+### Documentation
+
+- Refresh the closeout prompt: strip order, NBT and deploy designs - [`9d832d7cde`](https://github.com/Ding-Ding-Projects/worldlens/commit/9d832d7cdec00eada5e60c1c1dce0a547c83e364)
+
+## 1.0.2278 - 2026-11-23
+
+Tagged at [`2ccdb1c869`](https://github.com/Ding-Ding-Projects/worldlens/commit/2ccdb1c869314f378623cb22a3744182fa1c5617).
+
+### Elsewhere in the repository
+
+- Add design boards for one-click deploys of the whole application - [`2ccdb1c869`](https://github.com/Ding-Ding-Projects/worldlens/commit/2ccdb1c869314f378623cb22a3744182fa1c5617)
+
+## 1.0.2277 - 2026-11-23
+
+Tagged at [`197127596a`](https://github.com/Ding-Ding-Projects/worldlens/commit/197127596a99d736f2f899853d21862b5fce076b).
+
+### Elsewhere in the repository
+
+- Add design boards for a full visual NBT editor - [`197127596a`](https://github.com/Ding-Ding-Projects/worldlens/commit/197127596a99d736f2f899853d21862b5fce076b)
+
+## 1.0.2276 - 2026-11-23
+
+Tagged at [`317387b5c9`](https://github.com/Ding-Ding-Projects/worldlens/commit/317387b5c99f3935f22a7f9ddb5c6755faba71c8).
+
+### Interface
+
+- Keep every Minecraft tool in view and group the strip by BlueMap workflow - [`317387b5c9`](https://github.com/Ding-Ding-Projects/worldlens/commit/317387b5c99f3935f22a7f9ddb5c6755faba71c8)
+
+## 1.0.2273 - 2026-11-23
+
+Tagged at [`a64aedea82`](https://github.com/Ding-Ding-Projects/worldlens/commit/a64aedea821099b62a065180a1542286d8fd430e).
+
+### Elsewhere in the repository
+
+- Fix the work-strip design boards rendering blank - [`a64aedea82`](https://github.com/Ding-Ding-Projects/worldlens/commit/a64aedea821099b62a065180a1542286d8fd430e)
+
+## 1.0.2269 - 2026-11-23
+
+Tagged at [`25a78017a8`](https://github.com/Ding-Ding-Projects/worldlens/commit/25a78017a84e39b20e2bb9882df98b5173e4d062).
+
+### Desktop shell
+
+- build: pin the appliance bases and both container images by digest - [`25a78017a8`](https://github.com/Ding-Ding-Projects/worldlens/commit/25a78017a84e39b20e2bb9882df98b5173e4d062)
+
+## 1.0.2266 - 2026-11-23
+
+Tagged at [`26bf7bb916`](https://github.com/Ding-Ding-Projects/worldlens/commit/26bf7bb9165f4f09b185a3cc548ebd15e2879753).
+
+### Documentation
+
+- Refresh the closeout prompt for the tool tabs work - [`26bf7bb916`](https://github.com/Ding-Ding-Projects/worldlens/commit/26bf7bb9165f4f09b185a3cc548ebd15e2879753)
+
+## 1.0.2265 - 2026-11-23
+
+Tagged at [`66c240e6eb`](https://github.com/Ding-Ding-Projects/worldlens/commit/66c240e6eb998abbc276dc6e6d222b0d2afd697c).
+
+### Documentation
+
+- Record the tool tabs in the design handoff - [`66c240e6eb`](https://github.com/Ding-Ding-Projects/worldlens/commit/66c240e6eb998abbc276dc6e6d222b0d2afd697c)
+
+## 1.0.2264 - 2026-11-23
+
+Tagged at [`a4bda57a8f`](https://github.com/Ding-Ding-Projects/worldlens/commit/a4bda57a8fb03022d79c3aa8dc6776dc8ee500e7).
+
+### Documentation
+
+- Document the Built-in tools and Other tools tabs - [`a4bda57a8f`](https://github.com/Ding-Ding-Projects/worldlens/commit/a4bda57a8fb03022d79c3aa8dc6776dc8ee500e7)
+
+## 1.0.2263 - 2026-11-23
+
+Tagged at [`217e1d0fe3`](https://github.com/Ding-Ding-Projects/worldlens/commit/217e1d0fe388d23d4d203ad6221b073fd4be1ce6).
+
+### Build, release and tooling
+
+- ci: give the arm64 map-server build a builder that can export it - [`217e1d0fe3`](https://github.com/Ding-Ding-Projects/worldlens/commit/217e1d0fe388d23d4d203ad6221b073fd4be1ce6)
+
+## 1.0.2262 - 2026-11-23
+
+Tagged at [`54ff17d117`](https://github.com/Ding-Ding-Projects/worldlens/commit/54ff17d117757588af62f32706c2174b8415ce3a).
+
+### Interface
+
+- Gather general tools and non-map tools into two Work tabs - [`54ff17d117`](https://github.com/Ding-Ding-Projects/worldlens/commit/54ff17d117757588af62f32706c2174b8415ce3a)
+
+## 1.0.2260 - 2026-11-23
+
+Tagged at [`049391060e`](https://github.com/Ding-Ding-Projects/worldlens/commit/049391060e755448af65a9319118a90d3b093122).
+
+### Documentation
+
+- docs: record the real VM, SSH and Raspberry Pi runs for sharing - [`049391060e`](https://github.com/Ding-Ding-Projects/worldlens/commit/049391060e755448af65a9319118a90d3b093122)
+
+## 1.0.2259 - 2026-11-23
+
+Tagged at [`42f0793584`](https://github.com/Ding-Ding-Projects/worldlens/commit/42f0793584c25339f34f97bd52ced04c93b5ec76).
+
+### Desktop shell
+
 - Add the Raspberry Pi appliance and bundle both bases compressed - [`42f0793584`](https://github.com/Ding-Ding-Projects/worldlens/commit/42f0793584c25339f34f97bd52ced04c93b5ec76)
+
+## 1.0.2256 - 2026-11-23
+
+Tagged at [`b7f607c7ee`](https://github.com/Ding-Ding-Projects/worldlens/commit/b7f607c7ee8ee622f3ddaca4e29598cacdecbbcf).
 
 ### Elsewhere in the repository
 

@@ -26,29 +26,2406 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
-        sha: "42f0793584c25339f34f97bd52ced04c93b5ec76",
-        shortSha: "42f0793584",
-        date: "2026-11-23T13:38:20-05:00",
-        subject: "Add the Raspberry Pi appliance and bundle both bases compressed",
-        details: "- appliance/build-base-rpi.sh builds an arm64 image for a Raspberry Pi 3, 4\n  or 5: a FAT boot partition with the Pi firmware, kernel, initramfs and\n  device trees, and an ext4 root with Docker and the map service. Built\n  and inspected in WSL; under QEMU's Pi 3 model it boots its kernel and\n  mounts its root. It has not been booted on a real board yet.\n- The appliance dialog gains a Raspberry Pi target that writes an SD card\n  or USB drive through the same verified disk write; built-in SD readers\n  now count as removable drives, never the boot or system disk.\n- Both build scripts kept a failure's exit code only by accident: the\n  cleanup trap's last command became the status, so a failed build\n  reported success and left a partial image. They now exit with the real\n  code and delete the partial image.\n- The installer now actually carries the bases. Each ships zstd-compressed\n  (258 and 134 MB rather than 3.2 GB raw) and the app expands it into its\n  data folder on first use, verified against the recorded digest. Nothing\n  is downloaded when somebody clicks.\n- The appliance workflow builds and uploads the Pi image too, and may now\n  write the release assets it was already trying to attach.\n\n樹莓派版本都有埋：開機分區、韌體、arm64根目錄全部齊，模擬器入面開到核心掛到根目錄；\n兩個底層映像壓縮好放入安裝檔，第一次用先解壓兼驗指紋，唔使臨時下載。\n另外兩個建置腳本失敗都報成功嘅蟲亦一併捉咗。",
+        sha: "7271e57d9df196dc6ae98c5fc3f894f269386f2a",
+        shortSha: "7271e57d9d",
+        date: "2026-11-25T22:23:19-05:00",
+        subject: "Ship the packages the TypeScript engine imports, and reinstall them when they are missing",
+        details: "Releases 1.0.2490 to 1.0.2502 offered an engine that could not start. The\nengine's own files were in the installer, the manifest said \"available\":\ntrue, and every render stopped with an instruction to \"build the engine\nbundle\", addressed to somebody who had installed an app. An engine with no\ndependencies is a very fast engine, but it does not render much.\n\nCause: electron-builder's copy filter drops a directory named node_modules\nat the root of a copied file set, and no filter pattern brings it back.\ndist/render-engines/typescript was its own file set, so its node_modules\nwas exactly that directory. Confirmed with a real --dir run both ways.\n\nWhat changed:\n\n- Packaging: the render engines are one file set rooted at\n  dist/render-engines, so the engine's node_modules is a nested folder and\n  is copied. afterPack now checks the packaged directory: every listed file\n  and package present, the reinstall archive matching the manifest, and the\n  engine loaded in a separate process from a copy outside the checkout.\n  With the old file sets that check fails the build and names ten packages.\n- Staging: packages are found by tracing the engine's import graph instead\n  of walking dependencies and peerDependencies. The old walk staged 96 MB,\n  60 MB of it a UI framework the engine never imports; the tree is now\n  5.24 MB, which keeps the update package under the size the updater can\n  fetch. Source maps and declarations are no longer staged.\n- The load probe found a second defect hiding behind the first: the staged\n  shared/dist was a second copy that could not resolve its own imports. It\n  is now a re-export of the staged package, one module instance, as in a\n  checkout.\n- Runtime: an installed copy with an incomplete engine reinstalls it from\n  the archive packaged with the app into its data folder, with progress,\n  then carries on with the render. Nothing is downloaded. When it cannot,\n  the failure names each missing piece and the reason.\n- Picker: the Worldlens app engine's state now comes from what is on disk,\n  and the button is disabled with the reason when it cannot start.\n- A packaged app no longer falls back to an engine build found under its\n  working directory, which is how the broken installer looked fine from a\n  checkout.\n- java/staging.test.ts was already red; it now asserts what the staging\n  scripts actually do.\n\nNot verified here: a hosted release with this change, and a full render\nwith this engine in an installed build.\n\nRefs #192\n\n引擎有出貨，佢要用嘅套件就冇跟車，仲話自己 available，一撳 render 就叫個用戶\n「自己 build 返個 engine」。真兇係打包工具見到檔案集最頂層叫 node_modules\n就當垃圾掉。而家成個 render-engines 一齊抄，afterPack 仲會真係 load 一次，\nload 唔到就唔出貨；staging 由 96 MB 減到 5.24 MB；裝咗之後唔齊會自己重裝，\n重裝唔到就講明缺邊件。Hosted release 同真 render 仲未驗。",
         category: "shell",
-        areas: ["shell", "build", "interface", "other"],
-        files: 19,
-    },
-    {
-        sha: "b7f607c7ee8ee622f3ddaca4e29598cacdecbbcf",
-        shortSha: "b7f607c7ee",
-        date: "2026-11-23T13:24:30-05:00",
-        subject: "Add design boards for a decluttered Work strip",
-        details: "Three boards: the Add a job catalogue grouped by purpose against the old\nflat list of 29 jobs, a Built-in tools tab that holds the general tools\nin one list-detail page, and an Other tools tab for the Minecraft tools\nthat are not about maps (NBT editor, Convert). Theme and picked-tool\ntweaks on each board; the README says what goes where and why.\n\n工作列執到好似執屋前嘅雜物房：二十九個 job 擠埋一行，地圖嘢同萬能工具\n撈埋一碟。呢三塊設計板將通用工具收入「內置工具」一個分頁，唔關地圖事嘅\nMinecraft 工具收入「其他工具」，地圖工作留返喺前面。",
-        category: "other",
-        areas: ["other", "docs"],
-        files: 6,
+        areas: ["shell", "interface", "docs", "site"],
+        files: 33,
     }
 ];
 
 /** Every released version, newest first. */
 export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
+    {
+        version: "1.0.2502",
+        tag: "v1.0.2502",
+        date: "2026-11-25T17:52:39-05:00",
+        commit: "1b7ee27617934c6c4809d38b570cc49e186005a7",
+        entries: [
+            {
+                sha: "1b7ee27617934c6c4809d38b570cc49e186005a7",
+                shortSha: "1b7ee27617",
+                date: "2026-11-25T17:52:39-05:00",
+                subject: "Record that the update-size fix is proved in v1.0.2500",
+                details: "One package of 1,989,935,163 bytes, the updater installed it on this PC,\nand the installed build opened with a split that kept its pinned tab.\n\n更新包減肥成功,部機真係更新到,寫返低。",
+                category: "docs",
+                areas: ["docs"],
+                files: 2,
+            }
+        ],
+    },
+    {
+        version: "1.0.2500",
+        tag: "v1.0.2500",
+        date: "2026-11-25T17:27:39-05:00",
+        commit: "3e609ea6f620fd230ff3e808c2b8d8a63da26999",
+        entries: [
+            {
+                sha: "3e609ea6f620fd230ff3e808c2b8d8a63da26999",
+                shortSha: "3e609ea6f6",
+                date: "2026-11-25T17:27:39-05:00",
+                subject: "Keep the update package under the size the updater can fetch",
+                details: "From v1.0.2493 the full update package passed 2,000,000,000 bytes, the\nrelease job split it into parts, and the updater got a 404 for the one\nfile it expects, so installed copies stopped updating. The interface's\nsource maps, about 60 MB that nothing reads at run time, are no longer\npackaged. The release job now fails if an update package would have to\nbe split, rather than publishing a release nobody can update to.\n\nNot yet proved by a hosted run; the handoff says what to check.\n\n個更新包肥過二十億位元組就俾人切開兩份,更新程式搵唔到就投降。而家減咗肥,再肥就直接唔出貨。",
+                category: "build",
+                areas: ["build", "docs", "shell"],
+                files: 5,
+            }
+        ],
+    },
+    {
+        version: "1.0.2497",
+        tag: "v1.0.2497",
+        date: "2026-11-25T16:53:53-05:00",
+        commit: "c1a7066f10921c88a28a4924901d37e0418e5eb2",
+        entries: [
+            {
+                sha: "c1a7066f10921c88a28a4924901d37e0418e5eb2",
+                shortSha: "c1a7066f10",
+                date: "2026-11-25T16:53:53-05:00",
+                subject: "Bring the handoff and inventory up to date with the merged work",
+                details: "Records the TinyMCE field, the type generator, dockview and the PDF fix,\nmaps five more features to their source, and replaces the closeout\nprompt's list of unfinished branches now that they are merged.\n\n三條未完嘅分支都收返晒尾,交更筆記同清單跟返上嚟。",
+                category: "docs",
+                areas: ["docs"],
+                files: 4,
+            }
+        ],
+    },
+    {
+        version: "1.0.2496",
+        tag: "v1.0.2496",
+        date: "2026-11-25T16:49:36-05:00",
+        commit: "1c88349adcb48e068ce351a2d41190c5553124ae",
+        entries: [
+            {
+                sha: "1c88349adcb48e068ce351a2d41190c5553124ae",
+                shortSha: "1c88349adc",
+                date: "2026-11-25T16:49:36-05:00",
+                subject: "Draw dock panes on first render and keep pins when a tab changes pane",
+                details: "- The pane elements now exist before the layout engine does, so the Work\n  workspace is on screen as soon as it mounts instead of a tick later. The\n  whole-shell tests read the tabs straight after mounting and saw none. The\n  same element is reused across a layout reload, which keeps pages mounted.\n- Splitting a pinned tab into a new pane, or moving it to another pane, now\n  keeps it pinned, so it keeps its pinned name and stays protected from a bulk\n  close. Tests cover the model and the mounted workspace, and check that one\n  strip still exposes exactly one tablist and the same tabs.\n\n呢次修咗兩樣：窗格一開就畫出嚟，同埋釘住嘅分頁搬去新窗格都仲係釘住。",
+                category: "interface",
+                areas: ["interface"],
+                files: 4,
+            },
+            {
+                sha: "4890be22d401a15f3813dce9a3ceef538d2a2856",
+                shortSha: "4890be22d4",
+                date: "2026-11-25T16:38:04-05:00",
+                subject: "Merge dockview under the Work tabs: split, float, dock and saved layouts",
+                details: "分頁而家可以拆開左右上下擺、浮起、再泊返埋去,個版面仲記得住。",
+                category: "interface",
+                areas: ["interface", "build", "docs", "other"],
+                files: 26,
+                summarizes: 4,
+            },
+            {
+                sha: "c7c288f4bb666306c601a79fec8d33f7ad5c15c1",
+                shortSha: "c7c288f4bb",
+                date: "2026-11-25T16:33:18-05:00",
+                subject: "Split the Work page into dockable panes with saved layouts",
+                details: "Work is now laid out by dockview (the published npm package, bundled locally,\nMIT) underneath the existing tab strip. Each tab strip is one pane, and the\nstrip, its tabs, pins, groups, four searches, bulk close and appearance editor\nare the same components as before, drawn once per pane. Panes can be split\nbeside or above or below another pane, floated, docked back, maximised and\nresized, and the arrangement can be saved as named layouts.\n\n- Every drag has a command: the tab context menu, a Layouts button on the\n  strip and the command palette all offer split, move to next or previous pane,\n  float, dock and maximise, and each result is announced to screen readers.\n- The stored tab workspace keeps its shape, so saved tabs, groups, pins and\n  order carry over untouched. The arrangement and the named layouts live under\n  their own keys, and an arrangement that does not describe exactly the\n  current strips is dropped, so a damaged layout falls back to side-by-side\n  panes and never to an empty Work page.\n- Other tab strips (settings, editors) do not enable docking and draw as before.\n- Popout windows are not offered.\n\nAdded docs/workspace-layouts.md with its Cantonese section, the NOTICE entry,\nthe copy catalogue surface and tests for the model, storage, fallback and the\nmounted workspace.\n\n呢次將工作頁切開幾個窗格，每個窗格都係原本嗰條分頁列，唔係換咗新嘢。\n排法壞咗都唔會變白頁，頂多打返原形，分頁一個都唔會跌。",
+                category: "interface",
+                areas: ["interface", "docs", "other"],
+                files: 20,
+            },
+            {
+                sha: "375731d0a94941f79cc4e94b68d7a1475c2dd1cf",
+                shortSha: "375731d0a9",
+                date: "2026-11-25T15:58:01-05:00",
+                subject: "Merge remote-tracking branch 'origin/main' into worktree-agent-aef69f60bcb907b17",
+                details: "",
+                category: "build",
+                areas: ["build", "docs", "site", "interface"],
+                files: 19,
+                summarizes: 7,
+            },
+            {
+                sha: "3268d1f274e215ce5fe089d92d9ae7d149271fae",
+                shortSha: "3268d1f274",
+                date: "2026-11-25T15:08:57-05:00",
+                subject: "Work in progress: dockview workspace, unfinished",
+                details: "Saved as a checkpoint when the session stopped. It has not been tested,\ntype-checked or reviewed, and it is not merged. Pick it up from here.\n\n做到一半要收工,先擺低喺度,未測試㗎。",
+                category: "interface",
+                areas: ["interface", "build"],
+                files: 11,
+            }
+        ],
+    },
+    {
+        version: "1.0.2493",
+        tag: "v1.0.2493",
+        date: "2026-11-25T16:12:29-05:00",
+        commit: "d01e72214ce7c015d1ace9fad6d96d11bf7f4017",
+        entries: [
+            {
+                sha: "d01e72214ce7c015d1ace9fad6d96d11bf7f4017",
+                shortSha: "d01e72214c",
+                date: "2026-11-25T16:12:29-05:00",
+                subject: "Merge the type generator and structured JSON editor",
+                details: "掉段 JSON 入去,廿七種語言嘅型別即刻寫好,仲有得用樹狀圖改 JSON。",
+                category: "interface",
+                areas: ["interface", "build", "docs", "other"],
+                files: 30,
+                summarizes: 4,
+            },
+            {
+                sha: "1792a31eb5227a14a2be2ef7383bcd19a3bf5be5",
+                shortSha: "1792a31eb5",
+                date: "2026-11-25T16:08:38-05:00",
+                subject: "Finish the type generator and JSON editor: copy, tests, docs, Kid Mode label",
+                details: "Adds the English and Cantonese catalogue for the type generator, 41 tests\n(generation in seven languages, option definitions, parse and size errors,\nworker protocol, editor operations with undo and redo, schema validation,\nregistration and copy coverage), the article with its Cantonese section,\nthe third-party notices, and the Kid Mode label for the new tool.\n\n呢個類型產生器終於有齊字幕、測試同文件，連細路模式嘅名都有，唔使再裸奔。",
+                category: "interface",
+                areas: ["interface", "docs", "other"],
+                files: 10,
+            },
+            {
+                sha: "a6cf84a8cb0176f291c20428b8c2d415f366d898",
+                shortSha: "a6cf84a8cb",
+                date: "2026-11-25T15:57:56-05:00",
+                subject: "Merge remote-tracking branch 'origin/main' into worktree-agent-ace4f85f0c1abd73a",
+                details: "",
+                category: "build",
+                areas: ["build", "docs", "site", "interface"],
+                files: 21,
+                summarizes: 8,
+            },
+            {
+                sha: "3ad9184b82da7fd00fef973a16d869b73ddaaf8f",
+                shortSha: "3ad9184b82",
+                date: "2026-11-25T15:08:56-05:00",
+                subject: "Work in progress: type generator and JSON editor, unfinished",
+                details: "Saved as a checkpoint when the session stopped. It has not been tested,\ntype-checked or reviewed, and it is not merged. Pick it up from here.\n\n做到一半要收工,先擺低喺度,未測試㗎。",
+                category: "interface",
+                areas: ["interface", "build"],
+                files: 23,
+            }
+        ],
+    },
+    {
+        version: "1.0.2492",
+        tag: "v1.0.2492",
+        date: "2026-11-25T16:02:38-05:00",
+        commit: "2d2e2308846f0da3c43024a7cffd3be286bd46d5",
+        entries: [
+            {
+                sha: "2d2e2308846f0da3c43024a7cffd3be286bd46d5",
+                shortSha: "2d2e230884",
+                date: "2026-11-25T16:02:38-05:00",
+                subject: "Merge the bundled TinyMCE editor for marker notes",
+                details: "地圖標記嘅備註終於有得粗體斜體,仲要全部喺本機,唔使上網。",
+                category: "interface",
+                areas: ["interface", "build", "docs", "other"],
+                files: 20,
+                summarizes: 4,
+            },
+            {
+                sha: "98b408c356c6835f6b83ce11c7a3ce168ab3155b",
+                shortSha: "98b408c356",
+                date: "2026-11-25T16:02:15-05:00",
+                subject: "Use a bundled TinyMCE for the marker note, with guards and docs",
+                details: "The marker note is now a rich text field backed by a self-hosted, pinned\nTinyMCE 8.11.0 (GPL route, no Tiny Cloud, no API key, lazy-loaded chunk).\nRichTextField follows the light and dark theme and the Cantonese interface\nlanguage, shows a stated reason when disabled, falls back to a plain box\nif the editor cannot load, and sanitizes everything it emits. Notes are\nsanitized again where markers are created, edited and imported, and search\nmatches the words, not the tags. A hand-written inventory plus a guard test\nfail on any unlisted multi-line box, contenteditable editor, other rich text\nlibrary or Tiny host reference.\n\n廣東話:標記備註終於有正式嘅富文字編輯器,全部內置、唔上網、跟主題同語言,\n而且出入都洗過兩次;再有人偷偷加個 contenteditable,守衛測試即刻紅燈。",
+                category: "interface",
+                areas: ["interface"],
+                files: 1,
+            },
+            {
+                sha: "9219282af52ee2a2d5a590a3c0085ff2ae380e00",
+                shortSha: "9219282af5",
+                date: "2026-11-25T15:57:51-05:00",
+                subject: "Merge remote-tracking branch 'origin/main' into worktree-agent-a365c658d35f370aa",
+                details: "",
+                category: "build",
+                areas: ["build", "docs", "site", "interface"],
+                files: 21,
+                summarizes: 8,
+            },
+            {
+                sha: "0ce8085e9c42083fc7f3392fda055c75331d6f41",
+                shortSha: "0ce8085e9c",
+                date: "2026-11-25T15:08:55-05:00",
+                subject: "Work in progress: TinyMCE rich text field, unfinished",
+                details: "Saved as a checkpoint when the session stopped. It has not been tested,\ntype-checked or reviewed, and it is not merged. Pick it up from here.\n\n做到一半要收工,先擺低喺度,未測試㗎。",
+                category: "interface",
+                areas: ["interface", "build", "docs", "other"],
+                files: 20,
+            }
+        ],
+    },
+    {
+        version: "1.0.2490",
+        tag: "v1.0.2490",
+        date: "2026-11-25T15:29:48-05:00",
+        commit: "987da24e176e1c723ab55043b6ed33408e0ec13a",
+        entries: [
+            {
+                sha: "987da24e176e1c723ab55043b6ed33408e0ec13a",
+                shortSha: "987da24e17",
+                date: "2026-11-25T15:29:48-05:00",
+                subject: "Match the PDF outline's part headings without regard to whitespace",
+                details: "The release job failed at the PDF check on the hosted runner: the\nverifier found 82 article entries where the inventory has 264. It\nmatched the two part headings exactly, while the browser re-flows\nwhitespace in outline titles and wraps them differently with the\nrunner's fonts, so one part and its articles were not counted. Part\nheadings are now compared the same way article titles already were, and\na mismatch prints the top-level entries it did find.\n\nThis is the likely cause, not a confirmed one: it passes locally either\nway, so the next hosted run decides.\n\n個標題斷行位唔同就當唔見咗成個部分,而家唔計空白先至啱。",
+                category: "site",
+                areas: ["site"],
+                files: 2,
+            },
+            {
+                sha: "566719b23d86f17c469508a09904575518ccdbfc",
+                shortSha: "566719b23d",
+                date: "2026-11-25T15:09:50-05:00",
+                subject: "Record where the session stopped and what is unfinished",
+                details: "The handoff lists what is on main, what was only tested, what was seen\nrunning, and the three checkpoint branches that are not merged.\n\n收工前寫低做到邊,邊樣未掂,聽日嗰位唔使估。",
+                category: "docs",
+                areas: ["docs"],
+                files: 2,
+            },
+            {
+                sha: "a572e49f432237ef5f771667c7f8c8d60a38ba33",
+                shortSha: "a572e49f43",
+                date: "2026-11-25T15:07:29-05:00",
+                subject: "Merge one-command setup for the hosted application",
+                details: "一句指令搞掂,唔使再自己手寫設定檔同密碼。",
+                category: "build",
+                areas: ["build", "docs", "interface"],
+                files: 7,
+                summarizes: 2,
+            },
+            {
+                sha: "3b7de81ee6ace1aad6abead900fc8e847f01e72c",
+                shortSha: "3b7de81ee6",
+                date: "2026-11-25T15:07:02-05:00",
+                subject: "Add a one-command setup for the hosted application",
+                details: "A single dependency-free Node file asks for the few values it cannot choose\n(arrow-key interface, defaults, live validation, Back, review screen), generates\nthe password, port and network address, writes a private .env and a Compose file,\nstarts the container and prints links it has checked. It also has line prompts\nfor terminal-less runs and an unattended flag and environment path with\ndocumented exit codes. The password is never written to disk and is printed once.\n\nThe old route of hand-writing a docker run line, hashing a password and declaring\nevery mount twice is replaced in the docs by the one command, with an audit of\neach value that used to be made by hand.\n\n粵語：以前要自己寫 docker run、手動 hash 密碼、mount 寫兩次，而家一條命令搞掂，\n密碼淨係顯示一次，個測試仲刻意整壞過一次先信佢。",
+                category: "build",
+                areas: ["build", "docs", "interface"],
+                files: 7,
+            },
+            {
+                sha: "fecebcb882b43f9078adfb41e1fb8c7992f53fb0",
+                shortSha: "fecebcb882",
+                date: "2026-11-25T15:06:04-05:00",
+                subject: "Merge the phone-size PDF edition of the documentation, built and verified in the release job",
+                details: "成個說明書印成手機尺寸嘅 PDF,每次出版都跟埋。",
+                category: "build",
+                areas: ["build", "site", "docs", "interface"],
+                files: 12,
+                summarizes: 2,
+            },
+            {
+                sha: "cc2fa8ca0495edae0860059ce7bfb6a3163e5fa0",
+                shortSha: "cc2fa8ca04",
+                date: "2026-11-25T15:05:37-05:00",
+                subject: "Attach a phone-size PDF edition of the documentation to every release",
+                details: "Build the documentation as one PDF with 390 x 844 px pages, a linked contents\npage, an outline entry per article, and working internal links, from the same\nsources the site uses (structured articles, server articles, docs/ Markdown and\nany wiki folder). A verifier reads the PDF back, the release job runs both\nbefore upload, and a failure fails the job instead of skipping the asset.\n\nThe docs now come in a pocket edition: every page fits a phone, every link\njumps, and the build screams if one article goes missing.\n\n做咗份袋裝版文件 PDF:手機尺寸、有目錄有書籤、文章之間撳得跳,砌建同驗證齊全,\n少咗一篇就即刻報錯,唔會靜靜雞漏咗。",
+                category: "build",
+                areas: ["build", "site", "docs", "interface"],
+                files: 12,
+            }
+        ],
+    },
+    {
+        version: "1.0.2481",
+        tag: "v1.0.2481",
+        date: "2026-11-25T14:54:22-05:00",
+        commit: "330e322f63964115dc8531eaf4d0718045f46dfd",
+        entries: [
+            {
+                sha: "330e322f63964115dc8531eaf4d0718045f46dfd",
+                shortSha: "330e322f63",
+                date: "2026-11-25T14:54:22-05:00",
+                subject: "Map the four newly built features in the delivery inventory",
+                details: "Records where the guided tour, the update coming soon card, quick add\nand the data folders live in the source, and what has and has not been\nseen in a running build. All four stay pending review.\n\n邊樣做咗、邊樣淨係過咗測試未睇過真嘢,張清單寫到明。",
+                category: "docs",
+                areas: ["docs"],
+                files: 2,
+            }
+        ],
+    },
+    {
+        version: "1.0.2480",
+        tag: "v1.0.2480",
+        date: "2026-11-25T14:40:06-05:00",
+        commit: "7570eadfa644b9a399660391cb7ed58ef50a4c80",
+        entries: [
+            {
+                sha: "7570eadfa644b9a399660391cb7ed58ef50a4c80",
+                shortSha: "7570eadfa6",
+                date: "2026-11-25T14:40:06-05:00",
+                subject: "Save profile history even while the app holds some files open",
+                details: "A file the browser engine holds exclusively made 'git add -A' abort and\nstage nothing, and the code then reported that nothing had changed, so\nthe profile folder never recorded a version while the app was running.\nStaging now skips unreadable files and records the rest. The network\nstate, shared dictionary and bounce-tracking files are also left out of\nhistory: they are engine state, and the cookie store is always locked.\n\n有個檔案俾人揸實咗,成個記錄就當冇事發生,而家識得跳過佢照樣記低其他。",
+                category: "shell",
+                areas: ["shell"],
+                files: 3,
+            },
+            {
+                sha: "59bfb3e8702866a7df1147752a5e04457adfe673",
+                shortSha: "59bfb3e870",
+                date: "2026-11-25T14:36:58-05:00",
+                subject: "Merge the Kid Mode label for the Data folders section",
+                details: "細路模式都要識得叫呢一欄做乜名。",
+                category: "interface",
+                areas: ["interface"],
+                files: 1,
+                summarizes: 2,
+            },
+            {
+                sha: "79c81cf5a062239c0032e8e5cda8bdf641e9c1d2",
+                shortSha: "79c81cf5a0",
+                date: "2026-11-25T14:32:33-05:00",
+                subject: "Give the Data folders section its Kid Mode label",
+                details: "Kid Mode must label every settings section, and the new Data folders section had none.\n\n新增嘅資料夾設定欄少咗兒童模式標籤,補返。",
+                category: "interface",
+                areas: ["interface"],
+                files: 1,
+            },
+            {
+                sha: "a9256834dae7ce3c5b38baab62fb80c764acf3cd",
+                shortSha: "a9256834da",
+                date: "2026-11-25T14:28:22-05:00",
+                subject: "Merge choosing the profile and save folders, with Git history for the profile folder",
+                details: "設定入面揀得返資料夾擺邊,個人檔案夾仲自己識得記低改過乜。",
+                category: "shell",
+                areas: ["shell", "interface", "docs", "other"],
+                files: 44,
+                summarizes: 2,
+            },
+            {
+                sha: "3a91bec24bfbc0463f5efcc6b6591a78ae28fd11",
+                shortSha: "3a91bec24b",
+                date: "2026-11-25T14:27:20-05:00",
+                subject: "Let people choose the profile and save folders, and keep the profile as a Git history",
+                details: "Settings gains a Data folders section. The profile folder (userData) and the save folder\neach get a native folder picker, checks (full path, writable, free space, not in the install\nor a system folder, not nested), and a safe move: copy with an exclusive flag, verify every\nfile by size and SHA-256, then switch; cancel or failure removes only what the run created.\nThe profile location lives in a pointer file beside the default location and is applied\nbefore anything reads userData; an unreachable chosen folder is reported, never silently\nreplaced. The old folder is removed only as its own step after a file-by-file proof.\n\nThe profile folder is a Git repository with a managed .gitignore, recorded after changes\nsettle and on quit; a failed history write never fails the save. An optional, off-by-default\npush sends a filtered mirror branch (credential paths removed) as fast-forward only, never\nforced, and credential files can go only to a server on the local network.\n\n搬資料夾要驗晒先切換,取消或者失敗都唔會掉嘢;設定檔仲有齊版本歷史,推送永遠唔強推。",
+                category: "shell",
+                areas: ["shell", "interface", "docs", "other"],
+                files: 44,
+            }
+        ],
+    },
+    {
+        version: "1.0.2476",
+        tag: "v1.0.2476",
+        date: "2026-11-25T14:11:49-05:00",
+        commit: "14b30d124c76a7e2dfd1ac8ae4014ea36dba1ae8",
+        entries: [
+            {
+                sha: "14b30d124c76a7e2dfd1ac8ae4014ea36dba1ae8",
+                shortSha: "14b30d124c",
+                date: "2026-11-25T14:11:49-05:00",
+                subject: "Merge the Update coming soon card, fed by the public build status",
+                details: "新版本整緊嘅時候會照直講做到邊,唔會亂估進度。",
+                category: "interface",
+                areas: ["interface", "shell", "docs", "other"],
+                files: 24,
+                summarizes: 2,
+            },
+            {
+                sha: "da181f1e9c75bf5fa437406613f303a3f89aa6b2",
+                shortSha: "da181f1e9c",
+                date: "2026-11-25T14:11:32-05:00",
+                subject: "Add \"Update coming soon\" card for builds that are made but not yet published",
+                details: "Reads the public CI workflow runs (unauthenticated, conditional, bounded, rate-limit aware)\nand shows the coming build's number, per-stage states, 24-hour start and elapsed time, a\nlabelled estimate and the commit subjects it will contain, in the Updates section of\nSettings. It never installs or downloads anything, never invents progress, and steps aside\nonce the release is offered. Adds main watcher, sender-checked IPC, bridge channels, card,\npalette row, English and Cantonese copy, tests and an article.\n\n搵個未出爐嘅版本，喺更新頁畫出佢一步一步嘅進度，唔識食橋、唔識亂噏，出咗爐就乖乖讓位。",
+                category: "interface",
+                areas: ["interface", "shell", "docs", "other"],
+                files: 24,
+            }
+        ],
+    },
+    {
+        version: "1.0.2475",
+        tag: "v1.0.2475",
+        date: "2026-11-25T14:06:34-05:00",
+        commit: "59a223fcbf0ae5e4a9676c277f63693e3e50e1eb",
+        entries: [
+            {
+                sha: "59a223fcbf0ae5e4a9676c277f63693e3e50e1eb",
+                shortSha: "59a223fcbf",
+                date: "2026-11-25T14:06:34-05:00",
+                subject: "Merge quick add beside Settings pointers for the maps folder and download consent",
+                details: "唔使再叫人走去設定度搵,喺原地就填得到。",
+                category: "interface",
+                areas: ["interface", "docs"],
+                files: 18,
+                summarizes: 2,
+            },
+            {
+                sha: "4aeb8e05dd77dbe4fc5555b871e978952c314b41",
+                shortSha: "4aeb8e05dd",
+                date: "2026-11-25T14:06:18-05:00",
+                subject: "Add a quick-add control beside every Settings pointer",
+                details: "Messages that tell the person to set the maps folder or accept the Mojang\nclient download in Settings now carry the matching control inline: a folder\nfield with browse, use-default and save, or the licence quotation with an\nAccept button. Each entry is driven by the same controller the Settings row\nuses, validates before saving, confirms with a non-blocking notice and makes\nthe open Settings sheet reload its row. A hand-written inventory of pointers\nand a source scan guard the wiring; unwired pointers state their reason.\n\nCantonese: 提示隔離直接有輸入位，唔使再喺設定頁同返工作中間跑嚟跑去。",
+                category: "interface",
+                areas: ["interface", "docs"],
+                files: 18,
+            }
+        ],
+    },
+    {
+        version: "1.0.2472",
+        tag: "v1.0.2472",
+        date: "2026-11-25T13:58:09-05:00",
+        commit: "e76cdcc0c4227a8bc90be7b391c4f0efdd462571",
+        entries: [
+            {
+                sha: "e76cdcc0c4227a8bc90be7b391c4f0efdd462571",
+                shortSha: "e76cdcc0c4",
+                date: "2026-11-25T13:58:09-05:00",
+                subject: "Merge the guided tour work: a tour per page, a hidden-control step and Help and Settings entries",
+                details: "導賞團升級:每頁都有自己嘅短團,個掣匿埋咗張卡會照直講。",
+                category: "interface",
+                areas: ["interface"],
+                files: 29,
+                summarizes: 2,
+            },
+            {
+                sha: "f5f77537fa8edc1f48b8eff819d97135da92913e",
+                shortSha: "f5f77537fa",
+                date: "2026-11-25T13:57:45-05:00",
+                subject: "Bring the guided tour up to a full coach-card contract with per-destination tours",
+                details: "The tour card now names the tour and the step (\"Step N of M\", \"Tour: Map\"),\nannounces each step through a polite live region, and handles Left/Right as\nBack/Next and Escape (from the card or from anywhere in the app). A step whose\ncontrol is absent or hidden says so on the card and offers a \"Show it\" button\nthat asks the shell to reveal the page, instead of pointing at nothing. The ring\nanimation and card transition stop under reduced motion, and the ring and card\nedge use real outlines in forced-colors mode.\n\nBesides the overall seven-step tour there are now short tours for Home, Map,\nWork, Make a map, Projects, Publish, General tools and Settings, each on real\ndata-tutorial-anchor attributes added to existing elements. Each tour keeps its\nown saved position and finished flag; the overall tour's keys are unchanged.\nThey start from the command palette (\"Take a tour\" and \"Take a tour: <name>\"),\nfrom a tour list in Help and in Settings, and the one-time invitation now waits\nuntil first-run setup has finished.\n\nTests: controller, steps, copy, overlay (start, Back, Skip, Next, close, resume\nafter remount, arrow keys, missing control and reveal, hidden control), the tour\nlist, the palette rows, and an anchor walk over the real mounted shell for every\ntour.\n\n整條導覽路線行得更靚：每個頁面都有自己嘅短導覽，搵唔到嘅掣會老實講，仲有個「帶我去」按鈕，唔會再指住空氣。",
+                category: "interface",
+                areas: ["interface"],
+                files: 29,
+            }
+        ],
+    },
+    {
+        version: "1.0.2471",
+        tag: "v1.0.2471",
+        date: "2026-11-25T13:38:14-05:00",
+        commit: "a481a72d7e23c8abfcee8213db87dba2afd07e52",
+        entries: [
+            {
+                sha: "a481a72d7e23c8abfcee8213db87dba2afd07e52",
+                shortSha: "a481a72d7e",
+                date: "2026-11-25T13:38:14-05:00",
+                subject: "Track ten more required features in the delivery inventory",
+                details: "The inventory listed 117 requirements and was missing ten that the\nshared feature catalogue now requires: the guided tour, the update\ncoming soon state, quick add beside Settings pointers, choosing the data\nfolders, first account becomes owner, dockview workspaces, TinyMCE for\nrich text, the type generator, the PDF edition of the site, and\none-command interactive setup. All ten are recorded as pending with the\nreason each surface does or does not owe them. Nothing is marked done.\n\n張清單漏咗十樣嘢,而家補返晒,全部寫明「未做」,唔好扮晒嘢。",
+                category: "docs",
+                areas: ["docs", "build"],
+                files: 3,
+            }
+        ],
+    },
+    {
+        version: "1.0.2470",
+        tag: "v1.0.2470",
+        date: "2026-11-25T13:36:07-05:00",
+        commit: "3a20b9f4dff47f9a9926a84d99f710561e627101",
+        entries: [
+            {
+                sha: "3a20b9f4dff47f9a9926a84d99f710561e627101",
+                shortSha: "3a20b9f4df",
+                date: "2026-11-25T13:36:07-05:00",
+                subject: "Add the Take a tour design boards",
+                details: "Three boards under design/design-sources/take-a-tour: the tour card with\nits hidden-control stage, a short tour per page, and the four places the\ntour starts. Each board carries theme, accent and motion levers, and the\ncanvas index gives each board its own page and note. They are targets;\nthe notes say what exists today.\n\n導賞團嘅設計圖到貨喇,張卡識得講「個掣匿埋咗」,唔會再指住空氣扮嘢。",
+                category: "other",
+                areas: ["other", "docs"],
+                files: 6,
+            }
+        ],
+    },
+    {
+        version: "1.0.2467",
+        tag: "v1.0.2467",
+        date: "2026-11-25T11:59:20-05:00",
+        commit: "0aee8b86b784ad4ee0823da4ca08d472f371345a",
+        entries: [
+            {
+                sha: "0aee8b86b784ad4ee0823da4ca08d472f371345a",
+                shortSha: "0aee8b86b7",
+                date: "2026-11-25T11:59:20-05:00",
+                subject: "Escape personal vocabulary values before they enter translated messages",
+                details: "With a personal vocabulary loaded, Work rendered nothing: no tab strip and no\nway to open a tab, so New map and Make a map appeared to do nothing. A\nvocabulary value containing \"@\" was inserted unescaped into translated\nmessages and fallback labels. vue-i18n reads @, {, }, | and $ as message\nsyntax, so the production compiler threw \"Invalid linked format\" for every\nlabel it landed in. Work's page list then came back undefined and the tab\nstrip failed in setup on undefined.filter.\n\nInserted values are now written as literal interpolations for both paths that\nare compiled: the locale message tree and the t(key, fallback) boundary. The\nshipped message around the value keeps its own placeholders. Plain-text\ncallers are unchanged.\n\nThe development build swallows this compile error, so the tests run the\nlibrary's own message compiler with errors collected. All five fail on the\nprevious code.\n\n一粒「@」字搞到成個 Work 白板，而家幫啲自訂字詞著返保護衣先入場。",
+                category: "interface",
+                areas: ["interface"],
+                files: 3,
+            }
+        ],
+    },
+    {
+        version: "1.0.2465",
+        tag: "v1.0.2465",
+        date: "2026-11-25T11:35:27-05:00",
+        commit: "0f542563c338c64723b0798be5db0a73ae6ba207",
+        entries: [
+            {
+                sha: "0f542563c338c64723b0798be5db0a73ae6ba207",
+                shortSha: "0f542563c3",
+                date: "2026-11-25T11:35:27-05:00",
+                subject: "Keep the interface on the same port so its storage survives a restart",
+                details: "The embedded server listened on a random port every launch. The browser keeps\nlocalStorage per origin, port included, so each launch started with empty\nstorage: the Work tab layout and every preference still kept only in\nlocalStorage reset on restart, and the old values were stranded under origins\nnothing would load again. One installed profile held storage under 14\ndifferent ports.\n\nThe port that worked last launch is now remembered in\nembedded-server-port.json in the application's data folder and asked for\nfirst. Only when it is taken or the file is missing or damaged does the\nserver fall back to a random port, which is then remembered. The per-launch\nauth token is unchanged.\n\nAlso adds a guard test that Work opens on its own layout when a saved Work\nstrip has no tabs.\n\n每次開機換個門牌，記憶就搬唔到屋；而家認返舊地址，設定唔再失蹤。",
+                category: "shell",
+                areas: ["shell", "interface"],
+                files: 4,
+            }
+        ],
+    },
+    {
+        version: "1.0.2463",
+        tag: "v1.0.2463",
+        date: "2026-11-24T13:01:25-05:00",
+        commit: "fbc8506cad25a3938fa4f2f026afd3ebe312f53a",
+        entries: [
+            {
+                sha: "fbc8506cad25a3938fa4f2f026afd3ebe312f53a",
+                shortSha: "fbc8506cad",
+                date: "2026-11-24T13:01:25-05:00",
+                subject: "Accept the app's own renderer in the generation and bot IPC checks",
+                details: "\"Generate and start project\" always answered \"Generation is restricted to the\napplication workspace.\" The handlers accepted only senders whose URL starts\nwith file:, but the interface is served by the embedded loopback server at\nhttp://127.0.0.1:<port>/, so the real renderer was refused in every build.\nWorld generation actions, the bot workflow and managed-hosting sign-in had the\nsame check.\n\nappRendererSender.ts replaces all four. It is no looser than before: a request\nmust come from the main window's own web contents, from its main frame, at the\nembedded server's origin. Other windows, embedded frames, other origins and\nfile: pages are refused, and nothing is trusted until the window is recorded.\n\nThe new test fails against the old file:-only logic.\n\n「生成地圖」之前連自己人都唔認，而家識認屋企人，陌生人照樣拒諸門外。",
+                category: "shell",
+                areas: ["shell"],
+                files: 7,
+            },
+            {
+                sha: "934926d574dd6992600f69b010aff6ef3f31f2bf",
+                shortSha: "934926d574",
+                date: "2026-11-24T13:01:16-05:00",
+                subject: "Keep Work's tabs when the shell migrates a saved workspace",
+                details: "The tab-workspace migration ran in App's onMounted, after Work's tab strip had\nalready read storage. On a returning install the strip kept the old layout in\nmemory with Home and Map pruned out, so Work showed no tabs, and the next tab it\nopened wrote that stale strip over the migrated one.\n\nThe migration now runs during setup, before Work reads storage, and only\nrewrites a workspace that actually exists. A fresh install keeps Work's own\nseed, which also opens the tools tab. The earlier TabbedNavigation changes on\nthis branch are dropped: empty storage already reseeds, so they guarded a\nstate that cannot occur.\n\nThe three reopen tests move to App.workReopen.test.ts so they get their own\nisolated test worker; App.test.ts already sits near the worker memory limit.\nRun against main's code, two of them fail, including the blank Work strip.\n\nWork 個 tab 唔再俾舊記憶食咗，撳「整地圖」終於有反應喇。",
+                category: "interface",
+                areas: ["interface"],
+                files: 4,
+            },
+            {
+                sha: "43a621f0929a0446f90eedc9129dc78e8d9e07a5",
+                shortSha: "43a621f092",
+                date: "2026-11-24T12:36:52-05:00",
+                subject: "Work in progress: keep Work's tabs across the shell migration",
+                details: "Unfinished: two tab strip tests still fail.\n未搞掂，仲有兩個測試未過。",
+                category: "interface",
+                areas: ["interface"],
+                files: 3,
+            }
+        ],
+    },
+    {
+        version: "1.0.2455",
+        tag: "v1.0.2455",
+        date: "2026-11-24T03:54:32-05:00",
+        commit: "8ea15892143631b313bce3acefab96334bf3c94a",
+        entries: [
+            {
+                sha: "8ea15892143631b313bce3acefab96334bf3c94a",
+                shortSha: "8ea1589214",
+                date: "2026-11-24T03:54:32-05:00",
+                subject: "Note the built and pinned management site on the Admin board",
+                details: "The board now says the page is built as worldlens-server-site 1.0.2439,\npinned after a real server took a command, a live console line and a\ndata pack through it.\n\n管理網站設計板寫明已經起好、試過、釘咗 1.0.2439。",
+                category: "other",
+                areas: ["other"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2454",
+        tag: "v1.0.2454",
+        date: "2026-11-24T03:54:02-05:00",
+        commit: "6b42f6416429c20f28066d3ddcca2254a8329851",
+        entries: [
+            {
+                sha: "6b42f6416429c20f28066d3ddcca2254a8329851",
+                shortSha: "6b42f64164",
+                date: "2026-11-24T03:54:02-05:00",
+                subject: "Let an enchantment action happen only in a biome",
+                details: "The When choice gains \"Only in a biome\", written as a location_check on\na biome id or #tag, shown on the registry forms board first. Combined\nconditions and other location checks are still kept as written.\n\n揀「淨係喺某個生物群系」先發，海洋限定都得。",
+                category: "interface",
+                areas: ["interface", "docs", "other"],
+                files: 5,
+            }
+        ],
+    },
+    {
+        version: "1.0.2453",
+        tag: "v1.0.2453",
+        date: "2026-11-24T03:51:24-05:00",
+        commit: "03ccb76ea45d5009ed79100fdf63f2e7cd583b06",
+        entries: [
+            {
+                sha: "03ccb76ea45d5009ed79100fdf63f2e7cd583b06",
+                shortSha: "03ccb76ea4",
+                date: "2026-11-24T03:51:24-05:00",
+                subject: "Place a block and choose when an enchantment action happens",
+                details: "On the registry forms board first, then built: after-an-attack actions\ncan place a block at the one hit (cobweb by default), and every action\nhas a When choice: every time, only sometimes with a chance, or only\nwhile sneaking, sprinting, on fire, swimming, or for a baby. Location\nchecks, combined conditions and block-state rules are kept as written.\n\n打完交放蜘蛛網；仲可以揀蹲低先發、衝刺先發。",
+                category: "interface",
+                areas: ["interface", "site", "docs", "other"],
+                files: 6,
+            }
+        ],
+    },
+    {
+        version: "1.0.2452",
+        tag: "v1.0.2452",
+        date: "2026-11-24T03:44:57-05:00",
+        commit: "a3d3cd0c456caff45e4cd1799ead358f16a40426",
+        entries: [
+            {
+                sha: "a3d3cd0c456caff45e4cd1799ead358f16a40426",
+                shortSha: "a3d3cd0c45",
+                date: "2026-11-24T03:44:57-05:00",
+                subject: "Show particles and wear the item from enchantment actions",
+                details: "Added to the registry forms board with the attribute editor, then\nbuilt: after-an-attack actions can show a particle picked from the\ngame's list, keeping any positions and speeds already in the file, or\nuse up the item's durability by level. Replacing blocks and changing\nitems are still kept as written.\n\n打完交噴粒子、磨損把武器，滑桿搞掂；版面都更新咗。",
+                category: "interface",
+                areas: ["interface", "docs", "site", "other"],
+                files: 7,
+            }
+        ],
+    },
+    {
+        version: "1.0.2451",
+        tag: "v1.0.2451",
+        date: "2026-11-24T03:41:28-05:00",
+        commit: "3aacce0e7b7b37b5ad893de92eb22044296a09f8",
+        entries: [
+            {
+                sha: "3aacce0e7b7b37b5ad893de92eb22044296a09f8",
+                shortSha: "3aacce0e7b",
+                date: "2026-11-24T03:41:28-05:00",
+                subject: "Edit enchantments' attribute modifiers in the data pack studio",
+                details: "An enchantment's attribute effects (speed, attack damage, any attribute\nfrom the game's list) get controls: which attribute, add a number, add a\nshare of the base or multiply the total, and the amount at level one\nplus per level. New modifiers take an id under the pack's namespace.\nParticles and item changes are still kept as written.\n\n附魔加速加攻擊，揀屬性拉滑桿就得。",
+                category: "interface",
+                areas: ["interface", "docs", "site"],
+                files: 7,
+            }
+        ],
+    },
+    {
+        version: "1.0.2442",
+        tag: "v1.0.2442",
+        date: "2026-11-24T03:08:30-05:00",
+        commit: "48acfb3c01a6bb519518676887a4c71d779f5c34",
+        entries: [
+            {
+                sha: "48acfb3c01a6bb519518676887a4c71d779f5c34",
+                shortSha: "48acfb3c01",
+                date: "2026-11-24T03:08:30-05:00",
+                subject: "Let enchantment actions run a function or play a sound",
+                details: "After-an-attack actions can now run a function from the pack or play a\nsound picked from the game's sound list, each with the same whose,\nwho-it-acts-on and only-sometimes controls as the others. Particles and\nattribute or item changes are still kept as written.\n\n打完交可以行 function 或者叮一聲。",
+                category: "interface",
+                areas: ["interface", "docs", "site"],
+                files: 7,
+            }
+        ],
+    },
+    {
+        version: "1.0.2441",
+        tag: "v1.0.2441",
+        date: "2026-11-24T03:05:53-05:00",
+        commit: "204ac71599d1fca918836b94a3b60b0edfd7fce1",
+        entries: [
+            {
+                sha: "204ac71599d1fca918836b94a3b60b0edfd7fce1",
+                shortSha: "204ac71599",
+                date: "2026-11-24T03:05:53-05:00",
+                subject: "Add summon, explode, chance and position fades to the data pack studio",
+                details: "Shown on the boards first, then built:\n- After-an-attack actions can summon an entity (lightning by default)\n  or explode, with radius by level, fire and what happens to blocks,\n  and any action can be made \"only sometimes\" with a random chance.\n- Swap rules can fade with distance from the structure's start along\n  one axis.\nOther requirements, rarer actions and other position conditions are\nstill kept exactly as written.\n\n打完交可以劈雷兼爆炸，仲可以話佢「間中先嚟」；換方塊識得越遠越少。",
+                category: "interface",
+                areas: ["interface", "docs", "other", "site"],
+                files: 9,
+            }
+        ],
+    },
+    {
+        version: "1.0.2440",
+        tag: "v1.0.2440",
+        date: "2026-11-24T02:58:48-05:00",
+        commit: "293892274c486039617dfab914404bb1d62bfa14",
+        entries: [
+            {
+                sha: "293892274c486039617dfab914404bb1d62bfa14",
+                shortSha: "293892274c",
+                date: "2026-11-24T02:58:48-05:00",
+                subject: "Offer the 1.0.2439 server-site and hosted images by default",
+                details: "CI run 45351724377 (commit 784d2e2) published the management site with\nthe ordered Docker log. The published image was pulled and run here\nagainst a real vanilla 26.3 server in the pinned itzg image with the\nboot script's flags before pinning: sign-in, the management page, a\ncommand and a live console line all worked.\n\n真伺服器前面試過先釘；專用機開機拉嘅就係呢個。",
+                category: "docs",
+                areas: ["docs", "interface"],
+                files: 3,
+            }
+        ],
+    },
+    {
+        version: "1.0.2439",
+        tag: "v1.0.2439",
+        date: "2026-11-24T02:55:09-05:00",
+        commit: "784d2e2315bb4723e6dfb3a1380371035a8e4b1f",
+        entries: [
+            {
+                sha: "784d2e2315bb4723e6dfb3a1380371035a8e4b1f",
+                shortSha: "784d2e2315",
+                date: "2026-11-24T02:55:09-05:00",
+                subject: "Keep a Docker server's log in order so the live console sees new lines",
+                details: "docker logs hands back stdout and stderr as two streams, and the Docker\ntransport appended stderr after stdout. Java warnings and the image's\n[init] lines therefore sat at the end of every replay, so the site's\nconsole feed, comparing two replays, saw lines move and dropped live\noutput. The transport now reads docker logs --timestamps, puts both\nstreams back in the order they were written, and labels stderr lines.\n\nFound with a real vanilla 26.3 server in the pinned itzg image behind\nthe published 1.0.2435 site: a data pack uploaded through the site was\nenabled after reload and its function ran; with this fix the function's\noutput also reached the browser console live.\n\nstdout 同 stderr 唔再各自排隊，主控台新行即刻見到；真伺服器試埋 data pack。",
+                category: "shell",
+                areas: ["shell", "docs"],
+                files: 3,
+            }
+        ],
+    },
+    {
+        version: "1.0.2437",
+        tag: "v1.0.2437",
+        date: "2026-11-24T02:49:53-05:00",
+        commit: "70ca7006cdd1a1264e0a855c90cc9293e228e57b",
+        entries: [
+            {
+                sha: "70ca7006cdd1a1264e0a855c90cc9293e228e57b",
+                shortSha: "70ca7006cd",
+                date: "2026-11-24T02:49:53-05:00",
+                subject: "Offer the 1.0.2435 server-site and hosted images by default",
+                details: "CI run 45350438213 (commit b5313d8) published the management site with\nthe folder, console pipe, helper user and live console fixes. The\npublished image was pulled and run here beside the pinned itzg image\nwith the boot script's flags before pinning: the signed-in page, a\ncommand, the live console and a data pack upload all worked.\n\n新管理網站映像試過先釘；專用機開機就拉呢個。",
+                category: "docs",
+                areas: ["docs", "interface"],
+                files: 3,
+            }
+        ],
+    },
+    {
+        version: "1.0.2435",
+        tag: "v1.0.2435",
+        date: "2026-11-24T02:45:13-05:00",
+        commit: "b5313d85d6a91931cbe9c536e21117aaa4bee0bd",
+        entries: [
+            {
+                sha: "b5313d85d6a91931cbe9c536e21117aaa4bee0bd",
+                shortSha: "b5313d85d6",
+                date: "2026-11-24T02:45:13-05:00",
+                subject: "Make the appliance site's console and commands work end to end",
+                details: "A local run with the pinned itzg image, the boot script's flags and a\nstand-in server jar that prints each console line it reads found two\nmore defects, now fixed:\n- The itzg console helper refuses to run as root and names the user it\n  needs; the Docker transport now asks again as that user.\n- The site's console showed only the lines from when the first browser\n  connected, and none to a second browser, because the Docker transport\n  replays the log rather than following it. The site now re-reads the\n  tail every two seconds while someone watches, sends only new lines,\n  and starts every browser with the last 200.\nAfter the fixes, list, op Steve and say sent from the site reached the\nserver, and two browsers both got the history and the new line.\n\n指令終於送得入去，主控台都會郁；用替身伺服器由頭到尾試過。",
+                category: "shell",
+                areas: ["shell", "docs"],
+                files: 7,
+            }
+        ],
+    },
+    {
+        version: "1.0.2433",
+        tag: "v1.0.2433",
+        date: "2026-11-24T02:40:11-05:00",
+        commit: "6e8ca31f3994a4430f920bd2ea624af4b1ad7f61",
+        entries: [
+            {
+                sha: "6e8ca31f3994a4430f920bd2ea624af4b1ad7f61",
+                shortSha: "6e8ca31f39",
+                date: "2026-11-24T02:40:11-05:00",
+                subject: "Name the pinned v1.0.2420 bases in the Cantonese appliance notes",
+                details: "The Cantonese section still named v1.0.2311 for the pinned bases.\n\n廣東話嗰段仲寫住舊版本，改返 v1.0.2420。",
+                category: "docs",
+                areas: ["docs"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2432",
+        tag: "v1.0.2432",
+        date: "2026-11-24T02:40:01-05:00",
+        commit: "052626765f408f2e04dd99713a92f29dde79ee00",
+        entries: [
+            {
+                sha: "052626765f408f2e04dd99713a92f29dde79ee00",
+                shortSha: "052626765f",
+                date: "2026-11-24T02:40:01-05:00",
+                subject: "Pin the v1.0.2420 appliance bases that start the server with its console pipe",
+                details: "Appliance run 45347962463 built both bases from 95a85e3, with the boot\nscript that starts the Minecraft server with CREATE_CONSOLE_IN_PIPE so\nthe management site can send commands; its QEMU boot smoke passed. The\nx86_64 asset was downloaded and both its compressed and expanded\nchecksums match the published .sha256.txt.\n\n底層映像換新，伺服器開機就駁好主控台水喉；checksum 對過先釘。",
+                category: "docs",
+                areas: ["docs", "shell"],
+                files: 3,
+            }
+        ],
+    },
+    {
+        version: "1.0.2429",
+        tag: "v1.0.2429",
+        date: "2026-11-24T02:25:49-05:00",
+        commit: "95a85e39d06202c04ecfcaa48d95bf7c365badcb",
+        entries: [
+            {
+                sha: "95a85e39d06202c04ecfcaa48d95bf7c365badcb",
+                shortSha: "95a85e39d0",
+                date: "2026-11-24T02:25:49-05:00",
+                subject: "Point the appliance site at the server's real folder and console pipe",
+                details: "Running the published 1.0.2414 site image under Docker beside the itzg\nserver, laid out as the boot script does, showed the management page\nworking and two defects behind it:\n- The site registered the server folder as /data/server, its own view\n  of the volume, but files are read and written inside the Minecraft\n  container, where the folder is /data. Uploads and player files went\n  to the wrong place. The default is now /data, and a record saved\n  with the old folder is replaced on start.\n- Console commands need the itzg console pipe. The boot script now\n  starts the server with CREATE_CONSOLE_IN_PIPE=true, and the site\n  sends through the image's mc-send-to-console.\nWith a locally bundled site, a data pack landed in /data/heap/datapacks\nand the players list read usercache.json.\n\n專用機網站之前搵錯屋企，又冇條水喉駁去主控台；兩樣都駁返好。",
+                category: "shell",
+                areas: ["shell", "docs", "other"],
+                files: 4,
+            }
+        ],
+    },
+    {
+        version: "1.0.2427",
+        tag: "v1.0.2427",
+        date: "2026-11-24T02:21:16-05:00",
+        commit: "af33ce23ebc52eb3be17870777d56d5366ec7acd",
+        entries: [
+            {
+                sha: "af33ce23ebc52eb3be17870777d56d5366ec7acd",
+                shortSha: "af33ce23eb",
+                date: "2026-11-24T02:21:16-05:00",
+                subject: "Edit after-attack enchantment actions and tag swap rules in the studio",
+                details: "Shown on the boards first, then built:\n- Enchantments get \"after an attack\" actions: set on fire or give a mob\n  effect, with whose enchantment it is, who it acts on, strength, and\n  seconds at level one plus per level. Requirements and other actions\n  are still kept as written.\n- Swap rules take a block or #tag, with or without a chance, and an\n  optional \"only on this block or #tag\" condition.\n\n打完交可以燒人兼畀 debuff；換方塊識認 #tag 同埋腳下踩住乜。",
+                category: "interface",
+                areas: ["interface", "docs", "other", "site"],
+                files: 10,
+            }
+        ],
+    },
+    {
+        version: "1.0.2426",
+        tag: "v1.0.2426",
+        date: "2026-11-24T02:15:54-05:00",
+        commit: "6f5a57f74af6ac2bf0c2b94b46dda9f12128064a",
+        entries: [
+            {
+                sha: "6f5a57f74af6ac2bf0c2b94b46dda9f12128064a",
+                shortSha: "6f5a57f74a",
+                date: "2026-11-24T02:15:54-05:00",
+                subject: "Offer the 1.0.2414 hosted and server-site images by default",
+                details: "CI run 45342848152 (commit e1bb8a4) published both images. The\nserver-site one is the first with the signed-in management page, so a\nserver appliance built from now on no longer answers 404 after sign-in.\npublishedImages.ts, the hosted mode doc and the handoff name the run.\n\n新映像釘好 digest，專用機登入之後終於有頁睇。",
+                category: "docs",
+                areas: ["docs", "interface"],
+                files: 3,
+            }
+        ],
+    },
+    {
+        version: "1.0.2421",
+        tag: "v1.0.2421",
+        date: "2026-11-24T02:05:21-05:00",
+        commit: "cf5da96eb73cd3e35498e6d615165cdcc06616d6",
+        entries: [
+            {
+                sha: "cf5da96eb73cd3e35498e6d615165cdcc06616d6",
+                shortSha: "cf5da96eb7",
+                date: "2026-11-24T02:05:21-05:00",
+                subject: "Edit enchantment effects by level and rule processor swaps in the studio",
+                details: "Shown on the boards first, then built:\n- Enchantments list their value effects (damage, knockback, armour\n  effectiveness and the rest): add or multiply, the value at level one\n  and how much more per level. Effects with conditions or actions are\n  named and kept as written.\n- A rule processor's rules are edited as swaps: which block, the chance,\n  and what it becomes, added and removed in place; a rule with other\n  conditions is kept.\nThe three remove actions in the world generation editor are declared as\nedits to the unsaved draft.\n\n附魔逐級數值、方塊交換規則都有滑桿；點火召喚嗰啲照留原文。",
+                category: "interface",
+                areas: ["interface", "docs", "other", "site"],
+                files: 12,
+            }
+        ],
+    },
+    {
+        version: "1.0.2420",
+        tag: "v1.0.2420",
+        date: "2026-11-24T02:00:22-05:00",
+        commit: "34c8296815827b310b4b310415ddac68fd3c4fa5",
+        entries: [
+            {
+                sha: "34c8296815827b310b4b310415ddac68fd3c4fa5",
+                shortSha: "34c8296815",
+                date: "2026-11-24T02:00:22-05:00",
+                subject: "Edit jigsaw pools and processor lists as steps in the data pack studio",
+                details: "Added to the world generation board first, then built: a template pool\nlists its pieces with structure id, weight shown as a share of all\npicks, and keep-shape or follow-terrain placement, plus its fallback; a\nprocessor list edits rot, follow-the-ground and leave-these-blocks-out\nsteps. Element and processor kinds with no editor (feature pieces, rule\nprocessors) are kept exactly as written.\n\n拼圖池同處理器都變咗一步一卡；未識畫嗰啲照留原文。",
+                category: "interface",
+                areas: ["interface", "docs", "site", "other"],
+                files: 12,
+            }
+        ],
+    },
+    {
+        version: "1.0.2418",
+        tag: "v1.0.2418",
+        date: "2026-11-24T01:55:39-05:00",
+        commit: "34e1a11e918e5ae3f5e17e2aba2094c40a5d3bab",
+        entries: [
+            {
+                sha: "34e1a11e918e5ae3f5e17e2aba2094c40a5d3bab",
+                shortSha: "34e1a11e91",
+                date: "2026-11-24T01:55:39-05:00",
+                subject: "Stop the School mode panel test racing its own digest",
+                details: "The test waited one macrotask for a click handler that awaits a Web\nCrypto SHA-256 digest, which can take longer on a busy machine, so it\nfailed about one run in three. It now waits for the mode to turn on,\nbounded at two seconds, and then checks the secret field is cleared.\nThree full site runs in a row pass.\n\n個測試等一下下就收工，crypto 慢少少就爆；而家等到真係開咗先檢查。",
+                category: "site",
+                areas: ["site", "docs"],
+                files: 2,
+            }
+        ],
+    },
+    {
+        version: "1.0.2416",
+        tag: "v1.0.2416",
+        date: "2026-11-24T01:50:00-05:00",
+        commit: "24da1a7593e4346c8dd2930d724e04c7393662fa",
+        entries: [
+            {
+                sha: "24da1a7593e4346c8dd2930d724e04c7393662fa",
+                shortSha: "24da1a7593",
+                date: "2026-11-24T01:50:00-05:00",
+                subject: "Give every other registry part a form of its fields in the data pack studio",
+                details: "Designed on a new RegistryForms board, then built: enchantments and\nproviders, damage types, trim materials and patterns, banner patterns,\npaintings, chat types, jukebox songs, goat horns, dimensions, dimension\ntypes, density function constants, structures and cave carvers each\nget sliders with the game's limits, choices, switches and the colour\npicker. Each control patches its own field, so nested parts without a\ncontrol (enchantment effects, jigsaw elements, processor lists) stay as\nwritten. A test checks every template value sits inside its control.\n\n二十款 registry 部件全部有表格，滑桿有上下限，巢狀嗰啲照留 JSON。",
+                category: "interface",
+                areas: ["interface", "docs", "other", "site"],
+                files: 9,
+            }
+        ],
+    },
+    {
+        version: "1.0.2414",
+        tag: "v1.0.2414",
+        date: "2026-11-24T01:45:33-05:00",
+        commit: "e1bb8a4c814ffb8a6ab801fe3d2982a1e2e1cf6e",
+        entries: [
+            {
+                sha: "e1bb8a4c814ffb8a6ab801fe3d2982a1e2e1cf6e",
+                shortSha: "e1bb8a4c81",
+                date: "2026-11-24T01:45:33-05:00",
+                subject: "Add players, a command box and the sign-in policy to the management page",
+                details: "- Players come from the server's own usercache, ops, whitelist and\n  banned-players files, with operator, whitelist, kick and ban actions\n  built by the same buildPlayerCommand as the desktop app.\n- A one-line command box and a \"Who is online\" button send through a\n  short-lived console session; control characters are refused.\n- The owner can choose which sign-in methods everyone must use.\n- Viewers see none of the change controls, and the server answers 403\n  on their commands and player actions as well.\n\n管理頁加埋玩家名單、指令框同登入規矩；viewer 照舊淨係睇得。",
+                category: "shell",
+                areas: ["shell", "docs"],
+                files: 8,
+            }
+        ],
+    },
+    {
+        version: "1.0.2413",
+        tag: "v1.0.2413",
+        date: "2026-11-24T01:43:29-05:00",
+        commit: "9f86c045832c4268ecdc86311f51e72554e2a3ed",
+        entries: [
+            {
+                sha: "9f86c045832c4268ecdc86311f51e72554e2a3ed",
+                shortSha: "9f86c04583",
+                date: "2026-11-24T01:43:29-05:00",
+                subject: "Give the server management site a page after sign-in, and keep viewers read-only",
+                details: "Signing in reloaded / and the site answered 404: the sign-in page was\nthe only page it had. Signed-in visitors now get a management page built\non the existing routes: servers and their state, start, stop and\nrestart, the live console, adding a data pack from a .zip, and with\nnamed accounts the people list, single-use invitations by role and\nremoval behind two keys and a full slider. With named accounts a viewer\nnow gets 403 on every change instead of being able to start, stop or\nupload.\n\n登入之後唔再撞 404 牆，管理頁返嚟喇；viewer 淨係睇得，郁唔到掣。",
+                category: "shell",
+                areas: ["shell", "docs", "site"],
+                files: 8,
+            }
+        ],
+    },
+    {
+        version: "1.0.2412",
+        tag: "v1.0.2412",
+        date: "2026-11-24T01:38:48-05:00",
+        commit: "2452ffbcf2f2abc4650abe5fbee527c083398036",
+        entries: [
+            {
+                sha: "2452ffbcf2f2abc4650abe5fbee527c083398036",
+                shortSha: "2452ffbcf2",
+                date: "2026-11-24T01:38:48-05:00",
+                subject: "Save a data pack onto a managed server, and accept one on the web console",
+                details: "- installDataPack reads level-name from the server's server.properties\n  (world when unset), makes <level-name>/datapacks and writes the .zip\n  through the server's transport with a backup, refusing a bad name,\n  bytes that are not a ZIP, a pack over 64 MiB and a level-name that\n  escapes the server folder.\n- The desktop app reaches it as mcserver:datapack:install, and the data\n  pack studio gets \"Save onto a server\" with the managed servers listed.\n- The web console gets POST /api/servers/<id>/datapacks for a signed-in\n  session. The server appliance's management site has no signed-in page\n  yet, so nothing there calls it; the handoff and docs say so.\n\nData pack 直送伺服器世界，唔使自己 scp；專用機網站個頁仲未起，照直講。",
+                category: "shell",
+                areas: ["shell", "docs", "interface", "other", "site"],
+                files: 14,
+            }
+        ],
+    },
+    {
+        version: "1.0.2411",
+        tag: "v1.0.2411",
+        date: "2026-11-24T01:32:13-05:00",
+        commit: "ca655f299a95a3d34f403b0df8823426d1ec1d0c",
+        entries: [
+            {
+                sha: "ca655f299a95a3d34f403b0df8823426d1ec1d0c",
+                shortSha: "ca655f299a",
+                date: "2026-11-24T01:32:13-05:00",
+                subject: "Add typed editors for world generation parts in the data pack studio",
+                details: "Designed first on a new WorldgenParts board, then built:\n- Placed features: placement steps as cards (tries per chunk, 1 in N\n  chunks, spread across the chunk, height range, biome filter) beside a\n  depth gauge of the Y band they can land in. Unknown steps are kept.\n- Ore features: ore block, vein size and skip-near-air chance.\n- Structure sets: spacing and separation over a start-cell grid; a\n  separation that is not smaller than the spacing is a pack problem.\n- Noise settings: sea level, bottom, height, fill block, fluid and the\n  aquifer, ore vein and mob switches.\nEvery control patches its own field, so hand-written fields survive.\n\n世界生成唔使再估 JSON：礦脈、結構間距、海平面，拉吓滑桿就得，冇畫到嘅欄位照留。",
+                category: "interface",
+                areas: ["interface", "docs", "other", "site"],
+                files: 11,
+            }
+        ],
+    },
+    {
+        version: "1.0.2409",
+        tag: "v1.0.2409",
+        date: "2026-11-24T01:25:41-05:00",
+        commit: "64c2c8d684badf6393636066c035f4f79b0a9100",
+        entries: [
+            {
+                sha: "64c2c8d684badf6393636066c035f4f79b0a9100",
+                shortSha: "64c2c8d684",
+                date: "2026-11-24T01:25:41-05:00",
+                subject: "Give item modifiers a step editor in the data pack studio",
+                details: "Set how many, durability, enchanting by levels or at random, rename,\nlore, smelt and explosion decay become typed step cards above the\nitem modifier's JSON, moved and removed in place and written straight\nback into it. Any other function, and a count range the editor cannot\ndraw, is named and kept exactly as written; step conditions survive.\n\nItem modifier 唔使再對住 JSON 數括號，一步一張卡，改完即刻寫返落去。",
+                category: "interface",
+                areas: ["interface", "docs", "site"],
+                files: 8,
+            }
+        ],
+    },
+    {
+        version: "1.0.2407",
+        tag: "v1.0.2407",
+        date: "2026-11-24T01:20:40-05:00",
+        commit: "5bb0dcda0f7c0d9a6c8b6a9846d3dbf9ce3c1549",
+        entries: [
+            {
+                sha: "5bb0dcda0f7c0d9a6c8b6a9846d3dbf9ce3c1549",
+                shortSha: "5bb0dcda0f",
+                date: "2026-11-24T01:20:40-05:00",
+                subject: "Record today's palette, contract-check and data pack studio work in the handoff",
+                details: "States what landed, the full UI suite result (6381 passed, two worker\nRPC timeouts under load) and what is still to do.\n\n交更簿寫返清楚：今日搞掂咩、仲欠咩，冇吹水。",
+                category: "docs",
+                areas: ["docs"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2405",
+        tag: "v1.0.2405",
+        date: "2026-11-24T01:02:10-05:00",
+        commit: "3def1759aad0e39d3b3670a3b41ef12b3e2c6fd0",
+        entries: [
+            {
+                sha: "3def1759aad0e39d3b3670a3b41ef12b3e2c6fd0",
+                shortSha: "3def1759aa",
+                date: "2026-11-24T01:02:10-05:00",
+                subject: "Drag advancements to parent them, save a pack into a world, classify hosted channels",
+                details: "- The advancement tree takes a drag from one advancement onto another\n  as \"comes after\", and refuses a drop that would make a loop.\n- Save into a world (desktop app): pick one of this computer's worlds or\n  browse to a folder, and the pack is written to its datapacks folder\n  through a new nbtEditor:saveDataPack channel that insists on level.dat,\n  a plain .zip name, real ZIP bytes and a size cap, writes beside the\n  final name and renames over it, and reports a replaced pack.\n- The hosted capability profile now classifies the NBT editor, appliance,\n  share card, host-map and live-viewer channels instead of leaving 67 of\n  them unclassified: the first three refused, the last two behind the\n  Docker socket grant.\n\n進度樹拖嚟拖去就認老豆，唔准自己做自己阿爺；data pack 一撳就入世界。",
+                category: "interface",
+                areas: ["interface", "shell", "docs", "other", "site"],
+                files: 15,
+            }
+        ],
+    },
+    {
+        version: "1.0.2404",
+        tag: "v1.0.2404",
+        date: "2026-11-24T00:54:42-05:00",
+        commit: "9209093ef29d42db27cf18688cbf609559a77965",
+        entries: [
+            {
+                sha: "9209093ef29d42db27cf18688cbf609559a77965",
+                shortSha: "9209093ef2",
+                date: "2026-11-24T00:54:42-05:00",
+                subject: "Add every other registry, version overlays and search to the data pack studio",
+                details: "- More parts: item modifiers, enchantments and providers, damage types,\n  trims, banner patterns, paintings, chat types, jukebox songs, goat\n  horns, dimensions, noise settings, density functions, features,\n  structures, structure sets, jigsaw pools, processor lists and cave\n  carvers, each started from a file the game reads and edited as checked\n  JSON, in the folder the chosen version expects.\n- Opening a pack puts every registry file it cannot draw visually under\n  More parts instead of keeping it out of sight, and an override of\n  another namespace keeps that namespace.\n- Version overlays write overlays.entries in the style the version reads\n  and are read back from an opened pack.\n- A search over every section and entry name, with the regex builder.\n\n資料包工作室再加二十幾款零件、版本覆蓋層同搜尋，打開舊 pack 都睇得晒改得晒。",
+                category: "interface",
+                areas: ["interface", "site", "docs"],
+                files: 9,
+            }
+        ],
+    },
+    {
+        version: "1.0.2403",
+        tag: "v1.0.2403",
+        date: "2026-11-24T00:43:30-05:00",
+        commit: "8e0e02a39a00a073e391fca56d397d1bf75ea587",
+        entries: [
+            {
+                sha: "8e0e02a39a00a073e391fca56d397d1bf75ea587",
+                shortSha: "8e0e02a39a",
+                date: "2026-11-24T00:43:30-05:00",
+                subject: "Clear the fourteen failing UI contract checks",
+                details: "- Translations for the chunk picker, the container deploy card, the share\n  cards and three Work tabs, in a new worldTools copy module.\n- The Bedrock record search uses the shared regex search field.\n- The NBT tree's row menu, its dialogs, the array value remover, the host\n  map dialog and the instance remover are declared in their inventories.\n- The appliance, player relay, host map, data pack and NBT research\n  articles are indexed in docs/README.md and the docs ordering.\n- Identity trailers stripped from 17 stale changelog bodies.\n- The tour's last step points at the general tools tab that holds Docs.\n- Equal-priority scheduled rules resolve by the later id, and the\n  runtime coverage check no longer assumes Windows path separators.\n- The EULA export search test counts only rows in its own menu.\n\n十四個合約檢查全部搞掂，翻譯、索引、清單都補返齊。",
+                category: "interface",
+                areas: ["interface", "docs"],
+                files: 15,
+            }
+        ],
+    },
+    {
+        version: "1.0.2401",
+        tag: "v1.0.2401",
+        date: "2026-11-24T00:15:48-05:00",
+        commit: "8901be5ebde6ceb6ee9f8e700a06fb269ed3ecb2",
+        entries: [
+            {
+                sha: "8901be5ebde6ceb6ee9f8e700a06fb269ed3ecb2",
+                shortSha: "8901be5ebd",
+                date: "2026-11-24T00:15:48-05:00",
+                subject: "Stop the palette freezing on typing, open the tools tab, match vocab case",
+                details: "- A personal vocabulary of a few hundred phrases compiled one regex per\n  phrase for every label, so typing in the command palette re-rendered\n  every row and froze the window. One compiled pattern per loaded file\n  and a bounded memo replace that.\n- Vocabulary keys now match a label's capitalised first letter.\n- The general tools tab is renamed Universal features, opens on a fresh\n  workspace, and is offered once to a workspace saved before it.\n- Kid mode labels the Data packs job.\n\n打字唔再卡死指令盒，工具分頁返嚟喇，詞彙大細楷都夾得到。",
+                category: "interface",
+                areas: ["interface", "docs", "site"],
+                files: 10,
+            }
+        ],
+    },
+    {
+        version: "1.0.2391",
+        tag: "v1.0.2391",
+        date: "2026-11-23T21:43:08-05:00",
+        commit: "ac660de99e4c5c32dc3fd4cca62546eb1a037509",
+        entries: [
+            {
+                sha: "ac660de99e4c5c32dc3fd4cca62546eb1a037509",
+                shortSha: "ac660de99e",
+                date: "2026-11-23T21:43:08-05:00",
+                subject: "Add biomes with a climate graph to the data pack studio",
+                details: "A Biomes section: temperature and rainfall sliders, a rain or snow\nswitch, and sky, fog, water and underwater fog colours, written as\nworldgen biome files. All the pack's biomes sit on a climate graph,\nwarmer to the right and wetter higher; choose one to edit it. A note\nsays that newer versions also take some colours from environment\nattributes, rather than blocking the save.\n\n自己整生態域，冷熱乾濕一眼睇晒。",
+                category: "interface",
+                areas: ["interface"],
+                files: 3,
+            }
+        ],
+    },
+    {
+        version: "1.0.2390",
+        tag: "v1.0.2390",
+        date: "2026-11-23T21:39:52-05:00",
+        commit: "1422a2edb87e5ca799e1b774cc19a02f99011af1",
+        entries: [
+            {
+                sha: "1422a2edb87e5ca799e1b774cc19a02f99011af1",
+                shortSha: "1422a2edb8",
+                date: "2026-11-23T21:39:52-05:00",
+                subject: "Add a highlighting, autocompleting function editor to the studio",
+                details: "Functions are edited in a real textarea over a coloured copy of the\ntext: commands, selectors, ids, numbers, strings, comments and macro\nlines each get their own colour and an unknown command is underlined.\nThe word at the cursor gets suggestions (commands, selectors, item,\nblock and entity ids); Tab takes the first.\n\n打指令有顏色又識幫你接，唔使再背晒啲名。",
+                category: "interface",
+                areas: ["interface"],
+                files: 3,
+            }
+        ],
+    },
+    {
+        version: "1.0.2388",
+        tag: "v1.0.2388",
+        date: "2026-11-23T21:37:42-05:00",
+        commit: "2722b49890da6f03fdc2d6efcfffec03094dbf91",
+        entries: [
+            {
+                sha: "2722b49890da6f03fdc2d6efcfffec03094dbf91",
+                shortSha: "2722b49890",
+                date: "2026-11-23T21:37:42-05:00",
+                subject: "Encode opened binary files in chunks",
+                details: "A large structure file in an opened pack would overflow the call stack\nwhen spread into String.fromCharCode at once; it is now encoded 32 KiB\nat a time.\n\n大檔分段處理，唔好一啖食晒。",
+                category: "interface",
+                areas: ["interface"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2387",
+        tag: "v1.0.2387",
+        date: "2026-11-23T21:36:30-05:00",
+        commit: "dc8d5a8969547f9ec02ae804e5268a9d60517163",
+        entries: [
+            {
+                sha: "dc8d5a8969547f9ec02ae804e5268a9d60517163",
+                shortSha: "dc8d5a8969",
+                date: "2026-11-23T21:36:30-05:00",
+                subject: "Keep pack.png and other binary files when opening a pack",
+                details: "The importer decoded every file as text, which would have mangled a\npack icon on the way back out. Binary files are now kept as bytes and\nwritten back unchanged in the saved .zip.\n\n差啲整爛個 icon，而家原封不動。",
+                category: "interface",
+                areas: ["interface"],
+                files: 2,
+            }
+        ],
+    },
+    {
+        version: "1.0.2386",
+        tag: "v1.0.2386",
+        date: "2026-11-23T21:35:10-05:00",
+        commit: "fb5453e2de68d7fd3eb119737c53e2e4a913a867",
+        entries: [
+            {
+                sha: "fb5453e2de68d7fd3eb119737c53e2e4a913a867",
+                shortSha: "fb5453e2de",
+                date: "2026-11-23T21:35:10-05:00",
+                subject: "Open an existing data pack .zip in the studio",
+                details: "A small .zip reader (stored and deflate, through the platform's\nDecompressionStream, skipping paths that would escape) feeds a pack\nimporter: functions with their load and tick switches and item and\nblock tags become editable, every other file is kept byte for byte,\nand saving writes them all back.\n\n舊 pack 都開得返，未識改嘅照原樣保留，一個字都唔掉。",
+                category: "interface",
+                areas: ["interface"],
+                files: 4,
+            }
+        ],
+    },
+    {
+        version: "1.0.2385",
+        tag: "v1.0.2385",
+        date: "2026-11-23T21:32:07-05:00",
+        commit: "3ddf6df58f5f4578302b6e3d3cd7daf06baa1317",
+        entries: [
+            {
+                sha: "3ddf6df58f5f4578302b6e3d3cd7daf06baa1317",
+                shortSha: "3ddf6df58f",
+                date: "2026-11-23T21:32:07-05:00",
+                subject: "Add the predicate block editor to the data pack studio",
+                details: "A Predicates section with snap-together blocks: groups (all of, any of,\nnot) hold other blocks, and weather, random chance, biome, time of day\nand score each get typed controls. Adding one writes the predicate file\nstraight away in the live preview.\n\n積木式條件編輯器上場，砌完即刻見到檔案。",
+                category: "interface",
+                areas: ["interface"],
+                files: 4,
+            }
+        ],
+    },
+    {
+        version: "1.0.2383",
+        tag: "v1.0.2383",
+        date: "2026-11-23T21:29:12-05:00",
+        commit: "12749fdddedcbaceee97622e0d64338b0c2f9ea2",
+        entries: [
+            {
+                sha: "12749fdddedcbaceee97622e0d64338b0c2f9ea2",
+                shortSha: "12749fddde",
+                date: "2026-11-23T21:29:12-05:00",
+                subject: "Add predicate blocks to the data pack model",
+                details: "Predicates are now a tree of condition blocks (all of, any of, not,\nweather, random chance, biome, time of day, score) written as the\ngame's predicate JSON into the predicate folder. The block editor in\nthe studio is next.\n\n條件可以一嚿嚿砌，下一步係畫個積木編輯器。",
+                category: "interface",
+                areas: ["interface"],
+                files: 2,
+            }
+        ],
+    },
+    {
+        version: "1.0.2382",
+        tag: "v1.0.2382",
+        date: "2026-11-23T21:26:12-05:00",
+        commit: "54d3962f269b1cddd52ac15be96ab10428c4db35",
+        entries: [
+            {
+                sha: "54d3962f269b1cddd52ac15be96ab10428c4db35",
+                shortSha: "54d3962f26",
+                date: "2026-11-23T21:26:12-05:00",
+                subject: "Start the data pack studio: advancement tree, drop chances, file tree",
+                details: "First pieces of the designed studio in the Data packs tab: advancements\ndrawn as a tree (parents above children, frame shapes, choose one to\nedit it, keyboard operable), each loot drop with its real chance per\npick as a bar, and the pack's files as a tree that drives the live\npreview. The rest of the design is still to build.\n\nData pack 開始有啲樣，未完，繼續。",
+                category: "interface",
+                areas: ["interface"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2381",
+        tag: "v1.0.2381",
+        date: "2026-11-23T21:24:01-05:00",
+        commit: "0ec1a383170b805141cad04400611ae3761219e9",
+        entries: [
+            {
+                sha: "0ec1a383170b805141cad04400611ae3761219e9",
+                shortSha: "0ec1a38317",
+                date: "2026-11-23T21:24:01-05:00",
+                subject: "Pin the v1.0.2376 appliance bases with the storage and boot fixes",
+                details: "Appliance run 45311032724 built both bases from 9cada2a, which carries\nthe storage partition handling, the --nodeps Docker restart and the\nmount-point fix that let the Minecraft appliance boot under QEMU.\n\n修好嘅 base 出爐上碟。",
+                category: "shell",
+                areas: ["shell", "docs"],
+                files: 2,
+            }
+        ],
+    },
+    {
+        version: "1.0.2380",
+        tag: "v1.0.2380",
+        date: "2026-11-23T21:15:00-05:00",
+        commit: "9cada2a6b0204cc4193ec3dc38faf2190a5e645f",
+        entries: [
+            {
+                sha: "9cada2a6b0204cc4193ec3dc38faf2190a5e645f",
+                shortSha: "9cada2a6b0",
+                date: "2026-11-23T21:15:00-05:00",
+                subject: "Record the Minecraft appliance booting under QEMU",
+                details: "The server appliance now boots end to end in a VM: storage formatted,\nDocker moved onto it, both images pulled, the server container running,\nand the management site taking its first owner and listing the server.\n\nMinecraft appliance 終於喺虛擬機企得起，老細都登記埋。",
+                category: "docs",
+                areas: ["docs"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2378",
+        tag: "v1.0.2378",
+        date: "2026-11-23T21:07:19-05:00",
+        commit: "f15232f43fdcc14f8e60596d1b79c74d9eb74447",
+        entries: [
+            {
+                sha: "f15232f43fdcc14f8e60596d1b79c74d9eb74447",
+                shortSha: "f15232f43f",
+                date: "2026-11-23T21:07:19-05:00",
+                subject: "Move Docker onto appliance storage even when its folder is a mount",
+                details: "Tracing the boot under QEMU showed the cause: /var/lib/docker is already\na mount point in the base, so the guard that skips an existing move\nreturned before moving anything. It now skips only when the storage\npartition itself is mounted there. The trace then shows the partition\nformatted, Docker moved onto it and back up.\n\n原來間房早有人借住，認清楚門牌先好走。",
+                category: "other",
+                areas: ["other"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2376",
+        tag: "v1.0.2376",
+        date: "2026-11-23T20:49:11-05:00",
+        commit: "39b91979476ba58c9c7b8a082f33158a58b553bc",
+        entries: [
+            {
+                sha: "39b91979476ba58c9c7b8a082f33158a58b553bc",
+                shortSha: "39b9197947",
+                date: "2026-11-23T20:49:11-05:00",
+                subject: "Restart Docker without stopping the boot service that needs it",
+                details: "worldlens-map declares need docker, so a plain rc-service docker stop\nfrom inside it makes OpenRC stop the boot script too. Restarting Docker\nfor the storage move now uses --nodeps. Under QEMU the storage partition\nnow gets a real ext4 file system, but the script still does not report\nmoving Docker onto it; that remains open.\n\n唔好拆埋自己企嗰塊板，不過仲有個位未搞掂。",
+                category: "other",
+                areas: ["other"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2375",
+        tag: "v1.0.2375",
+        date: "2026-11-23T20:33:41-05:00",
+        commit: "a623f0a9a54d0d9211ef730ba90b5767ebd2366b",
+        entries: [
+            {
+                sha: "a623f0a9a54d0d9211ef730ba90b5767ebd2366b",
+                shortSha: "a623f0a9a5",
+                date: "2026-11-23T20:33:41-05:00",
+                subject: "Bound and report each step of moving Docker onto appliance storage",
+                details: "The server appliance still stops after \"formatting /dev/vda3\" under\nQEMU. mkfs and the Docker stop and start now have time limits, a Docker\nthat does not come back gives up with its last log lines, and each step\nsays what it is doing, so the next run shows where it stops. The cause\nis not found yet.\n\n仲未搵到卡喺邊，不過下次會講清楚。",
+                category: "other",
+                areas: ["other"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2371",
+        tag: "v1.0.2371",
+        date: "2026-11-23T20:07:12-05:00",
+        commit: "f6bda0c93085e2ad4ba0ee63f96ff85e41edbc64",
+        entries: [
+            {
+                sha: "f6bda0c93085e2ad4ba0ee63f96ff85e41edbc64",
+                shortSha: "f6bda0c930",
+                date: "2026-11-23T20:07:12-05:00",
+                subject: "Format the appliance storage partition without zeroing or discarding",
+                details: "The Minecraft appliance stalled for 16 minutes after starting to format\nits 16 GiB storage partition under emulation. mkfs now skips the discard\npass and initialises inode tables and the journal lazily, so the format\nfinishes in seconds; -F keeps it from waiting on a question nobody can\nanswer at boot. Not yet re-proven under QEMU.\n\n唔好再逐格擦地板，先入伙再慢慢執。",
+                category: "other",
+                areas: ["other"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2370",
+        tag: "v1.0.2370",
+        date: "2026-11-23T20:06:36-05:00",
+        commit: "e569c7e28916308040a01f4d6b524cc4c6b24e5a",
+        entries: [
+            {
+                sha: "e569c7e28916308040a01f4d6b524cc4c6b24e5a",
+                shortSha: "e569c7e289",
+                date: "2026-11-23T20:06:36-05:00",
+                subject: "Design the data pack studio redesign",
+                details: "New board: pack file tree with overlays and search, tabbed visual\neditors (draggable advancement tree, loot cards with live drop-chance\nbars, predicate blocks, a highlighted function editor, a biome climate\ngraph), and the live file with version checks beside them.\n\nData pack 大執位，先畫好設計圖再起樓。",
+                category: "other",
+                areas: ["other"],
+                files: 2,
+            }
+        ],
+    },
+    {
+        version: "1.0.2369",
+        tag: "v1.0.2369",
+        date: "2026-11-23T20:05:13-05:00",
+        commit: "c1c0615d6409b90d0f622d9e42cb2da5c6a86643",
+        entries: [
+            {
+                sha: "c1c0615d6409b90d0f622d9e42cb2da5c6a86643",
+                shortSha: "c1c0615d64",
+                date: "2026-11-23T20:05:13-05:00",
+                subject: "Record the QEMU results and the data pack redesign request",
+                details: "交更紀錄：開機實測結果同 data pack 大改要求。",
+                category: "docs",
+                areas: ["docs"],
+                files: 1,
+            },
+            {
+                sha: "1072fe500693e928ddfa3f80e25a46e880641004",
+                shortSha: "1072fe5006",
+                date: "2026-11-23T19:58:02-05:00",
+                subject: "Find the empty storage partition reliably at boot",
+                details: "Under QEMU the boot script skipped the new storage partition and fell\nback to the root file system: the busybox blkid check misread an empty\npartition. Emptiness is now judged only by an all-zero first MiB, read\nthrough od, and boot messages also go to the console so a run can be\nfollowed from outside.\n\n之前個腳本睇漏咗間空房，而家數清楚啲先。",
+                category: "other",
+                areas: ["other"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2366",
+        tag: "v1.0.2366",
+        date: "2026-11-23T19:22:53-05:00",
+        commit: "9965ef6a5a000f7258a861d0eec53b5daf4dabc4",
+        entries: [
+            {
+                sha: "9965ef6a5a000f7258a861d0eec53b5daf4dabc4",
+                shortSha: "9965ef6a5a",
+                date: "2026-11-23T19:22:53-05:00",
+                subject: "Give app and server appliances their own storage partition",
+                details: "Booting a Minecraft server appliance under QEMU ran out of room: the\nserver image does not fit in the base's root file system. Composition\nnow appends an empty, sparse partition (16 GiB for a server, 8 GiB for\nthe app), and the boot script formats it only when it is entirely empty\nand moves Docker's data onto it before pulling.\n\n個碟太細塞唔落 Minecraft，而家另外開間房畀佢住。",
+                category: "shell",
+                areas: ["shell", "docs", "other"],
+                files: 5,
+            }
+        ],
+    },
+    {
+        version: "1.0.2363",
+        tag: "v1.0.2363",
+        date: "2026-11-23T18:42:00-05:00",
+        commit: "8cf2e65a9afb20b1ed922ae3e333d44e443e383b",
+        entries: [
+            {
+                sha: "8cf2e65a9afb20b1ed922ae3e333d44e443e383b",
+                shortSha: "8cf2e65a9a",
+                date: "2026-11-23T18:42:00-05:00",
+                subject: "Fill in the server site and a Minecraft server image by default",
+                details: "CI published worldlens-server-site (run 45280184307, version 1.0.2342,\nsha256:090b05ea...). The appliance dialog's server option now arrives\nwith it and with itzg/minecraft-server pinned by digest, leaving only the\nEULA for the person to accept.\n\n兩個映像都幫你填好，淨係要你自己剔 EULA。",
+                category: "interface",
+                areas: ["interface"],
+                files: 3,
+            }
+        ],
+    },
+    {
+        version: "1.0.2361",
+        tag: "v1.0.2361",
+        date: "2026-11-23T18:20:09-05:00",
+        commit: "ebd1496af12792ee9dfd06c71cdf0fdc59221845",
+        entries: [
+            {
+                sha: "ebd1496af12792ee9dfd06c71cdf0fdc59221845",
+                shortSha: "ebd1496af1",
+                date: "2026-11-23T18:20:09-05:00",
+                subject: "Boot an app appliance for real and fix what it showed",
+                details: "Booted the pinned v1.0.2311 base in app mode under QEMU with the\npublished hosted image: it pulled by digest and served the WorldLens\ninterface, answering 401 to an unsigned bridge call. The console still\nsaid it was a map and its .local address dropped a non-80 port; the\nboot script now names the app and server workloads and keeps the port.\n\n真係開咗機先知原來個螢幕仲以為自己係地圖，改返啱。",
+                category: "docs",
+                areas: ["docs", "other"],
+                files: 2,
+            }
+        ],
+    },
+    {
+        version: "1.0.2342",
+        tag: "v1.0.2342",
+        date: "2026-11-23T17:29:30-05:00",
+        commit: "6aade1a07940bb11262c54abf6eaa9095ed3309b",
+        entries: [
+            {
+                sha: "6aade1a07940bb11262c54abf6eaa9095ed3309b",
+                shortSha: "6aade1a079",
+                date: "2026-11-23T17:29:30-05:00",
+                subject: "Offer the published hosted image by default",
+                details: "CI published worldlens-hosted for the first time (run 45278760421,\nversion 1.0.2340, sha256:ed9d646b...). The container deploy card now\nlists it even before it is pulled, and the appliance dialog's app option\narrives with it filled in. The server site image is not published yet.\n\n唔使再去 CI 摘要度撈 digest，預設已經填好。",
+                category: "interface",
+                areas: ["interface", "docs"],
+                files: 5,
+            }
+        ],
+    },
+    {
+        version: "1.0.2341",
+        tag: "v1.0.2341",
+        date: "2026-11-23T17:24:41-05:00",
+        commit: "d6f3957f8fd976747ff19b7a0ab5a5c8485f664b",
+        entries: [
+            {
+                sha: "d6f3957f8fd976747ff19b7a0ab5a5c8485f664b",
+                shortSha: "d6f3957f8f",
+                date: "2026-11-23T17:24:41-05:00",
+                subject: "Pin the v1.0.2311 appliance bases with the Minecraft server workload",
+                details: "Appliance run 45277496892 built both bases from the boot script with the\nmap, app and minecraft workloads and passed its QEMU boot smoke; the pin\nnow names them with both digests, so server appliances are no longer\nrefused.\n\n新 base 又焗好，今次連 Minecraft 伺服器都識開。",
+                category: "shell",
+                areas: ["shell", "docs"],
+                files: 2,
+            }
+        ],
+    },
+    {
+        version: "1.0.2337",
+        tag: "v1.0.2337",
+        date: "2026-11-23T17:13:20-05:00",
+        commit: "bbfccd9dbb204622cebc5fb50b9be8af5cd777b6",
+        entries: [
+            {
+                sha: "bbfccd9dbb204622cebc5fb50b9be8af5cd777b6",
+                shortSha: "bbfccd9dbb",
+                date: "2026-11-23T17:13:20-05:00",
+                subject: "Note the server appliance workload in the handoff",
+                details: "交更紀錄：伺服器 appliance 砌好，等 base 出爐。",
+                category: "docs",
+                areas: ["docs"],
+                files: 2,
+            }
+        ],
+    },
+    {
+        version: "1.0.2336",
+        tag: "v1.0.2336",
+        date: "2026-11-23T17:12:41-05:00",
+        commit: "c2a9c7d00746f347be1c6b2a18280dc016e7a799",
+        entries: [
+            {
+                sha: "c2a9c7d00746f347be1c6b2a18280dc016e7a799",
+                shortSha: "c2a9c7d007",
+                date: "2026-11-23T17:12:41-05:00",
+                subject: "Package the server site and add the Minecraft server appliance workload",
+                details: "The server site now builds to dist/hosted/server-site.js and a\nserver-site Dockerfile target with the Docker client; CI publishes it as\nworldlens-server-site. Appliances gain a minecraft workload: the boot\nscript pulls the chosen server image and the site by digest, runs the\nserver with the accepted EULA and chosen memory, and runs the site with\nthe Docker socket and the shared server volume. The dialog offers it.\n\n一部虛擬機，有伺服器又有管理網站，第一個入嚟嘅做老細。",
+                category: "shell",
+                areas: ["shell", "interface", "build", "docs", "other"],
+                files: 15,
+            }
+        ],
+    },
+    {
+        version: "1.0.2335",
+        tag: "v1.0.2335",
+        date: "2026-11-23T17:09:11-05:00",
+        commit: "86cf9f17dfa73dfe9bfcd1fc5a7277c58f0bbbab",
+        entries: [
+            {
+                sha: "86cf9f17dfa73dfe9bfcd1fc5a7277c58f0bbbab",
+                shortSha: "86cf9f17df",
+                date: "2026-11-23T17:09:11-05:00",
+                subject: "Note the server site program in the handoff",
+                details: "交更紀錄：網站程式有咗，未入碟。",
+                category: "docs",
+                areas: ["docs"],
+                files: 2,
+            }
+        ],
+    },
+    {
+        version: "1.0.2334",
+        tag: "v1.0.2334",
+        date: "2026-11-23T17:08:59-05:00",
+        commit: "023131304bf1d1ebf49b5778e67acd6d22d53edc",
+        entries: [
+            {
+                sha: "023131304bf1d1ebf49b5778e67acd6d22d53edc",
+                shortSha: "023131304b",
+                date: "2026-11-23T17:08:59-05:00",
+                subject: "Add the server appliance's management site as its own program",
+                details: "serversite/main.ts runs the web console with named accounts outside the\ndesktop app: it registers the appliance's Minecraft container as a\nlocal-docker server once, keeps accounts in a private file (and refuses\nto start rather than reopen owner sign-up if that file is damaged), and\nneeds an explicit choice between HTTPS in front and plain HTTP on the\nlocal network.\n\n管理網站自己企得穩，唔使靠桌面 app 撐腰。",
+                category: "shell",
+                areas: ["shell"],
+                files: 3,
+            }
+        ],
+    },
+    {
+        version: "1.0.2332",
+        tag: "v1.0.2332",
+        date: "2026-11-23T17:06:54-05:00",
+        commit: "0a5b380a59b06b3715572be3a702584976cb1034",
+        entries: [
+            {
+                sha: "0a5b380a59b06b3715572be3a702584976cb1034",
+                shortSha: "0a5b380a59",
+                date: "2026-11-23T17:06:54-05:00",
+                subject: "Note Bedrock saving in the handoff",
+                details: "交更紀錄：Bedrock 識存喇。",
+                category: "docs",
+                areas: ["docs"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2331",
+        tag: "v1.0.2331",
+        date: "2026-11-23T17:06:43-05:00",
+        commit: "e3e15bd7cd876245ca61325e3594a17478ca2b98",
+        entries: [
+            {
+                sha: "e3e15bd7cd876245ca61325e3594a17478ca2b98",
+                shortSha: "e3e15bd7cd",
+                date: "2026-11-23T17:06:43-05:00",
+                subject: "Save Bedrock records back to the world's LevelDB",
+                details: "Saving a Bedrock record now appends one write batch to the newest log\nwith the next sequence number, split across 32 KiB blocks and\nCRC-32C checksummed like LevelDB's own writer, after copying that log\noutside the world. Reading the world again shows the new value.\n\nBedrock 世界改完撳儲存，遊戲照讀得返，唔再淨係得睇。",
+                category: "engine",
+                areas: ["engine", "shell", "interface", "site", "docs"],
+                files: 7,
+            }
+        ],
+    },
+    {
+        version: "1.0.2330",
+        tag: "v1.0.2330",
+        date: "2026-11-23T17:04:57-05:00",
+        commit: "f7932433bd54be2c86719501a7f3d7f0bc629b2d",
+        entries: [
+            {
+                sha: "f7932433bd54be2c86719501a7f3d7f0bc629b2d",
+                shortSha: "f7932433bd",
+                date: "2026-11-23T17:04:57-05:00",
+                subject: "Bring the handoff up to date after Bedrock and the base pin",
+                details: "交更紀錄：Bedrock 睇得，base pin 好。",
+                category: "docs",
+                areas: ["docs"],
+                files: 2,
+            }
+        ],
+    },
+    {
+        version: "1.0.2329",
+        tag: "v1.0.2329",
+        date: "2026-11-23T17:04:44-05:00",
+        commit: "d3256f1be815324523bbc5347074c385fdf82dc5",
+        entries: [
+            {
+                sha: "d3256f1be815324523bbc5347074c385fdf82dc5",
+                shortSha: "d3256f1be8",
+                date: "2026-11-23T17:04:44-05:00",
+                subject: "Pin the v1.0.2300 appliance bases that can run the whole app",
+                details: "Appliance run 45274195226 built both bases from the boot script that\nruns either the map or the WorldLens app, and attached them to release\nv1.0.2300. The pin now names them with both digests and\nworkloads [map, app], so app appliances are no longer refused.\n\n新 base 焗好上碟，app 模式終於有得揀。",
+                category: "shell",
+                areas: ["shell", "docs"],
+                files: 2,
+            }
+        ],
+    },
+    {
+        version: "1.0.2328",
+        tag: "v1.0.2328",
+        date: "2026-11-23T17:04:06-05:00",
+        commit: "e29253c10ce1f6cd5c88ec8b6d78645391a33a0c",
+        entries: [
+            {
+                sha: "e29253c10ce1f6cd5c88ec8b6d78645391a33a0c",
+                shortSha: "e29253c10c",
+                date: "2026-11-23T17:04:06-05:00",
+                subject: "Open Bedrock worlds in the NBT editor through their LevelDB",
+                details: "A read-only LevelDB reader (logs and sorted tables; plain, Snappy, zlib\nand raw deflate blocks; newest sequence wins, deletions hide) lists a\nBedrock world's records by player, world record and chunk, and NBT\nrecords open in the editor as little-endian NBT. Saving is refused with\nthe reason until writing LevelDB exists.\n\nBedrock 世界唔再係黑盒，打開睇得清清楚楚，暫時淨係睇唔改。",
+                category: "shell",
+                areas: ["shell", "interface", "engine", "other", "site", "docs"],
+                files: 17,
+            }
+        ],
+    },
+    {
+        version: "1.0.2326",
+        tag: "v1.0.2326",
+        date: "2026-11-23T16:53:43-05:00",
+        commit: "9585c1246196ddd9a388bc5d19644c6e489ede00",
+        entries: [
+            {
+                sha: "9585c1246196ddd9a388bc5d19644c6e489ede00",
+                shortSha: "9585c12461",
+                date: "2026-11-23T16:53:43-05:00",
+                subject: "Record the relay planner and the appliance base run in the handoff",
+                details: "交更紀錄：中繼做好，新 base 喺度焗緊。",
+                category: "docs",
+                areas: ["docs"],
+                files: 2,
+            }
+        ],
+    },
+    {
+        version: "1.0.2325",
+        tag: "v1.0.2325",
+        date: "2026-11-23T16:52:59-05:00",
+        commit: "cd3febf7afdf1225b4d68e8c3102caca44b1d76c",
+        entries: [
+            {
+                sha: "cd3febf7afdf1225b4d68e8c3102caca44b1d76c",
+                shortSha: "cd3febf7af",
+                date: "2026-11-23T16:52:59-05:00",
+                subject: "Add the player relay planner for reaching servers from anywhere",
+                details: "New card on the Minecraft servers screen: pick an Oracle Cloud Always\nFree relay, your own server, a router port or this network only. The\nrelay routes make fresh WireGuard keys, a cloud-init or setup script that\nforwards the chosen TCP/UDP ports through the tunnel across reboots, and\nthe server-side config that dials out, so the home router opens nothing.\n\nCloudflare tunnel 帶唔到 UDP？搵部 Oracle 免費機幫手做門口，搞掂。",
+                category: "interface",
+                areas: ["interface", "docs"],
+                files: 5,
+            }
+        ],
+    },
+    {
+        version: "1.0.2324",
+        tag: "v1.0.2324",
+        date: "2026-11-23T16:49:40-05:00",
+        commit: "8a12032d26ba0f9981e8f323042fb0d9a8a0be1f",
+        entries: [
+            {
+                sha: "8a12032d26ba0f9981e8f323042fb0d9a8a0be1f",
+                shortSha: "8a12032d26",
+                date: "2026-11-23T16:49:40-05:00",
+                subject: "Note the wired account sign-in in the handoff",
+                details: "交更紀錄跟住更新。",
+                category: "docs",
+                areas: ["docs"],
+                files: 2,
+            }
+        ],
+    },
+    {
+        version: "1.0.2323",
+        tag: "v1.0.2323",
+        date: "2026-11-23T16:49:25-05:00",
+        commit: "55665981bd34b996c3bb1bd022ed7532bb50c44b",
+        entries: [
+            {
+                sha: "55665981bd34b996c3bb1bd022ed7532bb50c44b",
+                shortSha: "55665981bd",
+                date: "2026-11-23T16:49:25-05:00",
+                subject: "Wire named accounts into the server web console",
+                details: "Given an AccountBook, the console serves an account page instead of the\nshared-password one: first-visitor owner setup with the chosen sign-in\nmethods, sign-in with exactly what the policy asks for (password,\npasskey through navigator.credentials, authenticator code), invitations,\npolicy changes and removals. Failures use the existing lockout ladder,\nwhose routes keep working beside the new ones.\n\n登入頁終於識分邊個係老細，邊個係伙記。",
+                category: "shell",
+                areas: ["shell", "docs"],
+                files: 4,
+            }
+        ],
+    },
+    {
+        version: "1.0.2322",
+        tag: "v1.0.2322",
+        date: "2026-11-23T16:47:04-05:00",
+        commit: "03a411aee2f025a84b295472719fedd457f6451e",
+        entries: [
+            {
+                sha: "03a411aee2f025a84b295472719fedd457f6451e",
+                shortSha: "03a411aee2",
+                date: "2026-11-23T16:47:04-05:00",
+                subject: "Update the handoff after the appliance and sign-in work",
+                details: "Adds the app-mode appliance, the Hosted instances rows and the server\nsite's sign-in core, and the honest list of what is still to build.\n\n交更紀錄再更新，做咗乜未做乜講清楚。",
+                category: "docs",
+                areas: ["docs"],
+                files: 2,
+            }
+        ],
+    },
+    {
+        version: "1.0.2321",
+        tag: "v1.0.2321",
+        date: "2026-11-23T16:46:49-05:00",
+        commit: "5a2f517517a1b4f6097a1c9d4fd3a783e1199f56",
+        entries: [
+            {
+                sha: "5a2f517517a1b4f6097a1c9d4fd3a783e1199f56",
+                shortSha: "5a2f517517",
+                date: "2026-11-23T16:46:49-05:00",
+                subject: "Add owner-first accounts, passkeys and authenticator codes for the server site",
+                details: "Sign-in core for the Minecraft server management site: the first person\nto register becomes the owner and registration closes; others join by\nsingle-use invitation. Sign-in needs any combination of password,\npasskey and authenticator code, and a policy that would lock someone out\nis refused. TOTP follows RFC 6238 with replay protection; passkeys are\nverified with node:crypto (ES256, Ed25519, none attestation). Not yet\nwired into the HTTP routes.\n\n第一個入嚟嘅做老細，之後要邀請碼先入得，密碼、passkey、驗證碼任你砌。",
+                category: "shell",
+                areas: ["shell", "docs"],
+                files: 5,
+            }
+        ],
+    },
+    {
+        version: "1.0.2320",
+        tag: "v1.0.2320",
+        date: "2026-11-23T16:44:10-05:00",
+        commit: "b1886a2b44607f8e6c23cae54373f05633920035",
+        entries: [
+            {
+                sha: "b1886a2b44607f8e6c23cae54373f05633920035",
+                shortSha: "b1886a2b44",
+                date: "2026-11-23T16:44:10-05:00",
+                subject: "List WorldLens containers on Hosted instances",
+                details: "Containers running the hosted WorldLens image now show on Hosted\ninstances as WorldLens app rows with a local link, health, and Start,\nStop (through the manager's stop authorization) and Restart. Remove stays\non the Docker hosting screen.\n\n部署咗嘅 WorldLens 唔再匿埋，一覽表入面見到佢企喺度。",
+                category: "interface",
+                areas: ["interface", "docs"],
+                files: 4,
+            }
+        ],
+    },
+    {
+        version: "1.0.2317",
+        tag: "v1.0.2317",
+        date: "2026-11-23T16:40:57-05:00",
+        commit: "ea0e455e4f3354e12788499dd514d2ef017a403d",
+        entries: [
+            {
+                sha: "ea0e455e4f3354e12788499dd514d2ef017a403d",
+                shortSha: "ea0e455e4f",
+                date: "2026-11-23T16:40:57-05:00",
+                subject: "Let an appliance run the whole WorldLens app, not only the map",
+                details: "The appliance dialog can now build a disk that runs the hosted WorldLens\nimage: paste the digest-pinned image and set a password, and only the\npassword's SHA-256 is written. The boot script checks both, pulls the\nimage by digest on first start (retrying with a console message), and\noffers the copied map read-only. Base pins now say which workloads their\nboot script runs; the current pins run the map only, so an app build on\nthem is refused with that reason instead of quietly booting the map.\n\n部署個 app 唔止部署張地圖，但舊 base 唔識就老實講唔識，唔扮識。",
+                category: "shell",
+                areas: ["shell", "interface", "docs", "other"],
+                files: 11,
+            }
+        ],
+    },
+    {
+        version: "1.0.2315",
+        tag: "v1.0.2315",
+        date: "2026-11-23T16:36:22-05:00",
+        commit: "bde9835b6e6705cb2e882a432938793f80368312",
+        entries: [
+            {
+                sha: "bde9835b6e6705cb2e882a432938793f80368312",
+                shortSha: "bde9835b6e",
+                date: "2026-11-23T16:36:22-05:00",
+                subject: "Bring the handoff and closeout prompt up to date",
+                details: "Records the chunk view, chunk picker, data pack creator, hosted image\njob and container deploy, what is still to build, and the three earlier\ncommits with the wrong co-author trailer.\n\n交更紀錄補返齊，下一位唔使估。",
+                category: "docs",
+                areas: ["docs"],
+                files: 2,
+            }
+        ],
+    },
+    {
+        version: "1.0.2314",
+        tag: "v1.0.2314",
+        date: "2026-11-23T16:36:00-05:00",
+        commit: "62a63262f9b2b9db16cdec804bc3c420bae684d7",
+        entries: [
+            {
+                sha: "62a63262f9b2b9db16cdec804bc3c420bae684d7",
+                shortSha: "62a63262f9",
+                date: "2026-11-23T16:36:00-05:00",
+                subject: "Deploy WorldLens as a container in one click",
+                details: "The Docker hosting screen gains a Deploy WorldLens card: pick the hosted\nimage, the folders it may open (browse, name, read only), a port, whether\nother machines can reach it, a restart policy and a password, then\nDeploy creates and starts it. Only the password's SHA-256 is sent.\n\nThe manager learns folder mounts (absolute source without comma, quote,\nnewline or .., target under /data), owned volumes at a fixed place, and\nport mappings with a bind mode, which it previously refused on sight\neven though the type said it took them.\n\n一撳就部署成個 WorldLens 落 Docker，唔使再抄成版 docker run 抄到手軟。",
+                category: "interface",
+                areas: ["interface", "other", "shell", "docs"],
+                files: 11,
+            }
+        ],
+    },
+    {
+        version: "1.0.2311",
+        tag: "v1.0.2311",
+        date: "2026-11-23T16:29:35-05:00",
+        commit: "39c1dfbf52e6f48d7df361b8387ea6839afdff89",
+        entries: [
+            {
+                sha: "39c1dfbf52e6f48d7df361b8387ea6839afdff89",
+                shortSha: "39c1dfbf52",
+                date: "2026-11-23T16:29:35-05:00",
+                subject: "Publish the hosted application image from CI",
+                details: "New hosted-image job builds design/packages/app/Dockerfile.hosted for\namd64 and arm64, pushes ghcr.io/<owner>/worldlens-hosted with version,\nsha and latest tags, and keeps the digest record as an artifact, so the\ndesktop app can deploy a digest-pinned image instead of asking anyone to\ndocker build it themselves.\n\nhosted image 終於有人幫手砌好放上架，唔使自己 build 到天光。",
+                category: "build",
+                areas: ["build"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2310",
+        tag: "v1.0.2310",
+        date: "2026-11-23T16:28:18-05:00",
+        commit: "92e41bbf1d6799f8d407588bb5e66620a85f4804",
+        entries: [
+            {
+                sha: "92e41bbf1d6799f8d407588bb5e66620a85f4804",
+                shortSha: "92e41bbf1d",
+                date: "2026-11-23T16:28:18-05:00",
+                subject: "Add a data pack creator to the Worlds group",
+                details: "New Data packs tab: recipes on a paintable crafting grid (plus furnace\nfamily, stonecutter, smithing), functions with per-line checks and the\ncommand builder, load/tick tags, item and block tags, advancements and\nloot tables. Pack format, folder names and ingredient shapes follow the\nchosen version from 1.20.5 to 26.1, and the pack saves as a .zip built\nby a small stored-ZIP writer. Also fixes the NBT editor site article,\nwhich still claimed LZ4 chunks were unsupported.\n\n唔使再手寫 JSON 數括號，畫個合成格就有配方，正！",
+                category: "interface",
+                areas: ["interface", "site", "docs"],
+                files: 14,
+            }
+        ],
+    },
+    {
+        version: "1.0.2304",
+        tag: "v1.0.2304",
+        date: "2026-11-23T16:14:08-05:00",
+        commit: "65dbdc907a6389856edc431149180c54bd8df7c4",
+        entries: [
+            {
+                sha: "65dbdc907a6389856edc431149180c54bd8df7c4",
+                shortSha: "65dbdc907a",
+                date: "2026-11-23T16:14:08-05:00",
+                subject: "Add a \"render only these chunks\" picker to the render mask card",
+                details: "The render mask card gets a top view of the chunks a dimension has\nactually generated (read from region headers). Drag a rectangle,\ncircle or freehand shape, click one chunk, or use the keyboard; Alt\nremoves. Applying writes chunk-aligned mask boxes, with neighbouring\nruns merged so the mask doesn't balloon into one box per chunk.\n\n撳幾下拖個圈，就淨係 render 你想要嗰幾舊 chunk，唔使再成個世界慢慢等。",
+                category: "interface",
+                areas: ["interface", "site", "docs"],
+                files: 8,
+            }
+        ],
+    },
+    {
+        version: "1.0.2300",
+        tag: "v1.0.2300",
+        date: "2026-11-23T16:07:13-05:00",
+        commit: "bfc87f0efde1bdf38030a6ca4b9710eb84aa2cd2",
+        entries: [
+            {
+                sha: "bfc87f0efde1bdf38030a6ca4b9710eb84aa2cd2",
+                shortSha: "bfc87f0efd",
+                date: "2026-11-23T16:07:13-05:00",
+                subject: "Update the closeout prompt",
+                details: "更新收尾提示。",
+                category: "docs",
+                areas: ["docs"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2299",
+        tag: "v1.0.2299",
+        date: "2026-11-23T16:07:01-05:00",
+        commit: "3b23096b779706dd778d11917fad369715500805",
+        entries: [
+            {
+                sha: "3b23096b779706dd778d11917fad369715500805",
+                shortSha: "3b23096b77",
+                date: "2026-11-23T16:07:01-05:00",
+                subject: "Add designs for the player relay, data pack creator and chunk picker",
+                details: "Design boards: letting players join through a router port, an Oracle\nCloud relay or an SSH relay; a data pack creator; and a top-view picker\nto render only chosen chunks.\n\n三塊新設計板：玩家中繼、data pack 創作器、揀 chunk 嚟 render，正！",
+                category: "other",
+                areas: ["other", "docs"],
+                files: 7,
+            }
+        ],
+    },
+    {
+        version: "1.0.2298",
+        tag: "v1.0.2298",
+        date: "2026-11-23T16:04:11-05:00",
+        commit: "aab3cf367cecfbb2928f2ebb3e6c1899de43cd6e",
+        entries: [
+            {
+                sha: "aab3cf367cecfbb2928f2ebb3e6c1899de43cd6e",
+                shortSha: "aab3cf367c",
+                date: "2026-11-23T16:04:11-05:00",
+                subject: "Add a chunk view with height, biome, block and light layers",
+                details: "Chunks opened from the region canvas now show a 16 by 16 picture with\nheightmap, biome, block palette and block light layers, a height slider,\nand the chunk's block entities. Packed long arrays are decoded the 1.16+\nway and covered by tests.\n\n加咗 chunk 檢視：高度、生態域、方塊同光四層，仲有方塊實體清單，靚仔晒！",
+                category: "interface",
+                areas: ["interface", "docs"],
+                files: 5,
+            }
+        ],
+    },
+    {
+        version: "1.0.2297",
+        tag: "v1.0.2297",
+        date: "2026-11-23T16:01:06-05:00",
+        commit: "d762d4bd113fbdac9c997ceaf27c47a0712f43a6",
+        entries: [
+            {
+                sha: "d762d4bd113fbdac9c997ceaf27c47a0712f43a6",
+                shortSha: "d762d4bd11",
+                date: "2026-11-23T16:01:06-05:00",
+                subject: "Add a structure editor to the NBT editor",
+                details: "Structure templates (.nbt) open on a Structure view: one layer as a\ngrid with Paint and Pick, a layer stepper (and Page Up/Down), an\nisometric preview of the whole build with upper layers faint, and the\npalette with readable names, properties and block counts. The palette\nand block list are read as SNBT and handled by a bracket- and\nquote-aware reader that changes only top-level state values and adds\nnew {pos,state} entries, so each block's own nbt survives; a stroke is\none replaceSnbt edit and one undo step. Over 96 wide or too large to\nread as text stays in the tree. Keyboard: arrows, Space, P.\n\nTests: nbtStructureModel.test.ts (5) and NbtStructureView.test.ts\n(layer cells named, palette, keyboard paint as one edit); 66 in\nnbteditor.\n\n結構檔可以一層層畫，調色盤數得清清楚楚，箱入面嘅嘢一件都唔會唔見。",
+                category: "interface",
+                areas: ["interface", "docs"],
+                files: 6,
+            }
+        ],
+    },
+    {
+        version: "1.0.2295",
+        tag: "v1.0.2295",
+        date: "2026-11-23T15:57:27-05:00",
+        commit: "9918f5da9bb8e826a27957305508edd4710b6565",
+        entries: [
+            {
+                sha: "9918f5da9bb8e826a27957305508edd4710b6565",
+                shortSha: "9918f5da9b",
+                date: "2026-11-23T15:57:27-05:00",
+                subject: "Add an inventory and item editor to the NBT editor",
+                details: "Player files (playerdata, 26.1 players/data, and the player inside an\nolder level.dat) get an Inventory view: armour and off hand, main\ngrid and hotbar, or the ender chest, each stack with a short code, its\nown colour, its count and a full accessible name. Picking a stack\nshows every value it holds through a new NbtGroupFields component\n(nested groups, list lines, tailored controls), so enchantment levels\nunder minecraft:enchantments are 1-255 steppers named after the\nenchantment. An empty slot offers Put it here, written in the file's\nown layout: components and count from 1.20.5, Count byte before, armour\ninto equipment from 1.21.5.\n\nTests: NbtInventoryView.test.ts (stack in its slot, enchantment level\nstepper, new stack SNBT, layout per data version); 60 in nbteditor.\n\n背包編輯器：一格格睇得到，附魔等級用加減器，空格可以直接放嘢。",
+                category: "interface",
+                areas: ["interface", "docs"],
+                files: 7,
+            }
+        ],
+    },
+    {
+        version: "1.0.2294",
+        tag: "v1.0.2294",
+        date: "2026-11-23T15:52:12-05:00",
+        commit: "a369dee5f4cf0d9934eeaf54eb97659fbf994b59",
+        entries: [
+            {
+                sha: "a369dee5f4cf0d9934eeaf54eb97659fbf994b59",
+                shortSha: "a369dee5f4",
+                date: "2026-11-23T15:52:12-05:00",
+                subject: "Add a map art canvas to the NBT editor",
+                details: "Map item files (map_<n>.dat, or maps/<n>.dat from 26.1) open on a Map\nart view: the 128x128 colour bytes drawn with the game's 61 base map\ncolours in their four shades (180, 220, 255, 135 of 255), with pen,\nline, fill and pick tools, picture import matched to the nearest map\ncolour, and PNG export. A stroke is one replaceSnbt edit of the whole\narray, so it is one undo step with normal history. The map's scale,\ncentre, dimension, lock and tracking settings sit beside it with\ntailored controls (scale is a 1:1 to 1:16 choice). The canvas is\nkeyboard-paintable: arrows move a cursor, Space paints, P picks.\n\nTests: nbtMapModel.test.ts (6: palette, shades, nearest colour, line,\nfill, SNBT, picture import) and NbtMapCanvas.test.ts (reads all 16,384\npixels and sends one edit from the keyboard); 57 in nbteditor.\n\n地圖畫布：用遊戲本身嘅地圖顏色一格格畫，又可以將相片變做地圖畫。",
+                category: "interface",
+                areas: ["interface", "docs"],
+                files: 7,
+            }
+        ],
+    },
+    {
+        version: "1.0.2293",
+        tag: "v1.0.2293",
+        date: "2026-11-23T15:45:49-05:00",
+        commit: "a83c7a4e7758e8a62653f1cb732741cf5bca7231",
+        entries: [
+            {
+                sha: "a83c7a4e7758e8a62653f1cb732741cf5bca7231",
+                shortSha: "a83c7a4e77",
+                date: "2026-11-23T15:45:49-05:00",
+                subject: "Open and save LZ4 and external .mcc region chunks",
+                details: "region.ts gains RegionSupport (lz4, external), storedRegionChunk,\nwriteStoredRegionChunk, externalChunkName and MAX_INLINE_CHUNK_BYTES;\nwithout support the old refusals stay. The desktop service supports\nboth: LZ4 chunks decompress and recompress through the engine's\nlz4-java block stream, external chunks are read from c.<x>.<z>.mcc,\nand a save that grows a chunk past 255 sectors moves it to its .mcc\nfile (written before the region that points at it). A chunk that fits\nagain goes back inline; a missing .mcc file is named in the refusal.\n\nTests: 4 app tests (listing, LZ4 round trip, .mcc read and inline\nreturn, missing .mcc) and 2 nbt tests; 118 across nbt and the editor\nservice. The \"Not yet\" list loses both items, in both languages.\n\nLZ4 同 .mcc 嘅 chunk 而家開得改得，大 chunk 識自己搬去 .mcc，好似遊戲咁。",
+                category: "engine",
+                areas: ["engine", "shell", "docs"],
+                files: 5,
+            }
+        ],
+    },
+    {
+        version: "1.0.2292",
+        tag: "v1.0.2292",
+        date: "2026-11-23T15:42:35-05:00",
+        commit: "b878b2f2a1320af8eb8f6fdcbf5f4ab8da07cb2e",
+        entries: [
+            {
+                sha: "b878b2f2a1320af8eb8f6fdcbf5f4ab8da07cb2e",
+                shortSha: "b878b2f2a1",
+                date: "2026-11-23T15:42:35-05:00",
+                subject: "Add a region canvas to the NBT editor",
+                details: "Showing a region file's chunks now opens a Region view: the 32 by 32\nchunk slots as a grid shaded by stored size, last save or compression,\nwith empty slots outlined and unopenable chunks hatched. Picking a\nchunk shows its block range, size, save time and compression (external\n.mcc chunks named as such); Open or double-click opens it. The grid is\none tab stop with arrow, Home and End movement, and every cell is a\nnamed button.\n\nTests: nbtRegionModel.test.ts (4: placement incl. negative regions,\nshading, unsupported chunks, keyboard) and a mounted test that opens a\nchunk from the canvas; 50 in nbteditor. Article in both languages.\n\nRegion 檔案變咗一幅 32×32 嘅 chunk 地圖，邊個大邊個舊一眼睇晒，撳一下就開。",
+                category: "interface",
+                areas: ["interface", "docs"],
+                files: 6,
+            }
+        ],
+    },
+    {
+        version: "1.0.2291",
+        tag: "v1.0.2291",
+        date: "2026-11-23T15:39:35-05:00",
+        commit: "885f981ffa657b760d3f13d9ff80c9204919988a",
+        entries: [
+            {
+                sha: "885f981ffa657b760d3f13d9ff80c9204919988a",
+                shortSha: "885f981ffa",
+                date: "2026-11-23T15:39:35-05:00",
+                subject: "Add a settings form view to the NBT editor",
+                details: "Tree and Settings form now switch between two views of the open file\n(remembered). The form follows the World settings board: World, Spawn,\nTime and weather, World border, Other values, a section per group such\nas Game rules, and About this file last, each value with its tailored\ncontrol and the same edit, undo and history as the tree. It reads a\nclassic level.dat from Data and any other file from its root, so the\n26.1 split files (game_rules.dat, weather.dat, world_clocks.dat) open\nas forms, and a 26.1 level.dat offers buttons to open them. A search\nwith the regex builder filters by readable name, key or value.\n\nTests: nbtFormModel.test.ts (4) and a mounted form test that edits\nSpawn X through the stepper; 45 in nbteditor. Article updated in both\nlanguages.\n\nNBT 編輯器加咗設定表格：世界、出生點、時間天氣、邊界、遊戲規則分晒節，\n26.1 拆出去嘅檔案一樣用表格改。",
+                category: "interface",
+                areas: ["interface", "docs"],
+                files: 6,
+            }
+        ],
+    },
+    {
+        version: "1.0.2290",
+        tag: "v1.0.2290",
+        date: "2026-11-23T15:31:53-05:00",
+        commit: "0c18797f163ba4b35e2f385221d1792d733917f0",
+        entries: [
+            {
+                sha: "0c18797f163ba4b35e2f385221d1792d733917f0",
+                shortSha: "0c18797f16",
+                date: "2026-11-23T15:31:53-05:00",
+                subject: "Refresh the closeout prompt: readable NBT editor and the build queue",
+                details: "收工提示：NBT 講人話已經上咗，下一步排好晒。",
+                category: "docs",
+                areas: ["docs"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2289",
+        tag: "v1.0.2289",
+        date: "2026-11-23T15:31:37-05:00",
+        commit: "6513ecdc02b9fdaa0808ff0f9bee75f503d848a8",
+        entries: [
+            {
+                sha: "6513ecdc02b9fdaa0808ff0f9bee75f503d848a8",
+                shortSha: "6513ecdc02",
+                date: "2026-11-23T15:31:37-05:00",
+                subject: "Make the NBT editor readable, with a control that fits each value",
+                details: "The tree shows known fields by meaning (\"Spawn X\", \"Game mode\", \"Keep\ninventory on death\"), a plain type chip (\"Whole number\", \"Yes or no\",\n\"Time of day\", \"Colour\") and a readable value (\"Creative\", \"12:00,\nday 2\", \"6 min 2 s\", \"Diamond Pickaxe\"). NbtValueEditor now picks its\ncontrol from the field catalogue: switch (bytes and \"true\"/\"false\"\ngame rules), select by name, bounded stepper with unit, slider,\ntime-of-day slider that keeps the day count, minutes-and-seconds for\ndurations, colour picker for dye and potion colours, readable resource\nnames. Integers step with BigInt, and every control sends the same\nsetValue edit as before, so undo, history and the running-world guard\nare untouched. A Game names switch shows raw keys and types and is\nremembered.\n\nTests: 40 in nbteditor (two new: stepper sends 129; Game names shows\nraw chips and persists), 11 in the catalogue. Article updated in both\nlanguages; site article gains a paragraph.\n\nNBT 編輯器講返人話：欄位有名有意思，數值用開關、加減器、滑桿、時鐘同\n顏色選擇器改，唔使淨係對住個文字框估。",
+                category: "interface",
+                areas: ["interface", "site", "docs"],
+                files: 6,
+            }
+        ],
+    },
+    {
+        version: "1.0.2288",
+        tag: "v1.0.2288",
+        date: "2026-11-23T15:25:09-05:00",
+        commit: "f92e43af3b4f63839bb21ea190eb99f1bca53b91",
+        entries: [
+            {
+                sha: "f92e43af3b4f63839bb21ea190eb99f1bca53b91",
+                shortSha: "f92e43af3b",
+                date: "2026-11-23T15:25:09-05:00",
+                subject: "Add an NBT field catalogue: readable names and tailored controls",
+                details: "nbtFieldCatalogue.ts turns a tag into a readable label (\"Spawn X\", not\nSpawnX), a plain type (\"Whole number\", \"Yes or no\", \"Time of day\") and\nthe control that fits it: switch, choice by name, bounded stepper or\nslider, time-of-day clock, duration in minutes, colour picker, resource\npicker, text or raw. Keys match across the 1.21.11 snake_case rename\nand the 26.1 moves; context decides ambiguous keys (a dye colour gets a\npicker, a tropical fish's Color variant does not). 11 tests.\n\nNBT 欄位目錄：SpawnX 叫返「出生點 X」，難度揀「普通」唔使打個 2，\n顏色用顏色選擇器，時間用時鐘。",
+                category: "interface",
+                areas: ["interface"],
+                files: 2,
+            }
+        ],
+    },
+    {
+        version: "1.0.2287",
+        tag: "v1.0.2287",
+        date: "2026-11-23T15:22:58-05:00",
+        commit: "6c5dadef7503afd0ab8b2d0dc469ce947c4b88d4",
+        entries: [
+            {
+                sha: "6c5dadef7503afd0ab8b2d0dc469ce947c4b88d4",
+                shortSha: "6c5dadef75",
+                date: "2026-11-23T15:22:58-05:00",
+                subject: "Design readable NBT controls and a Minecraft server appliance",
+                details: "NBT boards: the tree now reads in plain language (friendly names over\ngame keys, plain type chips, readable values, a Game names switch), and\na new Tailored controls board shows the control each kind of field\ngets: colour picker for dye colours, durability slider, coordinate\nsteppers with pick-on-map, item picker by readable name, rich-text\nnames, UUID, light, weather minutes and block-state facing.\n\nDeploy boards: a Minecraft server as a virtual appliance (software,\nversion, world, players, port, memory, target, live map, backups) and\nthe management site inside it, where the first account is the owner\nwith full rights and sign-in is password, passkey, authenticator code\nor any combination.\n\nNBT 編輯器講返人話，每個欄位有啱用嘅控制項；仲有一部自帶管理網站嘅\nMinecraft 伺服器虛擬機，第一個登入嘅人做老闆。",
+                category: "other",
+                areas: ["other", "docs"],
+                files: 17,
+            }
+        ],
+    },
+    {
+        version: "1.0.2286",
+        tag: "v1.0.2286",
+        date: "2026-11-23T15:20:38-05:00",
+        commit: "3e40e09c85739333812b1a5a534f30b0f1d29353",
+        entries: [
+            {
+                sha: "3e40e09c85739333812b1a5a534f30b0f1d29353",
+                shortSha: "3e40e09c85",
+                date: "2026-11-23T15:20:38-05:00",
+                subject: "Add research notes on Minecraft NBT for the readable editor",
+                details: "What the NBT editor must understand to show readable names and\ntailored controls: the tag types and endianness, the version eras that\nchange the data (item components in 1.20.5, text components as NBT in\n1.21.5, per-dimension world border in 1.21.9, snake_case game rules in\n1.21.11, the 26.1 world layout), region compression bytes including\nLZ4 and external .mcc chunks, map colour bytes and shades, structure\nfiles, Bedrock LevelDB, and a field-to-control table. With a Cantonese\nsection.\n\nNBT 研究筆記：每個欄位應該用乜嘢控制項，唔再一律塞個文字框。",
+                category: "docs",
+                areas: ["docs"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2280",
+        tag: "v1.0.2280",
+        date: "2026-11-23T14:39:59-05:00",
+        commit: "9d832d7cdec00eada5e60c1c1dce0a547c83e364",
+        entries: [
+            {
+                sha: "9d832d7cdec00eada5e60c1c1dce0a547c83e364",
+                shortSha: "9d832d7cde",
+                date: "2026-11-23T14:39:59-05:00",
+                subject: "Refresh the closeout prompt: strip order, NBT and deploy designs",
+                details: "收工提示更新：工作列跟 BlueMap 排、NBT 同部署設計板已經入咗庫。",
+                category: "docs",
+                areas: ["docs"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2278",
+        tag: "v1.0.2278",
+        date: "2026-11-23T14:39:42-05:00",
+        commit: "2ccdb1c869314f378623cb22a3744182fa1c5617",
+        entries: [
+            {
+                sha: "2ccdb1c869314f378623cb22a3744182fa1c5617",
+                shortSha: "2ccdb1c869",
+                date: "2026-11-23T14:39:42-05:00",
+                subject: "Add design boards for one-click deploys of the whole application",
+                details: "Three boards: deploy WorldLens as a container on a chosen Docker host\n(this PC or SSH), deploy it as a virtual appliance (Hyper-V, VirtualBox,\nVMware, QEMU, bootable USB or an exported image), and a Running copies\nlist with health, open, update, stop, remove and a QR code. Every\nsetting is a control with a default, so Deploy is one click. The README\nnames the existing hosted image, Docker manager and appliance path the\nbuild reuses.\n\n成個 WorldLens 一粒掣部署：裝落 Docker 容器又得，變成一部細細嘅虛擬機又得，\n仲有個清單睇住邊個仲生勾勾。",
+                category: "other",
+                areas: ["other", "docs"],
+                files: 5,
+            }
+        ],
+    },
+    {
+        version: "1.0.2277",
+        tag: "v1.0.2277",
+        date: "2026-11-23T14:37:45-05:00",
+        commit: "197127596a99d736f2f899853d21862b5fce076b",
+        entries: [
+            {
+                sha: "197127596a99d736f2f899853d21862b5fce076b",
+                shortSha: "197127596a",
+                date: "2026-11-23T14:37:45-05:00",
+                subject: "Add design boards for a full visual NBT editor",
+                details: "Seven boards, one category each: the typed tree with find and replace,\ncheck, export and a value/SNBT/diff inspector; a region canvas coloured\nby size, age, player time, entities or status; chunk layers (height,\nbiome, blocks, light) with an entity editor; a structure layer editor\nwith an isometric preview and palette; a map art pixel canvas with the\nmap colour palette; inventory and item rich editors; and level.dat as\na form with game rules, time, weather, border and data packs. The\nREADME lists what the build owes beyond the pictures.\n\nNBT 編輯器嘅設計板：唔再淨係一棵樹，region、chunk、結構、地圖畫、背包、\n世界設定全部有自己嘅畫布同表格，改完同一棵樹同步。",
+                category: "other",
+                areas: ["other", "docs"],
+                files: 9,
+            }
+        ],
+    },
+    {
+        version: "1.0.2276",
+        tag: "v1.0.2276",
+        date: "2026-11-23T14:32:10-05:00",
+        commit: "317387b5c99f3935f22a7f9ddb5c6755faba71c8",
+        entries: [
+            {
+                sha: "317387b5c99f3935f22a7f9ddb5c6755faba71c8",
+                shortSha: "317387b5c9",
+                date: "2026-11-23T14:32:10-05:00",
+                subject: "Keep every Minecraft tool in view and group the strip by BlueMap workflow",
+                details: "The Other tools tab is gone: the NBT editor and Convert are Minecraft\ntools and stay visible in the strip. A new Worlds seed group holds the\ntools that act on the world BlueMap renders (Get a world off a server,\nConvert, NBT editor, Structures, CoreProtect inspector), and Screenshots\njoins Finished maps, so every visible job sits in a group named for its\nstep in making a map. Only the general tools stay in Built-in tools.\n\nA saved workspace that picked up the short-lived Other tools tab turns\nit back into the NBT editor and Convert, keeping the tab in front. The\ndesign boards, tabbed-navigation article (both languages), site article\nand handoff say the same; the Other tools board is removed.\n\nMinecraft 工具全部擺返出嚟，唔再收埋；新加「世界」群組放晒處理世界嘅工具，\n成條工作列跟住 BlueMap 整地圖嘅步驟排。得通用工具仲收喺「內置工具」入面。",
+                category: "interface",
+                areas: ["interface", "other", "docs", "site"],
+                files: 15,
+            }
+        ],
+    },
+    {
+        version: "1.0.2273",
+        tag: "v1.0.2273",
+        date: "2026-11-23T14:15:44-05:00",
+        commit: "a64aedea821099b62a065180a1542286d8fd430e",
+        entries: [
+            {
+                sha: "a64aedea821099b62a065180a1542286d8fd430e",
+                shortSha: "a64aedea82",
+                date: "2026-11-23T14:15:44-05:00",
+                subject: "Fix the work-strip design boards rendering blank",
+                details: "Each board opened its component root twice (<x-dc><x-dc>) and closed it\nonce, because the generator's slice of the shared head started one line\ntoo early. The canvas then rendered nothing at all. Each board now has\nexactly one <x-dc> root around its <helmet> and markup.\n\n三塊設計板個 <x-dc> 開咗兩次得一次收尾，畫布直頭白板一塊。\n而家每塊得返一個根，正常顯示。",
+                category: "other",
+                areas: ["other"],
+                files: 3,
+            }
+        ],
+    },
+    {
+        version: "1.0.2269",
+        tag: "v1.0.2269",
+        date: "2026-11-23T14:10:08-05:00",
+        commit: "25a78017a84e39b20e2bb9882df98b5173e4d062",
+        entries: [
+            {
+                sha: "25a78017a84e39b20e2bb9882df98b5173e4d062",
+                shortSha: "25a78017a8",
+                date: "2026-11-23T14:10:08-05:00",
+                subject: "build: pin the appliance bases and both container images by digest",
+                details: "The Appliance workflow now publishes both bases (x86_64 and Raspberry\nPi) to v1.0.2256, and CI pushed amd64+arm64 image lists for the map\nserver and live viewer from 42f0793. All four were sitting at null, so\na release build quietly shipped without them. Each pin now carries its\ndigest; fetch-appliance-base.mjs re-verified both compressed and\nexpanded images against them before this commit.\n\n四個 pin 一直係 null，正式建置靜靜雞冇帶佢哋出街。依家兩個底層映像釘咗喺\nv1.0.2256，兩個容器映像（amd64 同 arm64）都按摘要釘死；落 commit 之前已經\n用 fetch-appliance-base.mjs 重新驗過壓縮檔同解壓後嘅指紋。",
+                category: "shell",
+                areas: ["shell", "docs"],
+                files: 6,
+            }
+        ],
+    },
+    {
+        version: "1.0.2266",
+        tag: "v1.0.2266",
+        date: "2026-11-23T13:53:08-05:00",
+        commit: "26bf7bb9165f4f09b185a3cc548ebd15e2879753",
+        entries: [
+            {
+                sha: "26bf7bb9165f4f09b185a3cc548ebd15e2879753",
+                shortSha: "26bf7bb916",
+                date: "2026-11-23T13:53:08-05:00",
+                subject: "Refresh the closeout prompt for the tool tabs work",
+                details: "The prompt now summarises the Built-in tools and Other tools tabs,\nwhat was verified, and what is next: a capture from the built app and\nthe catalogue coverage keys left red by the sharing work.\n\n收工提示更新咗：工具分頁做咗乜、驗咗乜、下一步做乜。",
+                category: "docs",
+                areas: ["docs"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2265",
+        tag: "v1.0.2265",
+        date: "2026-11-23T13:51:51-05:00",
+        commit: "66c240e6eb998abbc276dc6e6d222b0d2afd697c",
+        entries: [
+            {
+                sha: "66c240e6eb998abbc276dc6e6d222b0d2afd697c",
+                shortSha: "66c240e6eb",
+                date: "2026-11-23T13:51:51-05:00",
+                subject: "Record the tool tabs in the design handoff",
+                details: "What moved into the Built-in tools and Other tools tabs, how old routes\nand saved workspaces carry over, and what is still unverified: no\ncapture in the built app yet, and the catalogue coverage test is still\nred on keys from the sharing work.\n\n交接文件寫低工具分頁搬咗乜、舊路點樣照行，同埋仲未影到實機截圖。",
+                category: "docs",
+                areas: ["docs"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2264",
+        tag: "v1.0.2264",
+        date: "2026-11-23T13:51:36-05:00",
+        commit: "a4bda57a8fb03022d79c3aa8dc6776dc8ee500e7",
+        entries: [
+            {
+                sha: "a4bda57a8fb03022d79c3aa8dc6776dc8ee500e7",
+                shortSha: "a4bda57a8f",
+                date: "2026-11-23T13:51:36-05:00",
+                subject: "Document the Built-in tools and Other tools tabs",
+                details: "docs/tabbed-navigation.md gains a section on the two hub tabs, in\nEnglish and Cantonese: what each holds, why Minecraft servers stays in\nthe strip, how old routes and saved workspaces are carried over, and\nwhich tests prove it. The site's tabbed-shell article says the same in\none paragraph. The design boards drop a \"open as its own tab\" button\nthat the build does not have, so board and app match. HANDOFF records\nwhat was and was not verified.\n\n文件補返兩個工具分頁嘅說明，中英都有；設計板拎走咗一粒程式根本冇嘅\n「獨立分頁打開」掣，免得張圖講大話。HANDOFF 寫低咗邊樣驗過、邊樣未驗。",
+                category: "docs",
+                areas: ["docs", "other", "site"],
+                files: 5,
+            }
+        ],
+    },
+    {
+        version: "1.0.2263",
+        tag: "v1.0.2263",
+        date: "2026-11-23T13:51:03-05:00",
+        commit: "217e1d0fe388d23d4d203ad6221b073fd4be1ce6",
+        entries: [
+            {
+                sha: "217e1d0fe388d23d4d203ad6221b073fd4be1ce6",
+                shortSha: "217e1d0fe3",
+                date: "2026-11-23T13:51:03-05:00",
+                subject: "ci: give the arm64 map-server build a builder that can export it",
+                details: "The Raspberry Pi leg of the Appliance workflow died before it started:\nthe runner's default buildx \"docker\" driver cannot export a\ndocker-format tar for linux/arm64. Create a docker-container builder\nfirst. The x86_64 leg had already passed, which made the failure look\nlike bad luck rather than a missing line.\n\n樹莓派嗰段一開波就跌低：預設 buildx「docker」驅動唔識幫 arm64 匯出 docker\ntar。先開一個 docker-container 建置器就搞掂。x86_64 嗰段早已過咗，令佢睇\n落似係手氣差，其實係少咗一行。",
+                category: "build",
+                areas: ["build"],
+                files: 1,
+            }
+        ],
+    },
+    {
+        version: "1.0.2262",
+        tag: "v1.0.2262",
+        date: "2026-11-23T13:49:20-05:00",
+        commit: "54ff17d117757588af62f32706c2174b8415ce3a",
+        entries: [
+            {
+                sha: "54ff17d117757588af62f32706c2174b8415ce3a",
+                shortSha: "54ff17d117",
+                date: "2026-11-23T13:49:20-05:00",
+                subject: "Gather general tools and non-map tools into two Work tabs",
+                details: "The Work strip opened 29 job tabs, a dozen of them nothing to do with\nmaps. Two hub tabs now hold them:\n\n- Built-in tools: Docs, File converter, Base64, Drawing board,\n  Authenticator, Locks, Support Tickets, Browser downloads, Ollama,\n  Virtual disks, and the Memory console where a build has one.\n- Other tools: NBT editor and Convert.\n\nEach hub is a list-detail page (ToolHub.vue) that renders the member's\nown App.vue slot unchanged, so no tool behaves differently. WorkPane\nroutes a member id to its hub with that member picked, which keeps the\ncommand palette, the job opener and every revealPage caller working.\nA workspace saved before this is folded onto the hubs once, keeping the\nuser's groups and pins, and the picked tool persists per hub.\n\nTests: the shell test now expects the hubs instead of their members and\nopens a member inside each hub; toolHubs.test.ts covers membership, the\nfold and storage. Kid Mode labels added for the two hubs and for Hosted\ninstances and NBT editor, which had none.\n\n工作列原本開齊二十九個分頁，地圖嘢同 Base64、認證器、虛擬磁碟撈埋一齊，\n好似茶餐廳張餐牌連埋五金舖貨單一齊印。而家通用工具入「內置工具」，\n唔關地圖事嘅 Minecraft 工具入「其他工具」，每個 hub 左邊清單右邊工具，\n舊嘅分頁會自動摺入去，揀過邊樣會記住。",
+                category: "interface",
+                areas: ["interface"],
+                files: 7,
+            }
+        ],
+    },
+    {
+        version: "1.0.2260",
+        tag: "v1.0.2260",
+        date: "2026-11-23T13:48:24-05:00",
+        commit: "049391060e755448af65a9319118a90d3b093122",
+        entries: [
+            {
+                sha: "049391060e755448af65a9319118a90d3b093122",
+                shortSha: "049391060e",
+                date: "2026-11-23T13:48:24-05:00",
+                subject: "docs: record the real VM, SSH and Raspberry Pi runs for sharing",
+                details: "The share, appliance and live viewer pages still said \"not run\" about\nthings that ran today: one-click VirtualBox (72 s) and VMware (24 s)\nboots, hosting over a real SSH host, arm64 images under emulation, and\nthe wired Microsoft sign-in. The docs were more pessimistic than the\ncode, which is a rare and still wrong kind of lie. Every page now says\nwhat passed, the five defects those boots found and fixed, and what is\nstill unrun (real USB/SD writes, a real Pi board, a real Microsoft\naccount).\n\n文件之前仲講「未試過」，但今日已經真係喺 VirtualBox 同 VMware 一撳開到機、\n經真 SSH 主機託管過、arm64 喺模擬下跑過、Microsoft 登入都駁好咗。文件\n比程式仲悲觀，呢種大話少見但都係大話。依家每頁都寫清楚邊樣過咗、揪出咗邊\n五隻蟲、仲有乜未試（真 USB／記憶卡、真樹莓派、真 Microsoft 帳戶）。",
+                category: "docs",
+                areas: ["docs", "site", "interface"],
+                files: 11,
+            }
+        ],
+    },
+    {
+        version: "1.0.2259",
+        tag: "v1.0.2259",
+        date: "2026-11-23T13:38:20-05:00",
+        commit: "42f0793584c25339f34f97bd52ced04c93b5ec76",
+        entries: [
+            {
+                sha: "42f0793584c25339f34f97bd52ced04c93b5ec76",
+                shortSha: "42f0793584",
+                date: "2026-11-23T13:38:20-05:00",
+                subject: "Add the Raspberry Pi appliance and bundle both bases compressed",
+                details: "- appliance/build-base-rpi.sh builds an arm64 image for a Raspberry Pi 3, 4\n  or 5: a FAT boot partition with the Pi firmware, kernel, initramfs and\n  device trees, and an ext4 root with Docker and the map service. Built\n  and inspected in WSL; under QEMU's Pi 3 model it boots its kernel and\n  mounts its root. It has not been booted on a real board yet.\n- The appliance dialog gains a Raspberry Pi target that writes an SD card\n  or USB drive through the same verified disk write; built-in SD readers\n  now count as removable drives, never the boot or system disk.\n- Both build scripts kept a failure's exit code only by accident: the\n  cleanup trap's last command became the status, so a failed build\n  reported success and left a partial image. They now exit with the real\n  code and delete the partial image.\n- The installer now actually carries the bases. Each ships zstd-compressed\n  (258 and 134 MB rather than 3.2 GB raw) and the app expands it into its\n  data folder on first use, verified against the recorded digest. Nothing\n  is downloaded when somebody clicks.\n- The appliance workflow builds and uploads the Pi image too, and may now\n  write the release assets it was already trying to attach.\n\n樹莓派版本都有埋：開機分區、韌體、arm64根目錄全部齊，模擬器入面開到核心掛到根目錄；\n兩個底層映像壓縮好放入安裝檔，第一次用先解壓兼驗指紋，唔使臨時下載。\n另外兩個建置腳本失敗都報成功嘅蟲亦一併捉咗。",
+                category: "shell",
+                areas: ["shell", "build", "interface", "other"],
+                files: 19,
+            }
+        ],
+    },
+    {
+        version: "1.0.2256",
+        tag: "v1.0.2256",
+        date: "2026-11-23T13:24:30-05:00",
+        commit: "b7f607c7ee8ee622f3ddaca4e29598cacdecbbcf",
+        entries: [
+            {
+                sha: "b7f607c7ee8ee622f3ddaca4e29598cacdecbbcf",
+                shortSha: "b7f607c7ee",
+                date: "2026-11-23T13:24:30-05:00",
+                subject: "Add design boards for a decluttered Work strip",
+                details: "Three boards: the Add a job catalogue grouped by purpose against the old\nflat list of 29 jobs, a Built-in tools tab that holds the general tools\nin one list-detail page, and an Other tools tab for the Minecraft tools\nthat are not about maps (NBT editor, Convert). Theme and picked-tool\ntweaks on each board; the README says what goes where and why.\n\n工作列執到好似執屋前嘅雜物房：二十九個 job 擠埋一行，地圖嘢同萬能工具\n撈埋一碟。呢三塊設計板將通用工具收入「內置工具」一個分頁，唔關地圖事嘅\nMinecraft 工具收入「其他工具」，地圖工作留返喺前面。",
+                category: "other",
+                areas: ["other", "docs"],
+                files: 6,
+            }
+        ],
+    },
     {
         version: "1.0.2255",
         tag: "v1.0.2255",
@@ -4176,7 +6553,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 shortSha: "7f6f4e4096",
                 date: "2026-09-04T19:06:32-04:00",
                 subject: "Integrate the two green large-world and server-creation branches, and fix what meeting main broke",
-                details: "Both branches were green on their own base and reported so honestly in their handoff. Merged\nonto the main that had moved under them, they were not: six type errors and one copy check.\n\nFive of the six were one omission seen from five angles. The large-world lane added synthetic\nworld generation that answers through the transport failure shape, and its five new outcome\ncodes - a generation with no live renderer to own it, a second one started while the first\nruns, the generator throwing, the destination already existing, and cancellation - were never\nadded to the failure union. Each lane compiled alone; neither had reason to widen a type the\nother was about to depend on. The union carries them now, each documented for what it names.\n\nThe sixth was a signature: the generation contract hands its zip step a record, and the\ngenerator's own zip function wants the record it produced, with a name and a region list. An\nadapter builds the second from the first, reading the region directory, rather than widening\nthe contract to carry a type only one implementation needs.\n\nThe copy check is the finding worth keeping. Two keys reported \"call site passes [], catalogue\nhas [bytes, chunks, target]\" while the call site plainly passed three arguments. The scanner\nfinds calls by matching `t(`, `tx(` or `tp(` with nothing word-like before them, and the dialog\nhad aliased vue-i18n's `t` as `measuredT` - invisible to it, so only the bare-key pass saw\nthose keys, with nothing attached. Renamed to `tx`, which the scanner does see, and gave the\ntwo argument-carrying calls the trailing fallback string that this codebase's convention\nputs third, after the arguments - the order every other screen uses and the one the scanner\nreads placeholders from.\n\n兩條 branch 各自都係綠嘅，一撞埋落已經行咗嘅 main 就爆。五個 type error 其實係同一件事：新加\n嘅五個 failure code 冇人擺入 union。個 copy check 就係 `measuredT` 呢個 alias 令 scanner\n睇唔到，改做 `tx` 就得。",
+                details: "Both branches were green on their own base and reported so honestly in their handoff. Merged\nonto the main that had moved under them, they were not: six type errors and one copy check.\n\nFive of the six were one omission seen from five angles. The large-world lane added synthetic\nworld generation that answers through the transport failure shape, and its five new outcome\ncodes - a generation with no live renderer to own it, a second one started while the first\nruns, the generator throwing, the destination already existing, and cancellation - were never\nadded to the failure union. Each lane compiled alone; neither had reason to widen a type the\nother was about to depend on. The union carries them now, each documented for what it names.\n\nThe sixth was a signature: the generation contract hands its zip step a record, and the\ngenerator's own zip function wants the record it produced, with a name and a region list. An\nadapter builds the second from the first, reading the region directory, rather than widening\nthe contract to carry a type only one implementation needs.\n\nThe copy check is the finding worth keeping. Two keys reported \"call site passes [], catalogue\nhas [bytes, chunks, target]\" while the call site plainly passed three arguments. The scanner\nfinds calls by matching `t(`, `tx(` or `tp(` with nothing word-like before them, and the dialog\nhad aliased vue-i18n's `t` as `measuredT` - invisible to it, so only the bare-key pass saw\nthose keys, with nothing attached. Renamed to `tx`, which the scanner does see, and gave the\ntwo argument-carrying calls the trailing fallback string that this codebase's convention\nputs third, after the arguments - the order every other screen uses and the one the scanner\nreads placeholders from.\n\n兩條 branch 各自都係綠嘅，一撞埋落已經行咗嘅 main 就爆。五個 type error 其實係同一件事：新加\n嘅五個 failure code 冇人擺入 union。個 copy check 就係 `measuredT` 呢個 alias 令 scanner\n睇唔到，改做 `tx` 就得。\n\nCo-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>",
                 category: "shell",
                 areas: ["shell", "interface"],
                 files: 3,
@@ -4468,7 +6845,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 shortSha: "f12ec3fe5d",
                 date: "2026-09-04T13:36:41-04:00",
                 subject: "A validator nothing called, three sites a lint pass missed, and two labels in the wrong set",
-                details: "Four more from the suite, and the first is a real defect rather than a test problem.\n\n`isJavaProvisionProgress` checks the phase against the seven real ones and both byte counts\nfor sign. Nothing in the application called it - only its own test did. The adapter that\nreceives Java progress from the bridge checked that the phase was *a string*, so\n\"not-a-phase\" went through, and it never looked at the counts at all, so a negative\nreceivedBytes reached the progress bar and drew it backwards. The guard was written for\nexactly this seam and is now wired to it. That is the shape agent-global-memory repository already records: a thing\nwired at one end and consumed at neither, shipping silently.\n\nThe school-mode suite had two ReferenceErrors, which turned out to be a half-finished\nrefactor rather than anything to do with school mode. The mutable captures were wrapped in\nobjects - the usual repair for reassigning across a closure - and three call sites kept the\nbare names. Pointed at their captures.\n\nAnd two of the catalogue keys I added yesterday were in the wrong set. `createAndSetUp` and\n`createPrivateInline` are button labels, and a button must read the same at every funny\nlevel, so they belong in the fixed set rather than the voiced one where I put five variants\nof each. The three that really are voiced now carry facts, because every voiced key needs\none - that is what stops a level-five rewrite quietly dropping the thing the message was for.\nWhose Actions minutes get spent is the entire decision, so both halves of it are named.\n\nOne test I nearly misdiagnosed: run with two others it failed with \"creating is not defined\"\nand alone it is a plain timeout. The ReferenceError was cross-file contamination, so the\nstack was pointing at the wrong problem entirely.\n\n有個 validator 寫好晒但成個 app 都冇人叫過佢 - 得佢自己個 test 用。所以 phase 亂寫都過到，\nbyte 負數都過到，個進度條會倒住行。而家駁返實。",
+                details: "Four more from the suite, and the first is a real defect rather than a test problem.\n\n`isJavaProvisionProgress` checks the phase against the seven real ones and both byte counts\nfor sign. Nothing in the application called it - only its own test did. The adapter that\nreceives Java progress from the bridge checked that the phase was *a string*, so\n\"not-a-phase\" went through, and it never looked at the counts at all, so a negative\nreceivedBytes reached the progress bar and drew it backwards. The guard was written for\nexactly this seam and is now wired to it. That is the shape agent-global-memory repository already records: a thing\nwired at one end and consumed at neither, shipping silently.\n\nThe school-mode suite had two ReferenceErrors, which turned out to be a half-finished\nrefactor rather than anything to do with school mode. The mutable captures were wrapped in\nobjects - the usual repair for reassigning across a closure - and three call sites kept the\nbare names. Pointed at their captures.\n\nAnd two of the catalogue keys I added yesterday were in the wrong set. `createAndSetUp` and\n`createPrivateInline` are button labels, and a button must read the same at every funny\nlevel, so they belong in the fixed set rather than the voiced one where I put five variants\nof each. The three that really are voiced now carry facts, because every voiced key needs\none - that is what stops a level-five rewrite quietly dropping the thing the message was for.\nWhose Actions minutes get spent is the entire decision, so both halves of it are named.\n\nOne test I nearly misdiagnosed: run with two others it failed with \"creating is not defined\"\nand alone it is a plain timeout. The ReferenceError was cross-file contamination, so the\nstack was pointing at the wrong problem entirely.\n\n有個 validator 寫好晒但成個 app 都冇人叫過佢 - 得佢自己個 test 用。所以 phase 亂寫都過到，\nbyte 負數都過到，個進度條會倒住行。而家駁返實。\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>",
                 category: "interface",
                 areas: ["interface"],
                 files: 3,
@@ -4551,7 +6928,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 shortSha: "02bf6dacfb",
                 date: "2026-09-04T11:41:21-04:00",
                 subject: "Take the complete Material Design 3 token set into the build",
-                details: "Moves the submodule to 7e7cfd03, and adds the guard that keeps it complete.\n\nThe palette had 32 of the 49 colour roles and 7 of the 15 type roles. Everything looked\nfine, because a surface asking for a role that does not exist inherits whatever is in scope\nand renders plausibly - which is why two thirds of a design system can go missing without a\nsingle report.\n\nThe guard names every role individually rather than counting them, since a threshold would\npass on the wrong forty. It also requires each colour role in both themes: one defined in\nlight and forgotten in dark renders correctly for whoever is checking it and wrongly for\neveryone else, which is the version that ships.\n\nProven three ways, red then green: a role removed outright, a role removed from the dark\ntheme only, and a single missing type property. Each named in the report.\n\nAlso tokenises the elevation shadows, which were hardcoded black and which the purity guard\ncould not see because it looks for hex and those were rgb().\n\n個 palette 之前得 32 個色角色同 7 個字級，而家齊晒 49 同 15，仲有個 guard 逐個名咁睇住，\n兩個 theme 都要有。",
+                details: "Moves the submodule to 7e7cfd03, and adds the guard that keeps it complete.\n\nThe palette had 32 of the 49 colour roles and 7 of the 15 type roles. Everything looked\nfine, because a surface asking for a role that does not exist inherits whatever is in scope\nand renders plausibly - which is why two thirds of a design system can go missing without a\nsingle report.\n\nThe guard names every role individually rather than counting them, since a threshold would\npass on the wrong forty. It also requires each colour role in both themes: one defined in\nlight and forgotten in dark renders correctly for whoever is checking it and wrongly for\neveryone else, which is the version that ships.\n\nProven three ways, red then green: a role removed outright, a role removed from the dark\ntheme only, and a single missing type property. Each named in the report.\n\nAlso tokenises the elevation shadows, which were hardcoded black and which the purity guard\ncould not see because it looks for hex and those were rgb().\n\n個 palette 之前得 32 個色角色同 7 個字級，而家齊晒 49 同 15，仲有個 guard 逐個名咁睇住，\n兩個 theme 都要有。\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>",
                 category: "build",
                 areas: ["build"],
                 files: 2,
@@ -4569,7 +6946,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 shortSha: "e4038a0da2",
                 date: "2026-09-04T02:33:27-04:00",
                 subject: "Take the filled coordinate fields into the build",
-                details: "Moves the submodule to 27eb4e17. The X and Z fields on the map's control bar were outlined,\nwhich at that size is indistinguishable from an unstyled browser input; they are filled\nMaterial Design 3 fields now, with a hover state layer and an activation indicator that\nthickens and takes primary on focus.\n\nVerified by rebuilding the webapp, serving it over a real rendered world, and looking at\nthe field both focused and at rest.\n\n個地圖上面嘅座標格轉咗做 filled field，跟埋入 build。",
+                details: "Moves the submodule to 27eb4e17. The X and Z fields on the map's control bar were outlined,\nwhich at that size is indistinguishable from an unstyled browser input; they are filled\nMaterial Design 3 fields now, with a hover state layer and an activation indicator that\nthickens and takes primary on focus.\n\nVerified by rebuilding the webapp, serving it over a real rendered world, and looking at\nthe field both focused and at rest.\n\n個地圖上面嘅座標格轉咗做 filled field，跟埋入 build。\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>",
                 category: "build",
                 areas: ["build"],
                 files: 1,
@@ -4911,7 +7288,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 shortSha: "c66cfa4005",
                 date: "2026-09-04T00:40:44-04:00",
                 subject: "Vendor Chunker, and hold it to the version the workflow downloads",
-                details: "Chunker was fetched from HiveGamesOSS' releases at run time, so it was not really\npart of this build at all: an offline machine got nothing, and what a render used\nwas whatever that tag pointed at on the day. Vendored as a submodule, pinned to 1.10.0,\nthe exact tag chunk-world.yml already names. MIT, so it travels.\n\nThe claim beside it is the point of pinning. The workflow downloads a published jar\nby tag and the app builds one from this source, and two different Chunkers converting\nthe same world is a difference nobody notices until a world comes back subtly wrong\nfrom one route and not the other - with nothing on either side stating its version,\nso it never gets diagnosed. Chunker declares no version anywhere in its source, so the\ntag is the only record: the check resolves it inside the submodule and compares it with\nthe commit actually pinned, which needs no network. Watched it fail on 1.9.0 against\nthe workflow's 1.10.0, naming both commits and the line, then go green on restore.\n\nAn uninitialised submodule is skipped rather than reported. A clone without\n--recurse-submodules has nothing to compare, and failing there would be a complaint\nabout the clone rather than about drift.\n\nChunker 之前係行到先去 download，即係根本唔屬於呢個 build：冇網就冇嘢，render 用邊個\nversion 睇彩數。而家 vendor 咗做 submodule，釘死 1.10.0，同 workflow 講嘅一模一樣，仲加\n咗個 check 睇住佢哋唔好各行各路。",
+                details: "Chunker was fetched from HiveGamesOSS' releases at run time, so it was not really\npart of this build at all: an offline machine got nothing, and what a render used\nwas whatever that tag pointed at on the day. Vendored as a submodule, pinned to 1.10.0,\nthe exact tag chunk-world.yml already names. MIT, so it travels.\n\nThe claim beside it is the point of pinning. The workflow downloads a published jar\nby tag and the app builds one from this source, and two different Chunkers converting\nthe same world is a difference nobody notices until a world comes back subtly wrong\nfrom one route and not the other - with nothing on either side stating its version,\nso it never gets diagnosed. Chunker declares no version anywhere in its source, so the\ntag is the only record: the check resolves it inside the submodule and compares it with\nthe commit actually pinned, which needs no network. Watched it fail on 1.9.0 against\nthe workflow's 1.10.0, naming both commits and the line, then go green on restore.\n\nAn uninitialised submodule is skipped rather than reported. A clone without\n--recurse-submodules has nothing to compare, and failing there would be a complaint\nabout the clone rather than about drift.\n\nChunker 之前係行到先去 download，即係根本唔屬於呢個 build：冇網就冇嘢，render 用邊個\nversion 睇彩數。而家 vendor 咗做 submodule，釘死 1.10.0，同 workflow 講嘅一模一樣，仲加\n咗個 check 睇住佢哋唔好各行各路。\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>",
                 category: "build",
                 areas: ["build", "other"],
                 files: 3,
@@ -5124,7 +7501,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 shortSha: "a99c107553",
                 date: "2026-09-03T21:31:12-04:00",
                 subject: "Name the fork in the jar manifest, so staging stops refusing its own jar",
-                details: "The Git remote went red on the Windows installer: stage-packaged-jars reported\nmanifest.source.repository mismatch. CI had built from the fork exactly as\nintended - the run's environment shows BLUEMAP_SOURCE_COMMIT 0b854416 - and then\nrefused to stage the result.\n\nThe rewire moved the packager's expectation and the local builder to the fork,\nbut describe-jars.mjs writes the manifest CI validates and still named upstream.\nOne half wrote one repository while the other demanded another, which is the\ndrift the shared constants exist to prevent; this file was not reading them.\n\ncheck-bluemap-upstream.mjs keeps naming upstream deliberately: it answers whether\nthe vendored pin is behind upstream, and the fork publishes no releases.\n\nCI 用 fork 起 jar 冇錯，但 manifest 寫住上游個 URL，validator 唔認，installer 紅\n曬。兩邊而家講返同一個地方。",
+                details: "The Git remote went red on the Windows installer: stage-packaged-jars reported\nmanifest.source.repository mismatch. CI had built from the fork exactly as\nintended - the run's environment shows BLUEMAP_SOURCE_COMMIT 0b854416 - and then\nrefused to stage the result.\n\nThe rewire moved the packager's expectation and the local builder to the fork,\nbut describe-jars.mjs writes the manifest CI validates and still named upstream.\nOne half wrote one repository while the other demanded another, which is the\ndrift the shared constants exist to prevent; this file was not reading them.\n\ncheck-bluemap-upstream.mjs keeps naming upstream deliberately: it answers whether\nthe vendored pin is behind upstream, and the fork publishes no releases.\n\nCI 用 fork 起 jar 冇錯，但 manifest 寫住上游個 URL，validator 唔認，installer 紅\n曬。兩邊而家講返同一個地方。\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>",
                 category: "build",
                 areas: ["build"],
                 files: 1,
@@ -5260,7 +7637,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 shortSha: "66a3b6e409",
                 date: "2026-09-03T20:58:57-04:00",
                 subject: "Merge main, and take the managed template version to 4",
-                details: "main had moved 46 commits while this work was in flight, so the branch was built\non a stale base. Reconciled by merging rather than rebasing: nothing is rewritten\nand nothing is dropped.\n\nFour conflicts, all resolved on what the code means rather than on which side won.\n\nThe managed template version is the one worth explaining. Both sides had\nindependently gone to 3 for different template changes, so keeping 3 would have\nmade one number mean two different template sets - and a repository that had\nalready taken the other 3 would never be offered this one, because the downgrade\nrefusal compares versions and equal is not newer. It is 4, and the comment now\nrecords both reasons.\n\nThe rest: the JVM-resolver guard keeps the superset of imports its rewritten body\nactually uses; the roadmap keeps both new sections; and schoolMode.test.ts takes\nmain's version, which is the self-consistent one - its shared lines already\nreferenced the captured listener that only main's side declares.\n\nOne real find. main had rewritten mcserverWiring to check BRIDGE_CHANNELS instead\nof grepping the preload for literal strings, and after the merge it reported\nmcserver:rcon:configure missing from the bridge inventory. The channel is present\nin the source; packages/bridge/dist/channels.js was a day stale, and the test\nimports @worldlens/bridge whose main points into dist. Rebuilding turns it green.\nThe handoff entry that called this guard permanently broken is withdrawn there\nrather than quietly deleted - it was wrong, and about the older version of it.\n\nmain 行咗 46 個 commit，所以呢條 branch 起喺舊底。用 merge 唔用 rebase，唔會改寫又\n唔會漏嘢。template version 兩邊各自升到 3，撞喺一齊，所以升到 4，唔可以一個號碼\n指兩套嘢。",
+                details: "main had moved 46 commits while this work was in flight, so the branch was built\non a stale base. Reconciled by merging rather than rebasing: nothing is rewritten\nand nothing is dropped.\n\nFour conflicts, all resolved on what the code means rather than on which side won.\n\nThe managed template version is the one worth explaining. Both sides had\nindependently gone to 3 for different template changes, so keeping 3 would have\nmade one number mean two different template sets - and a repository that had\nalready taken the other 3 would never be offered this one, because the downgrade\nrefusal compares versions and equal is not newer. It is 4, and the comment now\nrecords both reasons.\n\nThe rest: the JVM-resolver guard keeps the superset of imports its rewritten body\nactually uses; the roadmap keeps both new sections; and schoolMode.test.ts takes\nmain's version, which is the self-consistent one - its shared lines already\nreferenced the captured listener that only main's side declares.\n\nOne real find. main had rewritten mcserverWiring to check BRIDGE_CHANNELS instead\nof grepping the preload for literal strings, and after the merge it reported\nmcserver:rcon:configure missing from the bridge inventory. The channel is present\nin the source; packages/bridge/dist/channels.js was a day stale, and the test\nimports @worldlens/bridge whose main points into dist. Rebuilding turns it green.\nThe handoff entry that called this guard permanently broken is withdrawn there\nrather than quietly deleted - it was wrong, and about the older version of it.\n\nmain 行咗 46 個 commit，所以呢條 branch 起喺舊底。用 merge 唔用 rebase，唔會改寫又\n唔會漏嘢。template version 兩邊各自升到 3，撞喺一齊，所以升到 4，唔可以一個號碼\n指兩套嘢。\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>",
                 category: "interface",
                 areas: ["interface", "shell", "build", "docs", "services", "site", "other", "engine"],
                 files: 133,
@@ -5607,7 +7984,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 shortSha: "fe4f265613",
                 date: "2026-09-03T12:27:36-04:00",
                 subject: "A pre-publication check for internal shorthand, and one real leak it found",
-                details: "Issue #168 asked for this and named the reason: the eleven files fixed in\nfa2f5abb were found by a manual sweep, and a manual sweep is exactly what will\nnot happen next time.\n\nThe terms are not in this repository, because holding them is the leak. The\nprevious sign-in guard listed seven of them in source in order to assert their\nabsence, which published the exact words it existed to keep unpublished. This\nreads them from a file outside the repository, resolved dynamically from the\nscript's own location so no username, drive letter or absolute path is written\ndown, and skips with a printed reason and exit 0 when that file is absent. A\npublic repository's CI will never have it, and a check whose normal state is red\nis a check everyone learns to scroll past -- which is how the workflow linter in\n#167 went two weeks unread.\n\nA hit prints as file, line and column. The term is withheld unless --show,\nbecause printing it puts it in a terminal, a CI log or a pasted bug report, which\nis the publication this exists to prevent.\n\nIt found one real leak on its first run, in docs/release-ledger.json, in a file\nthe manual sweep had already been over. Fixed here.\n\nThree false-positive classes it had to learn, each one costing a wrong answer\nfirst:\n\n  A term found in a PNG is byte noise. Issue #168's own Verified section records\n  this from the manual sweep. Skipped on a NUL byte rather than by extension, so\n  an unfamiliar binary is skipped too.\n\n  Homonyms. The memory heap, git cat-file, a Minecraft mob. 37 occurrences across\n  nine hand-written files, every one reviewed by hand and recorded in an\n  allowlist that holds positions and reasons and never a term. Keyed by exact\n  position, so an edit that moves a line re-flags it: the review was of that\n  occurrence, not of the word.\n\n  The generated changelog and CHANGELOG.md. #168 is explicit that editing them is\n  not a fix and that fixing history means a force-push. Their 67 hits are counted\n  and named as accepted residue rather than failing the run.\n\nTwo of my own defects, both silent skips in the one script whose job is to miss\nnothing. With no --commit-msg, commitIndex is -1, so `index !== commitIndex + 1`\nis `index !== 0` and the first path argument was dropped without a word. And an\nexplicit directory was read as a file, threw, was swallowed by a catch, and\ncontributed nothing while the run still reported clean. Both found by checking a\nresult I did not believe.\n\nProven by breaking it: a new leak in a doc goes red, the same leak in a commit\nmessage before it is written goes red, an explicitly named terms file that does\nnot exist skips loudly rather than quietly falling back to a different one, and\nthe clean tree reports no actionable hit. 11 of 11.\n\n  pnpm published-text:check\n  node scripts/check-published-text.mjs --commit-msg <file>\n\nRefs #168\n\n一個出版前嘅內部術語檢查，同埋佢搵到嘅一個真漏。\n\nIssue #168 要求呢樣嘢，理由亦講得好白：fa2f5abb 修好嗰十一個檔案係人手掃出嚟嘅，而\n人手掃正正就係下次唔會再做嘅嘢。\n\n啲詞唔喺呢個 repository 入面，因為擺喺度本身就係個漏。之前個登入頁守衛喺原始碼列出\n咗七個，為咗證明佢哋唔存在 —— 結果就出版咗佢本來要防止出版嘅字。呢個 script 由\nrepository 外面讀，路徑由 script 自己位置動態解析，唔會寫低任何用戶名、碟符或者絕對\n路徑；搵唔到嗰個檔案就印低原因、exit 0 咁跳過。公開 repository 部機永遠都唔會有嗰個\n檔案，而一個平時就係紅色嘅檢查，係一個人人都學識跳過嘅檢查 —— #167 個 workflow\nlinter 兩個禮拜冇人睇，就係咁嚟嘅。\n\n命中會印檔案、行、欄。除非 --show，否則唔會印個詞，因為印咗就會出現喺終端機、CI log\n或者貼出嚟嘅 bug report 度，而嗰個正正就係佢要防止嘅出版。\n\n佢第一次行就搵到一個真漏，喺 docs/release-ledger.json，而嗰個檔案人手掃已經睇過。\n喺呢度修好。\n\n三類誤判，每類都係先錯一次先學到：\n\n  PNG 入面搵到嘅詞係位元組雜訊。#168 自己個 Verified 段落就記低咗人手掃嗰次。用 NUL\n  位元組判斷，唔靠副檔名，所以唔熟悉嘅二進位檔一樣跳過。\n\n  同形異義。記憶體 heap、git cat-file、一隻 Minecraft 生物。九個人手寫檔案入面 37 處，\n  逐處人手審過，記入一個只有位置同理由、永遠冇詞嘅 allowlist。以確切位置做 key，所以\n  改動令行數郁咗就會再彈出嚟：審嘅係嗰一處，唔係嗰個字。\n\n  生成嘅 changelog 同 CHANGELOG.md。#168 講明改佢哋唔算修好，而由源頭修就要 force-push。\n  佢哋嗰 67 處會點算同標明係已接受嘅殘留，唔會令成次行失敗。\n\n我自己兩個缺陷，兩個都係靜靜雞漏掉 —— 偏偏呢個 script 嘅職責就係一樣都唔可以漏。冇\n--commit-msg 嗰陣 commitIndex 係 -1，於是 `index !== commitIndex + 1` 等同 `index !== 0`，\n第一個路徑參數就一聲不響俾丟咗。另外，明確指定嘅資料夾當咗檔案讀，掟錯、俾 catch 食\n咗、乜都冇貢獻，但個 run 仲報 clean。兩個都係因為我唔信一個結果、去查先發現。\n\n整爛咗嚟證：文件入面一個新漏變紅、commit message 未寫入之前同一個漏都變紅、明確指定\n但唔存在嘅詞檔會大聲跳過而唔係靜靜雞轉用第二個、乾淨嘅 tree 報冇可處理嘅命中。11 個全綠。",
+                details: "Issue #168 asked for this and named the reason: the eleven files fixed in\nfa2f5abb were found by a manual sweep, and a manual sweep is exactly what will\nnot happen next time.\n\nThe terms are not in this repository, because holding them is the leak. The\nprevious sign-in guard listed seven of them in source in order to assert their\nabsence, which published the exact words it existed to keep unpublished. This\nreads them from a file outside the repository, resolved dynamically from the\nscript's own location so no username, drive letter or absolute path is written\ndown, and skips with a printed reason and exit 0 when that file is absent. A\npublic repository's CI will never have it, and a check whose normal state is red\nis a check everyone learns to scroll past -- which is how the workflow linter in\n#167 went two weeks unread.\n\nA hit prints as file, line and column. The term is withheld unless --show,\nbecause printing it puts it in a terminal, a CI log or a pasted bug report, which\nis the publication this exists to prevent.\n\nIt found one real leak on its first run, in docs/release-ledger.json, in a file\nthe manual sweep had already been over. Fixed here.\n\nThree false-positive classes it had to learn, each one costing a wrong answer\nfirst:\n\n  A term found in a PNG is byte noise. Issue #168's own Verified section records\n  this from the manual sweep. Skipped on a NUL byte rather than by extension, so\n  an unfamiliar binary is skipped too.\n\n  Homonyms. The memory heap, git cat-file, a Minecraft mob. 37 occurrences across\n  nine hand-written files, every one reviewed by hand and recorded in an\n  allowlist that holds positions and reasons and never a term. Keyed by exact\n  position, so an edit that moves a line re-flags it: the review was of that\n  occurrence, not of the word.\n\n  The generated changelog and CHANGELOG.md. #168 is explicit that editing them is\n  not a fix and that fixing history means a force-push. Their 67 hits are counted\n  and named as accepted residue rather than failing the run.\n\nTwo of my own defects, both silent skips in the one script whose job is to miss\nnothing. With no --commit-msg, commitIndex is -1, so `index !== commitIndex + 1`\nis `index !== 0` and the first path argument was dropped without a word. And an\nexplicit directory was read as a file, threw, was swallowed by a catch, and\ncontributed nothing while the run still reported clean. Both found by checking a\nresult I did not believe.\n\nProven by breaking it: a new leak in a doc goes red, the same leak in a commit\nmessage before it is written goes red, an explicitly named terms file that does\nnot exist skips loudly rather than quietly falling back to a different one, and\nthe clean tree reports no actionable hit. 11 of 11.\n\n  pnpm published-text:check\n  node scripts/check-published-text.mjs --commit-msg <file>\n\nRefs #168\n\n一個出版前嘅內部術語檢查，同埋佢搵到嘅一個真漏。\n\nIssue #168 要求呢樣嘢，理由亦講得好白：fa2f5abb 修好嗰十一個檔案係人手掃出嚟嘅，而\n人手掃正正就係下次唔會再做嘅嘢。\n\n啲詞唔喺呢個 repository 入面，因為擺喺度本身就係個漏。之前個登入頁守衛喺原始碼列出\n咗七個，為咗證明佢哋唔存在 —— 結果就出版咗佢本來要防止出版嘅字。呢個 script 由\nrepository 外面讀，路徑由 script 自己位置動態解析，唔會寫低任何用戶名、碟符或者絕對\n路徑；搵唔到嗰個檔案就印低原因、exit 0 咁跳過。公開 repository 部機永遠都唔會有嗰個\n檔案，而一個平時就係紅色嘅檢查，係一個人人都學識跳過嘅檢查 —— #167 個 workflow\nlinter 兩個禮拜冇人睇，就係咁嚟嘅。\n\n命中會印檔案、行、欄。除非 --show，否則唔會印個詞，因為印咗就會出現喺終端機、CI log\n或者貼出嚟嘅 bug report 度，而嗰個正正就係佢要防止嘅出版。\n\n佢第一次行就搵到一個真漏，喺 docs/release-ledger.json，而嗰個檔案人手掃已經睇過。\n喺呢度修好。\n\n三類誤判，每類都係先錯一次先學到：\n\n  PNG 入面搵到嘅詞係位元組雜訊。#168 自己個 Verified 段落就記低咗人手掃嗰次。用 NUL\n  位元組判斷，唔靠副檔名，所以唔熟悉嘅二進位檔一樣跳過。\n\n  同形異義。記憶體 heap、git cat-file、一隻 Minecraft 生物。九個人手寫檔案入面 37 處，\n  逐處人手審過，記入一個只有位置同理由、永遠冇詞嘅 allowlist。以確切位置做 key，所以\n  改動令行數郁咗就會再彈出嚟：審嘅係嗰一處，唔係嗰個字。\n\n  生成嘅 changelog 同 CHANGELOG.md。#168 講明改佢哋唔算修好，而由源頭修就要 force-push。\n  佢哋嗰 67 處會點算同標明係已接受嘅殘留，唔會令成次行失敗。\n\n我自己兩個缺陷，兩個都係靜靜雞漏掉 —— 偏偏呢個 script 嘅職責就係一樣都唔可以漏。冇\n--commit-msg 嗰陣 commitIndex 係 -1，於是 `index !== commitIndex + 1` 等同 `index !== 0`，\n第一個路徑參數就一聲不響俾丟咗。另外，明確指定嘅資料夾當咗檔案讀，掟錯、俾 catch 食\n咗、乜都冇貢獻，但個 run 仲報 clean。兩個都係因為我唔信一個結果、去查先發現。\n\n整爛咗嚟證：文件入面一個新漏變紅、commit message 未寫入之前同一個漏都變紅、明確指定\n但唔存在嘅詞檔會大聲跳過而唔係靜靜雞轉用第二個、乾淨嘅 tree 報冇可處理嘅命中。11 個全綠。\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
                 category: "build",
                 areas: ["build", "docs"],
                 files: 5,
@@ -5625,7 +8002,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 shortSha: "213112f86b",
                 date: "2026-09-03T12:14:21-04:00",
                 subject: "The workflow linter had drifted for two weeks, and the commit that broke it also removed the job that ran it",
-                details: "86024f0f deleted ci.yml's \"Lint the workflow files\" job under the standing policy\nthat GitHub Actions runs no tests and no lint. That job was the only thing that\nran scripts/lint-workflows.mjs. The same commit renamed the check job, rewrote a\nstep the linter fingerprints, and removed a job and a step the linter required to\nexist. Nothing noticed, because the thing that would have noticed had just been\ndeleted. Eight ci.yml commits later it reported 12 problems and its own test\nreported 6.\n\nEvery one was reviewed rather than cleared.\n\nAction counts: 127 to 134. All seven additions are the receipt system plus a\nfourth checkout, setup-node and pnpm/action-setup for render-world's receipt job.\nBefore moving the number I checked every one of the 134 uses across all eight\nworkflows against the reviewed SHA for its action: none is unpinned and none uses\na SHA the inventory had not already reviewed. PINNED_ACTIONS 6 to 10 for the four\ndocker actions the container-image work added, and the version resolver 2 to 3\nfor the image identity, which uses the committed resolver the assertion exists to\nrequire rather than an exception to it.\n\nTwo checks removed. They required the \"Check committed screenshot evidence\" step\nand the screenshots capture job to exist, and both went under the no-capture-gate\npolicy, so they asserted the presence of two things the policy forbids and failed\non every run for as long as the policy has held. Removed with about 150 lines of\nmutation coverage that had been replacing text absent from the file, so each\nmutation came back identical to the original and failed claiming a missing\ncontract. That is what the file already did for the \"Verify generated changelog\nis current\" checks.\n\nTwo fingerprints recomputed after reading the diffs: a narrower registry token, a\nmanifest regenerated after the jar is staged, jar verification moved into a tested\nscript, and honest release-note prose about what the workflow does not run.\n\nThe condition inventory now compares as a set and names what changed. It was\norder-sensitive, so swapping two jobs raised \"condition inventory must match\" --\nwhich reads as an unreviewed gate appearing. Job order in YAML decides nothing;\nneeds: does, and execution order is covered byte-exactly by the fingerprints. It\nraised false alarms, and a guard that raises false alarms is a guard nobody reads.\n\nThen the other half of the issue: pnpm workflows:check runs the test and the\nlinter together, and the test now resolves every path from its own location, so\nit passes from the repository root and from design/ rather than only the former.\n\nProven by breaking it: an unpinned tag and a new conditional gate each turn it\nred, and the gate is named in the message. Restored, both green. 33 of 33.\n\nRefs #167\n\n個 workflow linter 壞咗兩個禮拜，而整爛佢嗰個 commit 順手連跑佢嗰個 job 都刪埋。\n\n86024f0f 依照「GitHub Actions 唔跑測試唔跑 lint」嘅既定政策，刪走咗 ci.yml 嘅\n「Lint the workflow files」job。全世界就得嗰個 job 會行 lint-workflows.mjs。同一個\ncommit 仲改咗 check job 個名、重寫咗一個 linter 有指紋嘅步驟、又刪走咗 linter 要求\n一定要存在嘅一個 job 同一個步驟。冇人發現，因為會發現嘅嗰樣嘢啱啱俾人刪咗。八個\nci.yml commit 之後，佢報 12 個問題，佢自己個測試報 6 個。\n\n每一個都係審過先算，唔係㩒掣清走。\n\nAction 數目 127 變 134。七個新增全部係 receipt 系統，加上 render-world receipt job\n嘅第四個 checkout、setup-node 同 pnpm/action-setup。改個數字之前，我逐個檢查晒八份\nworkflow 全部 134 個用法對唔對得上該 action 已審核嘅 SHA：冇一個未 pin，亦冇一個用\n緊清單未審過嘅 SHA。PINNED_ACTIONS 6 變 10，係 container image 加嘅四個 docker\naction；版本解析器 2 變 3，係 image identity 用返同一個已提交嘅解析器 -- 正正就係嗰\n句 assertion 想守住嘅嘢，唔係例外。\n\n刪走兩個檢查。佢哋要求「Check committed screenshot evidence」步驟同 screenshots\njob 一定要存在，但兩樣都因為「唔設截圖關卡」政策而消失咗，所以佢哋等於堅持兩樣政策\n禁止存在嘅嘢要存在，政策生效幾耐就連紅咗幾耐。連埋大約 150 行 mutation 覆蓋一齊刪\n-- 嗰啲 mutation 一直喺度取代檔案入面根本冇嘅文字，改完同原文一模一樣，然後失敗話\n少咗一份契約。呢個做法係跟返個檔案處理「Verify generated changelog is current」嗰次。\n\n兩個指紋睇完 diff 先重新計算：一個範圍更窄嘅 registry token、staging 好個 jar 之後\n先重寫嘅 manifest、搬咗入一個有測試嘅 script 嘅 jar 驗證，同埋老實講清楚呢個 workflow\n唔會做乜嘅 release note。\n\n條件清單而家當集合比較，並且講明改咗乜。之前係睇次序嘅，所以兩個 job 調轉位置都會\n彈「condition inventory must match」-- 睇落好似有個未經審核嘅關卡走咗出嚟。YAML 入面\njob 次序決定唔到任何嘢，needs: 先得，而執行次序早已有逐 byte 嘅指紋守住。佢一路喺度\n喊狼來了，而喊狼來了嘅守衛，冇人會再睇。\n\n跟住係 issue 嘅另一半：pnpm workflows:check 一次過行測試同 linter，而個測試而家由自己\n所在位置解析所有路徑，所以喺 repository 根目錄同 design/ 都行得，唔再係淨係前者。\n\n整爛咗嚟證：一個未 pin 嘅 tag 同一個新條件關卡各自令佢變紅，而且訊息會講出嗰個關卡係\n邊個。還原之後全綠。33 個全綠。",
+                details: "86024f0f deleted ci.yml's \"Lint the workflow files\" job under the standing policy\nthat GitHub Actions runs no tests and no lint. That job was the only thing that\nran scripts/lint-workflows.mjs. The same commit renamed the check job, rewrote a\nstep the linter fingerprints, and removed a job and a step the linter required to\nexist. Nothing noticed, because the thing that would have noticed had just been\ndeleted. Eight ci.yml commits later it reported 12 problems and its own test\nreported 6.\n\nEvery one was reviewed rather than cleared.\n\nAction counts: 127 to 134. All seven additions are the receipt system plus a\nfourth checkout, setup-node and pnpm/action-setup for render-world's receipt job.\nBefore moving the number I checked every one of the 134 uses across all eight\nworkflows against the reviewed SHA for its action: none is unpinned and none uses\na SHA the inventory had not already reviewed. PINNED_ACTIONS 6 to 10 for the four\ndocker actions the container-image work added, and the version resolver 2 to 3\nfor the image identity, which uses the committed resolver the assertion exists to\nrequire rather than an exception to it.\n\nTwo checks removed. They required the \"Check committed screenshot evidence\" step\nand the screenshots capture job to exist, and both went under the no-capture-gate\npolicy, so they asserted the presence of two things the policy forbids and failed\non every run for as long as the policy has held. Removed with about 150 lines of\nmutation coverage that had been replacing text absent from the file, so each\nmutation came back identical to the original and failed claiming a missing\ncontract. That is what the file already did for the \"Verify generated changelog\nis current\" checks.\n\nTwo fingerprints recomputed after reading the diffs: a narrower registry token, a\nmanifest regenerated after the jar is staged, jar verification moved into a tested\nscript, and honest release-note prose about what the workflow does not run.\n\nThe condition inventory now compares as a set and names what changed. It was\norder-sensitive, so swapping two jobs raised \"condition inventory must match\" --\nwhich reads as an unreviewed gate appearing. Job order in YAML decides nothing;\nneeds: does, and execution order is covered byte-exactly by the fingerprints. It\nraised false alarms, and a guard that raises false alarms is a guard nobody reads.\n\nThen the other half of the issue: pnpm workflows:check runs the test and the\nlinter together, and the test now resolves every path from its own location, so\nit passes from the repository root and from design/ rather than only the former.\n\nProven by breaking it: an unpinned tag and a new conditional gate each turn it\nred, and the gate is named in the message. Restored, both green. 33 of 33.\n\nRefs #167\n\n個 workflow linter 壞咗兩個禮拜，而整爛佢嗰個 commit 順手連跑佢嗰個 job 都刪埋。\n\n86024f0f 依照「GitHub Actions 唔跑測試唔跑 lint」嘅既定政策，刪走咗 ci.yml 嘅\n「Lint the workflow files」job。全世界就得嗰個 job 會行 lint-workflows.mjs。同一個\ncommit 仲改咗 check job 個名、重寫咗一個 linter 有指紋嘅步驟、又刪走咗 linter 要求\n一定要存在嘅一個 job 同一個步驟。冇人發現，因為會發現嘅嗰樣嘢啱啱俾人刪咗。八個\nci.yml commit 之後，佢報 12 個問題，佢自己個測試報 6 個。\n\n每一個都係審過先算，唔係㩒掣清走。\n\nAction 數目 127 變 134。七個新增全部係 receipt 系統，加上 render-world receipt job\n嘅第四個 checkout、setup-node 同 pnpm/action-setup。改個數字之前，我逐個檢查晒八份\nworkflow 全部 134 個用法對唔對得上該 action 已審核嘅 SHA：冇一個未 pin，亦冇一個用\n緊清單未審過嘅 SHA。PINNED_ACTIONS 6 變 10，係 container image 加嘅四個 docker\naction；版本解析器 2 變 3，係 image identity 用返同一個已提交嘅解析器 -- 正正就係嗰\n句 assertion 想守住嘅嘢，唔係例外。\n\n刪走兩個檢查。佢哋要求「Check committed screenshot evidence」步驟同 screenshots\njob 一定要存在，但兩樣都因為「唔設截圖關卡」政策而消失咗，所以佢哋等於堅持兩樣政策\n禁止存在嘅嘢要存在，政策生效幾耐就連紅咗幾耐。連埋大約 150 行 mutation 覆蓋一齊刪\n-- 嗰啲 mutation 一直喺度取代檔案入面根本冇嘅文字，改完同原文一模一樣，然後失敗話\n少咗一份契約。呢個做法係跟返個檔案處理「Verify generated changelog is current」嗰次。\n\n兩個指紋睇完 diff 先重新計算：一個範圍更窄嘅 registry token、staging 好個 jar 之後\n先重寫嘅 manifest、搬咗入一個有測試嘅 script 嘅 jar 驗證，同埋老實講清楚呢個 workflow\n唔會做乜嘅 release note。\n\n條件清單而家當集合比較，並且講明改咗乜。之前係睇次序嘅，所以兩個 job 調轉位置都會\n彈「condition inventory must match」-- 睇落好似有個未經審核嘅關卡走咗出嚟。YAML 入面\njob 次序決定唔到任何嘢，needs: 先得，而執行次序早已有逐 byte 嘅指紋守住。佢一路喺度\n喊狼來了，而喊狼來了嘅守衛，冇人會再睇。\n\n跟住係 issue 嘅另一半：pnpm workflows:check 一次過行測試同 linter，而個測試而家由自己\n所在位置解析所有路徑，所以喺 repository 根目錄同 design/ 都行得，唔再係淨係前者。\n\n整爛咗嚟證：一個未 pin 嘅 tag 同一個新條件關卡各自令佢變紅，而且訊息會講出嗰個關卡係\n邊個。還原之後全綠。33 個全綠。\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
                 category: "build",
                 areas: ["build"],
                 files: 3,
@@ -6589,7 +8966,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 shortSha: "43fbc6d5fe",
                 date: "2026-08-24T00:48:08-04:00",
                 subject: "Add bundled-first file conversion and local model tools",
-                details: "English: The desktop now names every conversion category, keeps missing adapters visible, and carries a durable bounded queue. Local model tools stay on the loopback API, show evidence-backed fit, and reject shell-shaped harness input. The old blank toolbox finally has to explain itself.\n\nCantonese: 而家每類檔案工具都要出場，冇齊依賴就老實講原因，唔會叫人自己周街搵。模型工具淨係留喺本機，個 queue 有記性，個 shell 就算想扮orchestrator都入唔到場。",
+                details: "English: The desktop now names every conversion category, keeps missing adapters visible, and carries a durable bounded queue. Local model tools stay on the loopback API, show evidence-backed fit, and reject shell-shaped harness input. The old blank toolbox finally has to explain itself.\n\nCantonese: 而家每類檔案工具都要出場，冇齊依賴就老實講原因，唔會叫人自己周街搵。模型工具淨係留喺本機，個 queue 有記性，個 shell 就算想扮orchestrator都入唔到場。\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
                 category: "shell",
                 areas: ["shell", "other", "docs"],
                 files: 28,
@@ -7505,7 +9882,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 shortSha: "e8f09136d4",
                 date: "2026-08-24T00:22:58-04:00",
                 subject: "Improve feature discovery with rich palette results",
-                details: "The palette now remembers the places people actually visit, keeps the useful stars local, and shows where every row lives. The directory inventory also makes a missing route shout instead of hiding behind an innocent empty search box.\n\n搜尋而家識記住大家去過邊度，最常用嗰粒Astra留喺本機，結果仲會講清楚自己喺邊個 tab 同頁面。目錄測試專登拆走一條路睇佢變紅，再裝返就轉綠，唔畀功能偷偷玩失蹤。",
+                details: "The palette now remembers the places people actually visit, keeps the useful stars local, and shows where every row lives. The directory inventory also makes a missing route shout instead of hiding behind an innocent empty search box.\n\n搜尋而家識記住大家去過邊度，最常用嗰粒Astra留喺本機，結果仲會講清楚自己喺邊個 tab 同頁面。目錄測試專登拆走一條路睇佢變紅，再裝返就轉綠，唔畀功能偷偷玩失蹤。\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
                 category: "interface",
                 areas: ["interface", "docs"],
                 files: 12,
@@ -10038,7 +12415,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 shortSha: "d56989d353",
                 date: "2026-08-21T19:36:18-04:00",
                 subject: "Put a map on your own domain, and out of your own house",
-                details: "Three hosting routes, one rule they share: a record that has been written is not\na site that is working. DNS propagates, a certificate gets issued, an origin has\nto actually answer. Reporting \"live\" the moment the API call returns is the most\ntempting lie in this whole feature, because the call really did succeed - and the\nperson opens the address thirty seconds later, gets an error, and concludes the\napp is broken rather than that it is early. So applying a record reports pending,\nand only an address that answers turns it live.\n\nA record already pointing somewhere else is a conflict, not something to\noverwrite. It may be serving somebody's live website, and the only sign of a\nsilent overwrite is their site going down. Replacing one is an explicit choice.\n\nThe proxy setting is not cosmetic either way round. A tunnel must be proxied,\nbecause cfargotunnel.com only resolves through Cloudflare's edge - unproxied, the\nrecord points at something the public internet cannot reach at all. Pages must\nnot be, because proxying in front of it before its certificate exists produces a\nredirect loop that is genuinely unpleasant to diagnose.\n\nTunnels run in whichever of three places the person picks - the host binary, a\ncontainer on local Docker, or a container on an SSH host - and all three are argv\nthrough the CommandRunner that dockerhosting and remote already share, which is\nwhy all three are tested here with no daemon, no remote machine and no\ncloudflared installed. None of them publishes a port: a tunnel dials outward, so\nthere is nothing to publish and a -p would open a hole this design does not need.\nThat is asserted per runtime. The image must be digest-pinned like every other\nmanaged container, and the tunnel token goes in as an environment variable rather\nthan an argument so it is not sitting in docker ps for anyone on the machine.\n\nEvery surface renders a redacted command, because a preflight panel showing the\nreal argv puts a live credential into the next screenshot.\n\nTwo guards had to be fixed for firing on correct code, which is worth recording\nbecause both were the same mistake: a needle too blunt for its subject. One\nsearched a serialised object for the token's length and hit \"45\" inside an ISO\ntimestamp; the other banned -p across a whole argv and hit ssh's own -p 22. A\nguard that raises false alarms teaches people to ignore it, so both now assert what they\nactually mean.\n\n寫咗個 DNS record 唔等於個網開到 - 要等佢傳開,要等張證書。所以老實講\n「等緊」,唔好一 call 完就話「得咗」,人哋撳落去見到 error 只會以為個\napp 壞咗。已經指住第二度嗰個 record?唔郁佢,嗰個可能係人哋條命。",
+                details: "Three hosting routes, one rule they share: a record that has been written is not\na site that is working. DNS propagates, a certificate gets issued, an origin has\nto actually answer. Reporting \"live\" the moment the API call returns is the most\ntempting lie in this whole feature, because the call really did succeed - and the\nperson opens the address thirty seconds later, gets an error, and concludes the\napp is broken rather than that it is early. So applying a record reports pending,\nand only an address that answers turns it live.\n\nA record already pointing somewhere else is a conflict, not something to\noverwrite. It may be serving somebody's live website, and the only sign of a\nsilent overwrite is their site going down. Replacing one is an explicit choice.\n\nThe proxy setting is not cosmetic either way round. A tunnel must be proxied,\nbecause cfargotunnel.com only resolves through Cloudflare's edge - unproxied, the\nrecord points at something the public internet cannot reach at all. Pages must\nnot be, because proxying in front of it before its certificate exists produces a\nredirect loop that is genuinely unpleasant to diagnose.\n\nTunnels run in whichever of three places the person picks - the host binary, a\ncontainer on local Docker, or a container on an SSH host - and all three are argv\nthrough the CommandRunner that dockerhosting and remote already share, which is\nwhy all three are tested here with no daemon, no remote machine and no\ncloudflared installed. None of them publishes a port: a tunnel dials outward, so\nthere is nothing to publish and a -p would open a hole this design does not need.\nThat is asserted per runtime. The image must be digest-pinned like every other\nmanaged container, and the tunnel token goes in as an environment variable rather\nthan an argument so it is not sitting in docker ps for anyone on the machine.\n\nEvery surface renders a redacted command, because a preflight panel showing the\nreal argv puts a live credential into the next screenshot.\n\nTwo guards had to be fixed for firing on correct code, which is worth recording\nbecause both were the same mistake: a needle too blunt for its subject. One\nsearched a serialised object for the token's length and hit \"45\" inside an ISO\ntimestamp; the other banned -p across a whole argv and hit ssh's own -p 22. A\nguard that raises false alarms teaches people to ignore it, so both now assert what they\nactually mean.\n\n寫咗個 DNS record 唔等於個網開到 - 要等佢傳開,要等張證書。所以老實講\n「等緊」,唔好一 call 完就話「得咗」,人哋撳落去見到 error 只會以為個\napp 壞咗。已經指住第二度嗰個 record?唔郁佢,嗰個可能係人哋條命。\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
                 category: "shell",
                 areas: ["shell"],
                 files: 6,
@@ -10332,7 +12709,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 shortSha: "8c718cd3df",
                 date: "2026-08-21T19:48:22-04:00",
                 subject: "Reach a container's server, whether the daemon is here or in another country",
-                details: "One implementation of Docker, two thin factories on top. `sshDocker.ts`\nis 140 lines and none of them are the container lifecycle, because\n`remote/ssh.ts` already returns a `sshCommandRunner` that IS a\n`CommandRunner`. Inspecting a container on a machine across an ocean is\nthe same code as inspecting one here, with one substitution. That is the\nseam earning its keep.\n\nFiles do not travel through the command runner, and this is the one\nthing worth reading twice. `CommandOutput.stdout` is a string. Pipe a jar\nor a region file through `docker cp -` and every byte that is not valid\nUTF-8 comes out the other side as U+FFFD - silently, one way, looking for\nall the world like a file that was always broken. So `docker cp` is\npointed at a real file on the daemon's own machine and the bytes are\nmoved by something that understands bytes: `fs` locally, `scp` remotely.\n\n`docker cp` rather than `exec cat` for a reason that sounds small and is\nnot: it works on a STOPPED container. A bad config is the most common\nreason a server will not start, so the moment somebody most needs to edit\na file is precisely the moment `exec` is unavailable.\n\nNo `--follow`, and above all no `docker attach`. An attached TTY forwards\na stray Ctrl-C straight into a live JVM, and there are people standing in\nthat world. The console reads the log and writes over RCON instead.\n\nUnreachable is not stopped. There are five tests on that one distinction\nalone, because \"I lost the SSH connection\" and \"the server died\" look\nidentical from a dropped stream, and offering a restart button for the\nfirst one restarts a perfectly healthy server full of players.\n\n73 tests, no daemon required.\n\n一套 Docker 實作，兩個好薄嘅 factory。SSH 版淨係換咗個 runner - 隔住個海嗰部機，同本機一模一樣嘅 code。\n檔案唔行 command runner：stdout 係 string，jar 一過就變晒 U+FFFD，仲要靜雞雞噉壞。\n用 docker cp 唔用 exec cat，因為 container 停咗都用得 - 而 config 寫錯正正就係佢起唔到嗰陣。\n死都唔用 docker attach：撳錯個 Ctrl-C 就連埋成個 server 一齊拉閘，入面仲有人喺度。",
+                details: "One implementation of Docker, two thin factories on top. `sshDocker.ts`\nis 140 lines and none of them are the container lifecycle, because\n`remote/ssh.ts` already returns a `sshCommandRunner` that IS a\n`CommandRunner`. Inspecting a container on a machine across an ocean is\nthe same code as inspecting one here, with one substitution. That is the\nseam earning its keep.\n\nFiles do not travel through the command runner, and this is the one\nthing worth reading twice. `CommandOutput.stdout` is a string. Pipe a jar\nor a region file through `docker cp -` and every byte that is not valid\nUTF-8 comes out the other side as U+FFFD - silently, one way, looking for\nall the world like a file that was always broken. So `docker cp` is\npointed at a real file on the daemon's own machine and the bytes are\nmoved by something that understands bytes: `fs` locally, `scp` remotely.\n\n`docker cp` rather than `exec cat` for a reason that sounds small and is\nnot: it works on a STOPPED container. A bad config is the most common\nreason a server will not start, so the moment somebody most needs to edit\na file is precisely the moment `exec` is unavailable.\n\nNo `--follow`, and above all no `docker attach`. An attached TTY forwards\na stray Ctrl-C straight into a live JVM, and there are people standing in\nthat world. The console reads the log and writes over RCON instead.\n\nUnreachable is not stopped. There are five tests on that one distinction\nalone, because \"I lost the SSH connection\" and \"the server died\" look\nidentical from a dropped stream, and offering a restart button for the\nfirst one restarts a perfectly healthy server full of players.\n\n73 tests, no daemon required.\n\n一套 Docker 實作，兩個好薄嘅 factory。SSH 版淨係換咗個 runner - 隔住個海嗰部機，同本機一模一樣嘅 code。\n檔案唔行 command runner：stdout 係 string，jar 一過就變晒 U+FFFD，仲要靜雞雞噉壞。\n用 docker cp 唔用 exec cat，因為 container 停咗都用得 - 而 config 寫錯正正就係佢起唔到嗰陣。\n死都唔用 docker attach：撳錯個 Ctrl-C 就連埋成個 server 一齊拉閘，入面仲有人喺度。\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
                 category: "shell",
                 areas: ["shell"],
                 files: 4,
@@ -12939,7 +15316,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 shortSha: "4873f150e2",
                 date: "2026-08-19T08:02:52-04:00",
                 subject: "Enforce the public compatibility contract",
-                details: "The Windows-only public contract now has an executable exact-boundary check covering all 18 inventory rows, migration references, CLI identities, exit codes, links, and examples. Release copy also reflects the actual ungated delivery policy instead of asking lint to stand outside the factory with a clipboard.\n\nMicrosoft Windows-only 公開 contract 而家有 executable exact-boundary check，會檢查 18 個 inventory row、migration reference、CLI identity、exit code、link 同 example。Release 文案亦跟返真正 ungated delivery policy，唔再叫 lint 拎住 clipboard 企喺工廠門口扮保安。\n\nRefs #60",
+                details: "The Windows-only public contract now has an executable exact-boundary check covering all 18 inventory rows, migration references, CLI identities, exit codes, links, and examples. Release copy also reflects the actual ungated delivery policy instead of asking lint to stand outside the factory with a clipboard.\n\nMicrosoft Windows-only 公開 contract 而家有 executable exact-boundary check，會檢查 18 個 inventory row、migration reference、CLI identity、exit code、link 同 example。Release 文案亦跟返真正 ungated delivery policy，唔再叫 lint 拎住 clipboard 企喺工廠門口扮保安。\n\nRefs #60\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
                 category: "site",
                 areas: ["site", "build", "docs"],
                 files: 3,
@@ -20329,7 +22706,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 shortSha: "09c326be6e",
                 date: "2026-08-05T21:26:09-04:00",
                 subject: "Extend the import-tracking guard to catch a missing export, not just a missing file",
-                details: "`importTrackingPolicy.test.ts` already fails vitest when a committed import\nresolves to a file git does not track. It stayed green on commit 75f85db\nanyway, because that break was a different shape wearing the same symptom:\nAppearanceTarget.vue's import of releaseAppearancePopup was fine and its\ntarget (useAppearance.ts) was fine and tracked - the file just hadn't been\ngiven the export yet in the commit that shipped. A guard that only asks\n\"does this path exist in git\" has nothing to say about what's written\ninside a path that does.\n\nThis adds a binding-level pass beside it: for every committed import/\nre-export naming a specifier, resolve the target the same way the existing\nguard does (factored out as a shared resolveTarget helper), then read both\nsides' COMMITTED content via one batched `git cat-file --batch` call (two\ngit subprocesses total, not one per import) and check the requested name\nactually appears among the target's exports. `export { X as Y }` aliases,\n`export *` barrels (treated as opaque - skipped rather than guessed at),\nand type-only imports are exercised directly so the guard does not learn\nto cry wolf. The whole file runs in ~2.5s against 1755 real source files,\ngit's own blob-reading being the entire cost.\n\nVerified against the real history, not just synthetic text: run against\nthe actual commits, this exact detector reports both missing bindings at\n75f85db and reports none at the fix commit 2f3f22e. Against the current\nHEAD it is clean - that regression is already fixed - so this guard is\nlanding as a tripwire for the next one, not a fix for a currently-red\nbuild.\n\n依家净係識問「呢個檔案有冚咗喺 git 度未」嘅衛兵，見到 AppearanceTarget.vue\n入面條 import 靚靚哋指向一個真係有 track 嘅檔案，就大手一揮話冇事 -\n完全冇問過嗰個檔案入面到底有冇真係 export 嗰嚿嘢出嚟，結果 CI 紅足一個鐘先\n發現係漏咗 commit useAppearance.ts 度嗰兩個 export。而家加多層檢查：兩邊\n都讀 git 度已經 commit 咗嘅內容（唔係本機磁碟嗰份走精面版本），一次過用\ngit cat-file --batch 攞晒啲檔案內容（唔係逐個 import 開一個 git 進程咁\n浪費），核實 import 嗰個名真係喺對方 export 咗。alias export、barrel\nexport * 同 type-only import 呢三種正常寫法，特登寫低單元測試證明唔會誤中\n副車。攞返 75f85db 同 2f3f22e 呢兩個真實歷史 commit 落嚟過返一次，確認\n衛兵喺出事嗰刻真係會叫，喺修復咗之後又真係會靜返 - 唔係得個講字。",
+                details: "`importTrackingPolicy.test.ts` already fails vitest when a committed import\nresolves to a file git does not track. It stayed green on commit 75f85db\nanyway, because that break was a different shape wearing the same symptom:\nAppearanceTarget.vue's import of releaseAppearancePopup was fine and its\ntarget (useAppearance.ts) was fine and tracked - the file just hadn't been\ngiven the export yet in the commit that shipped. A guard that only asks\n\"does this path exist in git\" has nothing to say about what's written\ninside a path that does.\n\nThis adds a binding-level pass beside it: for every committed import/\nre-export naming a specifier, resolve the target the same way the existing\nguard does (factored out as a shared resolveTarget helper), then read both\nsides' COMMITTED content via one batched `git cat-file --batch` call (two\ngit subprocesses total, not one per import) and check the requested name\nactually appears among the target's exports. `export { X as Y }` aliases,\n`export *` barrels (treated as opaque - skipped rather than guessed at),\nand type-only imports are exercised directly so the guard does not learn\nto cry wolf. The whole file runs in ~2.5s against 1755 real source files,\ngit's own blob-reading being the entire cost.\n\nVerified against the real history, not just synthetic text: run against\nthe actual commits, this exact detector reports both missing bindings at\n75f85db and reports none at the fix commit 2f3f22e. Against the current\nHEAD it is clean - that regression is already fixed - so this guard is\nlanding as a tripwire for the next one, not a fix for a currently-red\nbuild.\n\n依家净係識問「呢個檔案有冚咗喺 git 度未」嘅衛兵，見到 AppearanceTarget.vue\n入面條 import 靚靚哋指向一個真係有 track 嘅檔案，就大手一揮話冇事 -\n完全冇問過嗰個檔案入面到底有冇真係 export 嗰嚿嘢出嚟，結果 CI 紅足一個鐘先\n發現係漏咗 commit useAppearance.ts 度嗰兩個 export。而家加多層檢查：兩邊\n都讀 git 度已經 commit 咗嘅內容（唔係本機磁碟嗰份走精面版本），一次過用\ngit cat-file --batch 攞晒啲檔案內容（唔係逐個 import 開一個 git 進程咁\n浪費），核實 import 嗰個名真係喺對方 export 咗。alias export、barrel\nexport * 同 type-only import 呢三種正常寫法，特登寫低單元測試證明唔會誤中\n副車。攞返 75f85db 同 2f3f22e 呢兩個真實歷史 commit 落嚟過返一次，確認\n衛兵喺出事嗰刻真係會叫，喺修復咗之後又真係會靜返 - 唔係得個講字。\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
                 category: "services",
                 areas: ["services"],
                 files: 1,
@@ -21621,7 +23998,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 shortSha: "3e2d60da4a",
                 date: "2026-08-05T15:51:00-04:00",
                 subject: "Extract commit links from changelog entries even when prose trails them",
-                details: "The changelog parser's ENTRY regex only stripped a trailing commit link\n(`- [`sha`](url)`) when nothing followed it on the line. Every \"Merge pull\nrequest\" entry carries trailing prose after that link (`_(summary of N\ncommits, also listed here)_`), so the regex's optional group never\nmatched: the raw markdown stayed embedded in the subject and the site\nrendered \"Commit not recorded\" for a commit that was, in fact, recorded.\n21 of 332 entries in CHANGELOG.md were affected (one out of every sixteen\nreaders clicking a \"why won't this link open\" dead end that was never\nactually dead - it just never got wired up).\n\nFixes the regex to capture whatever trails the commit link instead of\nrequiring the line to end there, and folds that trailing text back onto\nthe subject rather than discarding it, since \"(summary of 20 commits,\nalso listed here)\" is real information, not markup. The SHA pattern\nitself is untouched - a wrong SHA is worse than no SHA, so only what is\nallowed to follow the link changed, not what counts as one. Verified\nagainst the real CHANGELOG.md: 332/332 entries now resolve a commit\n(was 311/332), zero subjects retain raw link syntax, and eight recovered\nSHAs were confirmed to exist via `git cat-file -e`. The in-app changelog\nviewer (design/packages/ui/src/components/changelog) reads structured\ndata generated straight from git rather than re-parsing this markdown,\nso it never had this defect. Adds four regression tests for the\nmerge-summary shape, generic trailing prose, leak-free subjects, and a\ngenuinely link-less entry.\n\n個「相\"連唔到\"嘅」大烏龍:changelog個解析器見到條link後面仲拖住句「呢個\nmerge埋咗20條commit」嘅備注,就以為成句唔啱格式,索性連個真身commit link\n都唔要,淨係將個原始markdown源碼囫圇吞落個標題度。332條記錄入面21條「Merge\npull request」全部中招,個網站仲老老實實印住「Commit not recorded」——\n其實個commit一直好地地喺CHANGELOG.md度,只不過個正則表達式唔識轉個彎。而\n家個正則識咗:link後面拖幾多字都好,照樣攞到個sha,拖住嗰句備注就摺返落\n標題,唔會質唔見亦唔會囫圇吞棗。個sha嘅格式一個字都冇改鬆——攞錯個sha好過\n攞唔到,所以呢單嘢冇得將就。用真正嘅CHANGELOG.md驗證過:332條全部攞到\ncommit(之前得311條),冇一條標題仲剩低原始markdown,揾八個復原返嘅sha用\ngit cat-file -e確認真係存在。app入面嗰個changelog睇相機用緊另一條路\n(直接讀git生成嘅結構化資料,唔使再解析呢份markdown),所以佢一直冇呢個\n問題。加咗四條測試,包住merge備注、任意拖尾文字、標題冇漏底markdown、同\n埋真係冇link嗰種情況。",
+                details: "The changelog parser's ENTRY regex only stripped a trailing commit link\n(`- [`sha`](url)`) when nothing followed it on the line. Every \"Merge pull\nrequest\" entry carries trailing prose after that link (`_(summary of N\ncommits, also listed here)_`), so the regex's optional group never\nmatched: the raw markdown stayed embedded in the subject and the site\nrendered \"Commit not recorded\" for a commit that was, in fact, recorded.\n21 of 332 entries in CHANGELOG.md were affected (one out of every sixteen\nreaders clicking a \"why won't this link open\" dead end that was never\nactually dead - it just never got wired up).\n\nFixes the regex to capture whatever trails the commit link instead of\nrequiring the line to end there, and folds that trailing text back onto\nthe subject rather than discarding it, since \"(summary of 20 commits,\nalso listed here)\" is real information, not markup. The SHA pattern\nitself is untouched - a wrong SHA is worse than no SHA, so only what is\nallowed to follow the link changed, not what counts as one. Verified\nagainst the real CHANGELOG.md: 332/332 entries now resolve a commit\n(was 311/332), zero subjects retain raw link syntax, and eight recovered\nSHAs were confirmed to exist via `git cat-file -e`. The in-app changelog\nviewer (design/packages/ui/src/components/changelog) reads structured\ndata generated straight from git rather than re-parsing this markdown,\nso it never had this defect. Adds four regression tests for the\nmerge-summary shape, generic trailing prose, leak-free subjects, and a\ngenuinely link-less entry.\n\n個「相\"連唔到\"嘅」大烏龍:changelog個解析器見到條link後面仲拖住句「呢個\nmerge埋咗20條commit」嘅備注,就以為成句唔啱格式,索性連個真身commit link\n都唔要,淨係將個原始markdown源碼囫圇吞落個標題度。332條記錄入面21條「Merge\npull request」全部中招,個網站仲老老實實印住「Commit not recorded」——\n其實個commit一直好地地喺CHANGELOG.md度,只不過個正則表達式唔識轉個彎。而\n家個正則識咗:link後面拖幾多字都好,照樣攞到個sha,拖住嗰句備注就摺返落\n標題,唔會質唔見亦唔會囫圇吞棗。個sha嘅格式一個字都冇改鬆——攞錯個sha好過\n攞唔到,所以呢單嘢冇得將就。用真正嘅CHANGELOG.md驗證過:332條全部攞到\ncommit(之前得311條),冇一條標題仲剩低原始markdown,揾八個復原返嘅sha用\ngit cat-file -e確認真係存在。app入面嗰個changelog睇相機用緊另一條路\n(直接讀git生成嘅結構化資料,唔使再解析呢份markdown),所以佢一直冇呢個\n問題。加咗四條測試,包住merge備注、任意拖尾文字、標題冇漏底markdown、同\n埋真係冇link嗰種情況。\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
                 category: "site",
                 areas: ["site"],
                 files: 2,
@@ -24768,7 +27145,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 shortSha: "fc084e8b8d",
                 date: "2026-08-04T01:08:00-04:00",
                 subject: "Give the app a palette, a notice history, a changelog, and a builder on every search",
-                details: "Four contracts, built in parallel and wired here.\n\nThe command palette is one shortcut over every command, setting and\ndestination: 30 rows assembled from the registries that already exist,\nso a sixth settings section or an eighth config tab appears in it on\nthe same commit that adds it rather than when somebody remembers. A\nrow that is a setting renders the real control and writes through the\nsame path the settings page uses; a row that is a destination says\nwhere it goes and gets there through the shell's existing reveal, not\na second one. It defaults to the bounded card, because a search box\nthat swallows the window is worse than one you opted into.\n\nThe notification bell was already in the corner and was very nearly\ndecorative: a count over a flat list with no search and no way back.\nIt is a real centre now, and the contract around it stopped being an\nintention: one test asserts every level lands as a corner toast with\nno dialog anywhere in the document and that warnings outlive an hour\nwhile info dismisses at five seconds, and another inventories every\ndialog in the package and demands each one name the decision it asks\nfor. \"It reports something\" is not an admissible answer, and that test\ncaught a palette added minutes earlier.\n\nThe changelog is generated from the repository rather than written:\n35 versions and 88 entries, each carrying the commit that made it,\nevery SHA validated before anything is written. Versions come from\ntags with `rev-list --not` rather than pairwise ranges, because three\ntags sit on a side branch and a range would have lost them. Categories\ncome from the paths a commit touched, not from its wording, because\nthese commits carry no feat/fix marker and a label inferred from prose\nis a changelog saying what nobody wrote. CI now fails when it drifts.\n\nThe regex builder reached four collections that had no search at all -\nrelease assets, downloads, interrupted renders and the wizard's review\nlists - and the profiles list, which is the one that grows without\nanybody deciding it should. That work also found the bounded-evaluation\nguard was not actually bounded: the wall clock is checked between\nmatches, and `(a+)+$` never returns from the first one. The old\nadversarial test passed because its sample was twenty characters and\nthe real adapter allows twenty thousand. A static guard now refuses the\ntwo shapes that explode, and twenty-three ordinary patterns are pinned\nas must-be-allowed so it cannot start raising false alarms.\n\n225 files, 3472 tests, typecheck and lint clean.\n\n---\n\n四張合約一齊落地。\n\nCommand palette:一個快捷鍵通去所有嘢,30 行全部由現有 registry 砌出\n嚟 — 即係話隔籬加多個設定分頁,佢自己會出現,唔使等人記得。係設定\n嘅就直接俾你改,係去邊度嘅就講明去邊度。\n\n粒通知鐘本來得個殼,而家係真嘅通知中心。仲有兩個測試睇實份合約:一個\n證明四種通知都係角落彈出、成份文件冇 dialog、警告過一個鐘都仲喺度;\n另一個數齊全 package 每個 dialog,逐個要寫明「你要用家決定啲乜」—\n寫「我想話俾佢知」唔收貨。寫完當日就捉到隔籬啱啱加嘅 palette 😆\n\nChangelog 係由個 repo 度生出嚟,唔係人手寫:35 個版本 88 條記錄,每條\n掛住自己個 commit,寫之前逐個 SHA 驗過存唔存在。\n\nRegex builder 補返四個由頭到尾冇搜尋嘅清單,仲有個 profiles 名單。\n順手發現個「防爆」保護根本冇防到:計時器係兩次 match 之間先睇,而\n`(a+)+$` 第一次 match 就返唔到嚟。舊測試過到,係因為佢個樣本得二十\n個字,而真嘅適配器俾到二萬個。",
+                details: "Four contracts, built in parallel and wired here.\n\nThe command palette is one shortcut over every command, setting and\ndestination: 30 rows assembled from the registries that already exist,\nso a sixth settings section or an eighth config tab appears in it on\nthe same commit that adds it rather than when somebody remembers. A\nrow that is a setting renders the real control and writes through the\nsame path the settings page uses; a row that is a destination says\nwhere it goes and gets there through the shell's existing reveal, not\na second one. It defaults to the bounded card, because a search box\nthat swallows the window is worse than one you opted into.\n\nThe notification bell was already in the corner and was very nearly\ndecorative: a count over a flat list with no search and no way back.\nIt is a real centre now, and the contract around it stopped being an\nintention: one test asserts every level lands as a corner toast with\nno dialog anywhere in the document and that warnings outlive an hour\nwhile info dismisses at five seconds, and another inventories every\ndialog in the package and demands each one name the decision it asks\nfor. \"It reports something\" is not an admissible answer, and that test\ncaught a palette added minutes earlier.\n\nThe changelog is generated from the repository rather than written:\n35 versions and 88 entries, each carrying the commit that made it,\nevery SHA validated before anything is written. Versions come from\ntags with `rev-list --not` rather than pairwise ranges, because three\ntags sit on a side branch and a range would have lost them. Categories\ncome from the paths a commit touched, not from its wording, because\nthese commits carry no feat/fix marker and a label inferred from prose\nis a changelog saying what nobody wrote. CI now fails when it drifts.\n\nThe regex builder reached four collections that had no search at all -\nrelease assets, downloads, interrupted renders and the wizard's review\nlists - and the profiles list, which is the one that grows without\nanybody deciding it should. That work also found the bounded-evaluation\nguard was not actually bounded: the wall clock is checked between\nmatches, and `(a+)+$` never returns from the first one. The old\nadversarial test passed because its sample was twenty characters and\nthe real adapter allows twenty thousand. A static guard now refuses the\ntwo shapes that explode, and twenty-three ordinary patterns are pinned\nas must-be-allowed so it cannot start raising false alarms.\n\n225 files, 3472 tests, typecheck and lint clean.\n\n---\n\n四張合約一齊落地。\n\nCommand palette:一個快捷鍵通去所有嘢,30 行全部由現有 registry 砌出\n嚟 — 即係話隔籬加多個設定分頁,佢自己會出現,唔使等人記得。係設定\n嘅就直接俾你改,係去邊度嘅就講明去邊度。\n\n粒通知鐘本來得個殼,而家係真嘅通知中心。仲有兩個測試睇實份合約:一個\n證明四種通知都係角落彈出、成份文件冇 dialog、警告過一個鐘都仲喺度;\n另一個數齊全 package 每個 dialog,逐個要寫明「你要用家決定啲乜」—\n寫「我想話俾佢知」唔收貨。寫完當日就捉到隔籬啱啱加嘅 palette 😆\n\nChangelog 係由個 repo 度生出嚟,唔係人手寫:35 個版本 88 條記錄,每條\n掛住自己個 commit,寫之前逐個 SHA 驗過存唔存在。\n\nRegex builder 補返四個由頭到尾冇搜尋嘅清單,仲有個 profiles 名單。\n順手發現個「防爆」保護根本冇防到:計時器係兩次 match 之間先睇,而\n`(a+)+$` 第一次 match 就返唔到嚟。舊測試過到,係因為佢個樣本得二十\n個字,而真嘅適配器俾到二萬個。\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
                 category: "interface",
                 areas: ["interface", "build", "docs", "shell"],
                 files: 58,
