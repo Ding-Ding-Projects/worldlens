@@ -349,7 +349,10 @@ export function publicText(text, sha, kind) {
     const override = CHANGELOG_OVERRIDES.get(sha);
     if (override) {
         if (kind === "subject" && typeof override.subject === "string") return override.subject;
-        if (kind === "details" && typeof override.body === "string") return override.body;
+        // An override body is a rewritten commit message, so it can end in the same
+        // authorship trailers the raw body did. They are removed here too: this route
+        // returns before the raw body's own stripped text is ever used.
+        if (kind === "details" && typeof override.body === "string") return stripTrailers(override.body);
     }
     if (!REDACTED_COMMIT_MESSAGES.has(sha)) return text;
     return kind === "subject"

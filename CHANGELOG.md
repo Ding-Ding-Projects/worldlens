@@ -20,7 +20,9 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
-_No changes have been committed since `v1.0.2504`._
+### Documentation
+
+- Preserve modified files before reinstall - [`f51306c32a`](https://github.com/Ding-Ding-Projects/worldlens/commit/f51306c32af2f9b989cc06edb2380ad51acbb27e)
 
 ## 1.0.2504 - 2026-11-25
 
