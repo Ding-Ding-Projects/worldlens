@@ -101,7 +101,7 @@ export const renderEngineChoice: Article = {
                 {
                     kind: "paragraph",
                     content:
-                        "Releases 1.0.2490 to 1.0.2502 shipped the Worldlens app engine without the packages it imports, so it refused every render. Checked on 2026-11-25: a real packaging run with the corrected file set contains those packages and passes a build check that loads the packaged engine in a separate process; the same run with the old file sets fails the build and names every missing package. A release built by the hosted workflow with this change, and a full render with the app engine in an installed build, have not been checked yet.",
+                        "Releases 1.0.2490 to 1.0.2502 shipped the Worldlens app engine without the packages it imports, so it refused every render. Checked on 2026-11-25: a real packaging run with the corrected file set contains those packages and passes a build check that loads the packaged engine in a separate process; the same run with the old file sets fails the build and names every missing package. Release 1.0.2504, built by the hosted workflow, passed the same check; after updating an installed copy to it the packages are present and the installed engine loads under the app's own runtime, where 1.0.2502 could not load it. A full render with the app engine in an installed build has not been checked yet.",
                 },
                 {
                     kind: "list",

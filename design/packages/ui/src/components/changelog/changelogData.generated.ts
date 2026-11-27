@@ -24,21 +24,28 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  * the last release" line rather than being hidden, because a missing section and an empty one
  * read very differently to somebody checking whether their fix shipped.
  */
-export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
-    {
-        sha: "7271e57d9df196dc6ae98c5fc3f894f269386f2a",
-        shortSha: "7271e57d9d",
-        date: "2026-11-25T22:23:19-05:00",
-        subject: "Ship the packages the TypeScript engine imports, and reinstall them when they are missing",
-        details: "Releases 1.0.2490 to 1.0.2502 offered an engine that could not start. The\nengine's own files were in the installer, the manifest said \"available\":\ntrue, and every render stopped with an instruction to \"build the engine\nbundle\", addressed to somebody who had installed an app. An engine with no\ndependencies is a very fast engine, but it does not render much.\n\nCause: electron-builder's copy filter drops a directory named node_modules\nat the root of a copied file set, and no filter pattern brings it back.\ndist/render-engines/typescript was its own file set, so its node_modules\nwas exactly that directory. Confirmed with a real --dir run both ways.\n\nWhat changed:\n\n- Packaging: the render engines are one file set rooted at\n  dist/render-engines, so the engine's node_modules is a nested folder and\n  is copied. afterPack now checks the packaged directory: every listed file\n  and package present, the reinstall archive matching the manifest, and the\n  engine loaded in a separate process from a copy outside the checkout.\n  With the old file sets that check fails the build and names ten packages.\n- Staging: packages are found by tracing the engine's import graph instead\n  of walking dependencies and peerDependencies. The old walk staged 96 MB,\n  60 MB of it a UI framework the engine never imports; the tree is now\n  5.24 MB, which keeps the update package under the size the updater can\n  fetch. Source maps and declarations are no longer staged.\n- The load probe found a second defect hiding behind the first: the staged\n  shared/dist was a second copy that could not resolve its own imports. It\n  is now a re-export of the staged package, one module instance, as in a\n  checkout.\n- Runtime: an installed copy with an incomplete engine reinstalls it from\n  the archive packaged with the app into its data folder, with progress,\n  then carries on with the render. Nothing is downloaded. When it cannot,\n  the failure names each missing piece and the reason.\n- Picker: the Worldlens app engine's state now comes from what is on disk,\n  and the button is disabled with the reason when it cannot start.\n- A packaged app no longer falls back to an engine build found under its\n  working directory, which is how the broken installer looked fine from a\n  checkout.\n- java/staging.test.ts was already red; it now asserts what the staging\n  scripts actually do.\n\nNot verified here: a hosted release with this change, and a full render\nwith this engine in an installed build.\n\nRefs #192\n\n引擎有出貨，佢要用嘅套件就冇跟車，仲話自己 available，一撳 render 就叫個用戶\n「自己 build 返個 engine」。真兇係打包工具見到檔案集最頂層叫 node_modules\n就當垃圾掉。而家成個 render-engines 一齊抄，afterPack 仲會真係 load 一次，\nload 唔到就唔出貨；staging 由 96 MB 減到 5.24 MB；裝咗之後唔齊會自己重裝，\n重裝唔到就講明缺邊件。Hosted release 同真 render 仲未驗。",
-        category: "shell",
-        areas: ["shell", "interface", "docs", "site"],
-        files: 33,
-    }
-];
+export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [];
 
 /** Every released version, newest first. */
 export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
+    {
+        version: "1.0.2504",
+        tag: "v1.0.2504",
+        date: "2026-11-25T22:25:05-05:00",
+        commit: "0f312213c01dc5314f6f9c778d5d11c10597a105",
+        entries: [
+            {
+                sha: "7271e57d9df196dc6ae98c5fc3f894f269386f2a",
+                shortSha: "7271e57d9d",
+                date: "2026-11-25T22:23:19-05:00",
+                subject: "Ship the packages the TypeScript engine imports, and reinstall them when they are missing",
+                details: "Releases 1.0.2490 to 1.0.2502 offered an engine that could not start. The\nengine's own files were in the installer, the manifest said \"available\":\ntrue, and every render stopped with an instruction to \"build the engine\nbundle\", addressed to somebody who had installed an app. An engine with no\ndependencies is a very fast engine, but it does not render much.\n\nCause: electron-builder's copy filter drops a directory named node_modules\nat the root of a copied file set, and no filter pattern brings it back.\ndist/render-engines/typescript was its own file set, so its node_modules\nwas exactly that directory. Confirmed with a real --dir run both ways.\n\nWhat changed:\n\n- Packaging: the render engines are one file set rooted at\n  dist/render-engines, so the engine's node_modules is a nested folder and\n  is copied. afterPack now checks the packaged directory: every listed file\n  and package present, the reinstall archive matching the manifest, and the\n  engine loaded in a separate process from a copy outside the checkout.\n  With the old file sets that check fails the build and names ten packages.\n- Staging: packages are found by tracing the engine's import graph instead\n  of walking dependencies and peerDependencies. The old walk staged 96 MB,\n  60 MB of it a UI framework the engine never imports; the tree is now\n  5.24 MB, which keeps the update package under the size the updater can\n  fetch. Source maps and declarations are no longer staged.\n- The load probe found a second defect hiding behind the first: the staged\n  shared/dist was a second copy that could not resolve its own imports. It\n  is now a re-export of the staged package, one module instance, as in a\n  checkout.\n- Runtime: an installed copy with an incomplete engine reinstalls it from\n  the archive packaged with the app into its data folder, with progress,\n  then carries on with the render. Nothing is downloaded. When it cannot,\n  the failure names each missing piece and the reason.\n- Picker: the Worldlens app engine's state now comes from what is on disk,\n  and the button is disabled with the reason when it cannot start.\n- A packaged app no longer falls back to an engine build found under its\n  working directory, which is how the broken installer looked fine from a\n  checkout.\n- java/staging.test.ts was already red; it now asserts what the staging\n  scripts actually do.\n\nNot verified here: a hosted release with this change, and a full render\nwith this engine in an installed build.\n\nRefs #192\n\n引擎有出貨，佢要用嘅套件就冇跟車，仲話自己 available，一撳 render 就叫個用戶\n「自己 build 返個 engine」。真兇係打包工具見到檔案集最頂層叫 node_modules\n就當垃圾掉。而家成個 render-engines 一齊抄，afterPack 仲會真係 load 一次，\nload 唔到就唔出貨；staging 由 96 MB 減到 5.24 MB；裝咗之後唔齊會自己重裝，\n重裝唔到就講明缺邊件。Hosted release 同真 render 仲未驗。",
+                category: "shell",
+                areas: ["shell", "interface", "docs", "site"],
+                files: 33,
+            }
+        ],
+    },
     {
         version: "1.0.2502",
         tag: "v1.0.2502",

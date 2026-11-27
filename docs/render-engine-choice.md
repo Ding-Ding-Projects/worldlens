@@ -95,8 +95,13 @@ Checked on 2026-11-25 for the packaged TypeScript engine:
   `stagedTypeScriptEngine.test.ts` (the real engine staged, damaged, reinstalled and loaded in a
   fresh process), and `EngineChoicePanel.test.ts` (the picker disables an engine that cannot start).
 
-Not yet checked: a release built by the hosted workflow with this change, and a full render with
-the Worldlens app engine inside an installed build. The decisive comparison also remains open: no
+- Release v1.0.2504, built by the hosted workflow: its `afterPack` check passed, the update
+  package is one file of 1,983,670,323 bytes, and after updating an installed copy to it
+  `resources/render-engines/typescript/node_modules` is present. The installed driver, run under
+  the app's own runtime, fails to load the engine in 1.0.2502 and loads it in 1.0.2504.
+
+Not yet checked: a full render with the Worldlens app engine inside an installed build, and the
+automatic reinstall seen in the running interface. The decisive comparison also remains open: no
 genuine packaged project has yet been rendered through both engines with output and provenance
 compared, and no corresponding capture matrix is verified. Runtime routing for Docker, CLI, and
 restart-with-speed requests remains an explicit boundary. Track the remaining proof in
@@ -112,4 +117,4 @@ Worldlens 自己個 engine 而家要啲檔案真係喺碟度先會俾你揀：de
 
 如果裝咗嘅 app 入面 engine 唔齊，一開 render 佢會自己搞掂：驗咗 app 自帶嗰個 engine archive 嘅大細同 SHA-256，解壓去 data folder（`render-engines/typescript/<digest>`），有進度睇，跟住照 render。唔使上網，亦唔會改裝咗嘅檔案。真係重裝唔到，佢會講明缺邊件（例如 `the package @worldlens/nbt`）同點解重裝唔到，唔會開始 render，亦唔會靜雞雞轉用 Java；再開一次 render 就係重試，揀 engine 嗰度亦會熄咗佢兼寫埋原因。
 
-2026-11-25 驗過：真 electron-builder 26.15.3 `--dir` 用而家個檔案集有 `node_modules` 兼過到 `afterPack`，用 1.0.2500 嗰套檔案集就冇 `node_modules` 兼 build 失敗，十個 package 逐個點名；`render-ts.mjs` 喺 checkout 以外行，舊樣報 `Cannot find package '@worldlens/shared'`，新樣 engine load 到。未驗：hosted workflow 用呢個改動出嘅 release，同埋喺裝咗嘅 build 入面用 Worldlens engine 完整 render 一次。兩個 engine 真 packaged render、output/provenance comparison、capture matrix，同 Docker、CLI、restart-with-speed runtime routing 仍然未證實，issue #78 繼續 open。
+2026-11-25 驗過：真 electron-builder 26.15.3 `--dir` 用而家個檔案集有 `node_modules` 兼過到 `afterPack`，用 1.0.2500 嗰套檔案集就冇 `node_modules` 兼 build 失敗，十個 package 逐個點名；`render-ts.mjs` 喺 checkout 以外行，舊樣報 `Cannot find package '@worldlens/shared'`，新樣 engine load 到。Hosted workflow 出嘅 v1.0.2504 亦驗咗：`afterPack` 過到，更新包得一個檔、1,983,670,323 bytes，更新完裝咗嗰份有齊 `resources/render-engines/typescript/node_modules`；用 app 自己個 runtime 行裝咗嗰個 driver，1.0.2502 load 唔到 engine，1.0.2504 load 到。未驗：喺裝咗嘅 build 入面用 Worldlens engine 完整 render 一次，同埋喺介面度親眼見到自動重裝。兩個 engine 真 packaged render、output/provenance comparison、capture matrix，同 Docker、CLI、restart-with-speed runtime routing 仍然未證實，issue #78 繼續 open。

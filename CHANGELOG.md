@@ -20,6 +20,12 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+_No changes have been committed since `v1.0.2504`._
+
+## 1.0.2504 - 2026-11-25
+
+Tagged at [`0f312213c0`](https://github.com/Ding-Ding-Projects/worldlens/commit/0f312213c01dc5314f6f9c778d5d11c10597a105).
+
 ### Desktop shell
 
 - Ship the packages the TypeScript engine imports, and reinstall them when they are missing - [`7271e57d9d`](https://github.com/Ding-Ding-Projects/worldlens/commit/7271e57d9df196dc6ae98c5fc3f894f269386f2a)

@@ -225,9 +225,10 @@ without the packages it imports.
 - [x] Stage only the packages the engine imports (5.24 MB, was 96 MB).
 - [x] Reinstall an incomplete engine automatically, with progress, when a render starts.
 - [x] Offer the engine in the picker only when it can start; name the missing piece when it cannot.
-- [ ] Confirm in a hosted release: packages present in the installer, update package under
-      2,000,000,000 bytes. Not yet built.
+- [x] Confirm in a hosted release: v1.0.2504 has the packages in the installed app and one
+      update package of 1,983,670,323 bytes; the installed engine loads under the app's runtime.
 - [ ] Render a world with the Worldlens app engine in an installed build. Not yet done.
+- [ ] See the automatic reinstall and the picker's disabled state in the running interface.
 
 ## Issue #57 — cloud-first project configuration (implementation in progress)
 

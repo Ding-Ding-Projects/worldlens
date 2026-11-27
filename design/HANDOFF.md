@@ -1,8 +1,10 @@
 # Handoff
 
-## 2026-11-25 (after v1.0.2502) The Worldlens app engine refused every render in installed builds; fixed, not yet in a release
+## 2026-11-25 (after v1.0.2502) The Worldlens app engine refused every render in installed builds; fixed in v1.0.2504
 
 Issue #192. Read the "Not checked" list before relying on this.
+
+Proved after this entry was first written: run 45748789186 is green and its `afterPack` check passed on the hosted runner. Release v1.0.2504 (commit `0f312213`, not a draft or prerelease) carries one `Worldlens-1.0.2504-full.nupkg` of 1,983,670,323 bytes, so about 16.3 MB remains under the limit. `Update.exe --update` against it on this PC exited 0 and created `app-1.0.2504`, whose `resources/render-engines/typescript/node_modules` holds the eight package folders; `scripts/assert-packaged-render-engines.mjs` passes against that installed folder. The installed driver run under the app's own runtime (`Worldlens.exe` with `ELECTRON_RUN_AS_NODE=1`, the route the app uses) reports `Cannot find package '@worldlens/shared'` in `app-1.0.2502` and, in `app-1.0.2504`, loads the engine and stops at "no resources to render with". Still not done: a full render with this engine, and the reinstall progress and the picker seen in the running interface.
 
 - Cause, confirmed in the packaging tool's source and by a real packaging run: electron-builder's copy filter drops a directory named `node_modules` at the root of a copied file set, and no `filter` pattern brings it back. `dist/render-engines/typescript` was its own file set, so `typescript/node_modules` was exactly that directory. Releases 1.0.2490 to 1.0.2502 shipped the engine's own files and a manifest reading `"available": true`, with none of the packages the engine imports.
 - A second defect behind the first, found by the new load probe: the staged `shared/dist` was a second copy of the shared package that could not resolve its own imports from that folder, so the driver would have failed even with the packages present. It is now a one-line re-export of the staged package, which also gives the driver and the engine one module instance, as in a checkout.
@@ -15,7 +17,7 @@ Issue #192. Read the "Not checked" list before relying on this.
 
 Checked locally: a real electron-builder 26.15.3 `--dir` run with the new file set (packages present, check green) and with the 1.0.2500 file sets (no `node_modules`, build failed naming ten packages); `render-ts.mjs` from a copy outside the checkout (old shape: `Cannot find package '@worldlens/shared'`; new shape: engine loads); app and UI typecheck; ESLint on the changed files; 114 test files, 1,432 tests across `app/src/main/render`, `app/src/main/java`, `ui/components/settings`, `ui/components/project` and `ui/components/world`.
 
-Not checked: a hosted release built with this change (so the real update-package size is still an estimate); the reinstall path and the picker in an installed build; a full render with the Worldlens app engine in an installed build (no Minecraft client jar was available locally, and the driver stops at "no resources to render with" once the engine has loaded). The full test suite and `pnpm build` were not run.
+Not checked: the reinstall path and the picker in the running interface of an installed build; a full render with the Worldlens app engine in an installed build (no Minecraft client jar was available locally, and the driver stops at "no resources to render with" once the engine has loaded). The full test suite and `pnpm build` were not run.
 
 Local environment note: this machine's `design/node_modules` had files overwritten with null bytes (`.modules.yaml` and `minecraft-data/index.d.ts`), which broke `pnpm install` and the `liveviewer` build until both were reinstalled. Other files may be affected.
 
